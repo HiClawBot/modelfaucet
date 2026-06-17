@@ -307,10 +307,31 @@ Response:
 ```json
 {
   "ok": true,
-  "version": "0.1.0",
+  "version": "0.5.0",
   "listening": "127.0.0.1:8787"
 }
 ```
+
+### GET /diagnostics
+
+Response:
+
+```json
+{
+  "ok": true,
+  "version": "0.5.0",
+  "listening": "127.0.0.1:8787",
+  "upstream_base_url": "http://127.0.0.1:11434/v1",
+  "upstream_reachable": true,
+  "models_count": 1,
+  "checks": [
+    { "name": "loopback_bind", "ok": true },
+    { "name": "upstream_models", "ok": true, "detail": "1 models reported" }
+  ]
+}
+```
+
+The diagnostics response does not include upstream API keys.
 
 ### GET /models
 

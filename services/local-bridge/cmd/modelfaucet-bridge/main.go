@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "0.1.0"
+const version = "0.5.0"
 
 type config struct {
 	listenAddress   string
@@ -31,6 +31,22 @@ type healthResponse struct {
 	OK        bool   `json:"ok"`
 	Version   string `json:"version"`
 	Listening string `json:"listening"`
+}
+
+type diagnosticsResponse struct {
+	OK                bool              `json:"ok"`
+	Version           string            `json:"version"`
+	Listening         string            `json:"listening"`
+	UpstreamBaseURL   string            `json:"upstream_base_url"`
+	UpstreamReachable bool              `json:"upstream_reachable"`
+	ModelsCount       int               `json:"models_count"`
+	Checks            []diagnosticCheck `json:"checks"`
+}
+
+type diagnosticCheck struct {
+	Name   string `json:"name"`
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail,omitempty"`
 }
 
 type modelsResponse struct {
@@ -113,6 +129,7 @@ func newBridgeHandler(cfg config) http.Handler {
 	server := &bridgeServer{config: cfg}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", server.handleHealth)
+	mux.HandleFunc("GET /diagnostics", server.handleDiagnostics)
 	mux.HandleFunc("GET /models", server.handleModels)
 	mux.HandleFunc("POST /v1/chat/completions", server.handleChatCompletions)
 	mux.HandleFunc("POST /usage/report", server.handleUsageReport)
@@ -125,6 +142,67 @@ func (server *bridgeServer) handleHealth(writer http.ResponseWriter, request *ht
 		Version:   version,
 		Listening: server.config.listenAddress,
 	})
+}
+
+func (server *bridgeServer) handleDiagnostics(writer http.ResponseWriter, request *http.Request) {
+	response := diagnosticsResponse{
+		OK:              true,
+		Version:         version,
+		Listening:       server.config.listenAddress,
+		UpstreamBaseURL: server.config.upstreamBaseURL,
+		Checks: []diagnosticCheck{
+			{Name: "loopback_bind", OK: strings.HasPrefix(server.config.listenAddress, "127.0.0.1:")},
+		},
+	}
+
+	upstreamResponse, err := server.config.httpClient.Get(server.upstreamURL("/models"))
+	if err != nil {
+		response.OK = false
+		response.Checks = append(response.Checks, diagnosticCheck{
+			Name:   "upstream_models",
+			OK:     false,
+			Detail: "local model upstream is unavailable",
+		})
+		writeJSON(writer, http.StatusOK, response)
+		return
+	}
+	defer upstreamResponse.Body.Close()
+
+	if upstreamResponse.StatusCode < 200 || upstreamResponse.StatusCode >= 300 {
+		response.OK = false
+		response.Checks = append(response.Checks, diagnosticCheck{
+			Name:   "upstream_models",
+			OK:     false,
+			Detail: fmt.Sprintf("local model upstream returned %d", upstreamResponse.StatusCode),
+		})
+		writeJSON(writer, http.StatusOK, response)
+		return
+	}
+
+	var payload struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(upstreamResponse.Body).Decode(&payload); err != nil {
+		response.OK = false
+		response.Checks = append(response.Checks, diagnosticCheck{
+			Name:   "upstream_models",
+			OK:     false,
+			Detail: "local model upstream returned invalid JSON",
+		})
+		writeJSON(writer, http.StatusOK, response)
+		return
+	}
+
+	response.UpstreamReachable = true
+	response.ModelsCount = len(payload.Data)
+	response.Checks = append(response.Checks, diagnosticCheck{
+		Name:   "upstream_models",
+		OK:     true,
+		Detail: fmt.Sprintf("%d models reported", len(payload.Data)),
+	})
+	writeJSON(writer, http.StatusOK, response)
 }
 
 func (server *bridgeServer) handleModels(writer http.ResponseWriter, request *http.Request) {

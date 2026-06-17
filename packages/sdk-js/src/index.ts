@@ -7,6 +7,8 @@ import {
   type RouteMode
 } from "@modelfaucet/shared";
 
+export type { RouteMode } from "@modelfaucet/shared";
+
 export type FaucetOptions = {
   publicAppId: string;
   baseUrl?: string;
@@ -35,6 +37,20 @@ export type FaucetChatInput = {
 
 export type FaucetChatResult = Record<string, unknown>;
 
+export type FaucetFeatureCallInput = {
+  feature: string;
+  input: string | Record<string, unknown>;
+  model?: string;
+  routeMode?: RouteMode;
+};
+
+export type FaucetFeatureResult = {
+  text: string;
+  raw: FaucetChatResult;
+  usage: Record<string, unknown>;
+  modelfaucet: Record<string, unknown>;
+};
+
 export type FaucetLocalBridgeStatus = {
   available: boolean;
   baseUrl: string;
@@ -52,14 +68,44 @@ export type FaucetLocalModelsResponse = {
   items: FaucetLocalModel[];
 };
 
+export type FaucetLocalDiagnostics = {
+  available: boolean;
+  baseUrl: string;
+  health?: Record<string, unknown>;
+  models?: FaucetLocalModel[];
+  problems: string[];
+};
+
+export type FaucetLocalUsageReport = {
+  request_id: string;
+  app_id: string;
+  end_user_id_hash: string;
+  feature_key: string;
+  route_mode: "local";
+  provider: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  created_at: string;
+};
+
+export type FaucetLocalUsageFlushResult = {
+  flushed: number;
+  pending: number;
+};
+
 export type FaucetLocalClient = {
   detectBridge(): Promise<FaucetLocalBridgeStatus>;
   listModels(): Promise<FaucetLocalModelsResponse>;
+  diagnose(): Promise<FaucetLocalDiagnostics>;
+  pendingUsageReports(): FaucetLocalUsageReport[];
+  flushUsageReports(): Promise<FaucetLocalUsageFlushResult>;
 };
 
 export type FaucetClient = {
   createSession(featureKey?: string): Promise<FaucetSession>;
   chat(input: FaucetChatInput): Promise<FaucetChatResult>;
+  runFeature(input: FaucetFeatureCallInput): Promise<FaucetFeatureResult>;
   local: FaucetLocalClient;
 };
 
@@ -130,6 +176,34 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function responseText(result: Record<string, unknown>): string {
+  const choices = result.choices;
+  if (Array.isArray(choices)) {
+    const firstChoice = choices[0];
+    if (typeof firstChoice === "object" && firstChoice !== null) {
+      const message = "message" in firstChoice ? firstChoice.message : undefined;
+      if (typeof message === "object" && message !== null && "content" in message) {
+        const content = message.content;
+        if (typeof content === "string") {
+          return content;
+        }
+      }
+
+      const text = "text" in firstChoice ? firstChoice.text : undefined;
+      if (typeof text === "string") {
+        return text;
+      }
+    }
+  }
+
+  const outputText = result.output_text;
+  if (typeof outputText === "string") {
+    return outputText;
+  }
+
+  return JSON.stringify(result, null, 2);
+}
+
 function readNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -164,6 +238,7 @@ export function createFaucet(
   const fetchImpl = internals.fetch ?? fetch;
   const now = internals.now ?? (() => Date.now());
   let currentSession: FaucetSession | undefined;
+  let pendingLocalUsageReports: FaucetLocalUsageReport[] = [];
 
   async function createSession(featureKey?: string): Promise<FaucetSession> {
     const response = await fetchImpl(joinUrl(apiBaseUrl, "/v1/sessions"), {
@@ -231,6 +306,22 @@ export function createFaucet(
     return parseJsonResponse(response) as Promise<FaucetChatResult>;
   }
 
+  async function runFeature(input: FaucetFeatureCallInput): Promise<FaucetFeatureResult> {
+    const raw = await chat({
+      feature: input.feature,
+      input: input.input,
+      model: input.model,
+      routeMode: input.routeMode
+    });
+
+    return {
+      text: responseText(raw),
+      raw,
+      usage: asRecord(raw.usage),
+      modelfaucet: asRecord(raw.modelfaucet)
+    };
+  }
+
   async function detectBridge(): Promise<FaucetLocalBridgeStatus> {
     try {
       const response = await fetchImpl(joinUrl(localBridgeBaseUrl, "/health"));
@@ -253,33 +344,103 @@ export function createFaucet(
     return parseJsonResponse(response) as Promise<FaucetLocalModelsResponse>;
   }
 
-  async function reportLocalUsage(input: {
-    requestId: string;
-    feature: string;
-    provider: string;
-    model: string;
-    usage: Record<string, unknown>;
-  }): Promise<void> {
+  async function diagnose(): Promise<FaucetLocalDiagnostics> {
+    const bridge = await detectBridge();
+    if (!bridge.available) {
+      return {
+        available: false,
+        baseUrl: bridge.baseUrl,
+        health: bridge.health,
+        problems: ["local_bridge_unavailable"]
+      };
+    }
+
+    try {
+      const models = await listModels();
+      return {
+        available: true,
+        baseUrl: bridge.baseUrl,
+        health: bridge.health,
+        models: models.items,
+        problems: models.items.length === 0 ? ["no_local_models"] : []
+      };
+    } catch (caughtError) {
+      return {
+        available: true,
+        baseUrl: bridge.baseUrl,
+        health: bridge.health,
+        problems: [
+          caughtError instanceof Error ? caughtError.message : "local_models_unavailable"
+        ]
+      };
+    }
+  }
+
+  async function sendLocalUsageReport(report: FaucetLocalUsageReport): Promise<void> {
     await parseJsonResponse(
       await fetchImpl(joinUrl(localBridgeBaseUrl, "/usage/report"), {
         method: "POST",
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify({
-          request_id: input.requestId,
-          app_id: options.publicAppId,
-          end_user_id_hash: await hashLocalEndUserId(options.user.id),
-          feature_key: input.feature,
-          route_mode: "local",
-          provider: input.provider,
-          model: input.model,
-          input_tokens: readNumber(input.usage, "prompt_tokens"),
-          output_tokens: readNumber(input.usage, "completion_tokens"),
-          created_at: new Date(now()).toISOString()
-        })
+        body: JSON.stringify(report)
       })
     );
+  }
+
+  async function flushUsageReports(): Promise<FaucetLocalUsageFlushResult> {
+    const queue = pendingLocalUsageReports;
+    pendingLocalUsageReports = [];
+    let flushed = 0;
+    const remaining: FaucetLocalUsageReport[] = [];
+
+    for (const report of queue) {
+      try {
+        await sendLocalUsageReport(report);
+        flushed += 1;
+      } catch {
+        remaining.push(report);
+      }
+    }
+
+    pendingLocalUsageReports = remaining;
+    return {
+      flushed,
+      pending: pendingLocalUsageReports.length
+    };
+  }
+
+  function pendingUsageReports(): FaucetLocalUsageReport[] {
+    return pendingLocalUsageReports.map((report) => ({ ...report }));
+  }
+
+  async function reportLocalUsage(input: {
+    requestId: string;
+    feature: string;
+    provider: string;
+    model: string;
+    usage: Record<string, unknown>;
+  }): Promise<"sent" | "queued"> {
+    const report: FaucetLocalUsageReport = {
+      request_id: input.requestId,
+      app_id: options.publicAppId,
+      end_user_id_hash: await hashLocalEndUserId(options.user.id),
+      feature_key: input.feature,
+      route_mode: "local",
+      provider: input.provider,
+      model: input.model,
+      input_tokens: readNumber(input.usage, "prompt_tokens"),
+      output_tokens: readNumber(input.usage, "completion_tokens"),
+      created_at: new Date(now()).toISOString()
+    };
+
+    try {
+      await sendLocalUsageReport(report);
+      return "sent";
+    } catch {
+      pendingLocalUsageReports.push(report);
+      return "queued";
+    }
   }
 
   async function chatLocal(input: FaucetChatInput): Promise<FaucetChatResult> {
@@ -306,7 +467,7 @@ export function createFaucet(
     const model = typeof parsed.model === "string" ? parsed.model : request.model;
     const provider = request.model.startsWith("ollama:") ? "ollama" : "local";
 
-    await reportLocalUsage({
+    const usageReportStatus = await reportLocalUsage({
       requestId,
       feature: input.feature,
       provider,
@@ -320,7 +481,8 @@ export function createFaucet(
         ...asRecord(parsed.modelfaucet),
         request_id: requestId,
         route_mode: "local",
-        feature_key: input.feature
+        feature_key: input.feature,
+        usage_report_status: usageReportStatus
       }
     };
   }
@@ -328,9 +490,13 @@ export function createFaucet(
   return {
     createSession,
     chat,
+    runFeature,
     local: {
       detectBridge,
-      listModels
+      listModels,
+      diagnose,
+      pendingUsageReports,
+      flushUsageReports
     }
   };
 }

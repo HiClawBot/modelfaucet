@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`0.4.0` 源码 beta。当前本地栈包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值和 payout mock。
+> 状态：`0.5.0` 源码 beta。当前本地栈包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值和 payout mock。
 
 ---
 
@@ -236,6 +236,8 @@ pnpm docs:preview
 ```
 
 Pages workflow 会在推送到 `main` 后，从 `docs/.vitepress/dist` 发布文档站。
+
+SDK、React usage display、Local Bridge diagnostics 和离线本地 usage reporting 见 [SDK 和 Local Bridge guide](docs/zh-CN/sdk-local-bridge.md)。
 
 ---
 

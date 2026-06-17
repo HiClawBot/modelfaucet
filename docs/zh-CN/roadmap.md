@@ -118,6 +118,8 @@ developer-console API 支撑。
 
 目标：让真实应用开发者接入体验足够顺畅。
 
+状态：源码已实现。SDK 现在包含 command-style feature call、本地诊断和离线本地 usage-report 缓冲；React 包包含 command 和 usage display 组件；Local Bridge 暴露 diagnostics，同时默认仍只绑定 loopback。
+
 范围：
 
 - 稳定 `@modelfaucet/sdk` public types 和 package exports。

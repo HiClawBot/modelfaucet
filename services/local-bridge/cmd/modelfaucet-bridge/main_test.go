@@ -56,6 +56,56 @@ func TestModelsProxy(t *testing.T) {
 	}
 }
 
+func TestDiagnostics(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/v1/models" {
+			t.Fatalf("unexpected upstream path %s", request.URL.Path)
+		}
+		writer.Header().Set("content-type", "application/json")
+		_, _ = writer.Write([]byte(`{"object":"list","data":[{"id":"qwen2.5:7b"},{"id":"nomic-embed"}]}`))
+	}))
+	defer upstream.Close()
+
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: upstream.URL + "/v1"})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/diagnostics", nil)
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var body diagnosticsResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !body.OK || !body.UpstreamReachable || body.ModelsCount != 2 {
+		t.Fatalf("unexpected diagnostics body: %#v", body)
+	}
+	if strings.Contains(response.Body.String(), "ollama-api-key") {
+		t.Fatalf("diagnostics must not expose upstream api keys: %s", response.Body.String())
+	}
+}
+
+func TestDiagnosticsReportsUnavailableUpstream(t *testing.T) {
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: "http://127.0.0.1:1/v1"})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/diagnostics", nil)
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var body diagnosticsResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.OK || body.UpstreamReachable {
+		t.Fatalf("expected unavailable upstream diagnostics, got %#v", body)
+	}
+}
+
 func TestChatCompletionsProxy(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/v1/chat/completions" {

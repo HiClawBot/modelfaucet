@@ -4,6 +4,17 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.5.0 - 2026-06-18
+
+### Added
+
+- SDK `runFeature` command-style API with normalized text, usage, and ModelFaucet metadata.
+- SDK Local Bridge diagnostics helpers and in-memory offline local usage-report queue with flush support.
+- React `FaucetFeatureCommand` and `FaucetUsage` components.
+- Local Bridge `/diagnostics` endpoint for loopback/upstream checks without exposing upstream API keys.
+- Browser extension and desktop app integration notes that keep provider keys out of client bundles.
+- English and Simplified Chinese SDK and Local Bridge guides.
+
 ## 0.4.0 - 2026-06-18
 
 ### Added

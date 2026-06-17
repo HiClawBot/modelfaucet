@@ -118,6 +118,11 @@ Exit criteria:
 
 Goal: make integration pleasant for real app developers.
 
+Status: implemented in source. The SDK now includes command-style feature calls,
+local diagnostics, and offline local usage-report buffering; React includes
+command and usage display components; Local Bridge exposes diagnostics while
+remaining loopback-bound by default.
+
 Scope:
 
 - Stabilize `@modelfaucet/sdk` public types and package exports.

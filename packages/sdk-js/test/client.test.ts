@@ -87,6 +87,53 @@ describe("createFaucet", () => {
     });
   });
 
+  it("runs command-style feature calls with normalized text and usage", async () => {
+    const fetchImpl: FetchLike = async (input) => {
+      if (String(input).endsWith("/v1/sessions")) {
+        return jsonResponse({
+          session_token: "mf_sess_sdk",
+          expires_in: 3600,
+          gateway_base_url: "https://gateway.example/v1",
+          available_modes: ["platform"],
+          wallet_balance_usd: "10.00000000"
+        });
+      }
+
+      return jsonResponse({
+        id: "chatcmpl_mf_req_sdk",
+        object: "chat.completion",
+        choices: [{ message: { role: "assistant", content: "Use a warmer tone." } }],
+        usage: { prompt_tokens: 12, completion_tokens: 6, total_tokens: 18 },
+        modelfaucet: { request_id: "req_sdk", route_mode: "platform" }
+      });
+    };
+    const faucet = createFaucet(
+      {
+        publicAppId: "app_pub_demo",
+        user: { id: "demo-user" }
+      },
+      { fetch: fetchImpl, now: () => 0 }
+    );
+
+    await expect(
+      faucet.runFeature({
+        feature: "rewrite_reply",
+        input: { tone: "warm", draft: "No." }
+      })
+    ).resolves.toEqual({
+      text: "Use a warmer tone.",
+      raw: {
+        id: "chatcmpl_mf_req_sdk",
+        object: "chat.completion",
+        choices: [{ message: { role: "assistant", content: "Use a warmer tone." } }],
+        usage: { prompt_tokens: 12, completion_tokens: 6, total_tokens: 18 },
+        modelfaucet: { request_id: "req_sdk", route_mode: "platform" }
+      },
+      usage: { prompt_tokens: 12, completion_tokens: 6, total_tokens: 18 },
+      modelfaucet: { request_id: "req_sdk", route_mode: "platform" }
+    });
+  });
+
   it("refreshes expired sessions before chat calls", async () => {
     let nowMs = 0;
     let sessionCount = 0;
@@ -185,6 +232,47 @@ describe("createFaucet", () => {
     });
   });
 
+  it("diagnoses the local bridge and model availability", async () => {
+    const fetchImpl: FetchLike = async (input) => {
+      if (String(input).endsWith("/health")) {
+        return jsonResponse({
+          ok: true,
+          version: "0.1.0",
+          listening: "127.0.0.1:8787"
+        });
+      }
+
+      return jsonResponse({
+        items: [
+          {
+            id: "ollama:qwen2.5:7b",
+            provider: "ollama",
+            endpoint_id: "ollama",
+            capabilities: ["chat", "json"]
+          }
+        ]
+      });
+    };
+    const faucet = createFaucet(
+      {
+        publicAppId: "app_pub_demo",
+        user: { id: "demo-user" }
+      },
+      { fetch: fetchImpl }
+    );
+
+    await expect(faucet.local.diagnose()).resolves.toMatchObject({
+      available: true,
+      baseUrl: "http://127.0.0.1:8787",
+      models: [
+        {
+          id: "ollama:qwen2.5:7b"
+        }
+      ],
+      problems: []
+    });
+  });
+
   it("calls the local bridge and reports local usage", async () => {
     const calls: Array<{ input: string | URL; init?: RequestInit }> = [];
     const fetchImpl: FetchLike = async (input, init) => {
@@ -248,5 +336,55 @@ describe("createFaucet", () => {
       output_tokens: 3
     });
     expect(calls.some((call) => String(call.input).endsWith("/v1/sessions"))).toBe(false);
+  });
+
+  it("queues local usage reports when reporting is temporarily unavailable", async () => {
+    let usageReportAttempts = 0;
+    const fetchImpl: FetchLike = async (input) => {
+      if (String(input).endsWith("/v1/chat/completions")) {
+        return jsonResponse({
+          id: "chatcmpl_local",
+          object: "chat.completion",
+          model: "qwen2.5:7b",
+          choices: [{ message: { role: "assistant", content: "local ok" } }],
+          usage: {
+            prompt_tokens: 5,
+            completion_tokens: 3,
+            total_tokens: 8
+          }
+        });
+      }
+
+      usageReportAttempts += 1;
+      return usageReportAttempts === 1
+        ? jsonResponse({ error: { code: "cloud_offline" } }, 503)
+        : jsonResponse({ ok: true });
+    };
+    const faucet = createFaucet(
+      {
+        publicAppId: "app_pub_demo",
+        user: { id: "demo-user" }
+      },
+      { fetch: fetchImpl, now: () => 0 }
+    );
+
+    const result = await faucet.chat({
+      feature: "customer_reply",
+      input: "hello",
+      model: "ollama:qwen2.5:7b",
+      routeMode: "local"
+    });
+
+    expect(result).toMatchObject({
+      modelfaucet: {
+        usage_report_status: "queued"
+      }
+    });
+    expect(faucet.local.pendingUsageReports()).toHaveLength(1);
+    await expect(faucet.local.flushUsageReports()).resolves.toEqual({
+      flushed: 1,
+      pending: 0
+    });
+    expect(faucet.local.pendingUsageReports()).toHaveLength(0);
   });
 });
