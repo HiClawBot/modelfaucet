@@ -20,6 +20,7 @@ import type { DeveloperConsoleRepository } from "./repositories/developerConsole
 import type { PaymentRepository } from "./repositories/paymentRepository";
 import type { PayoutRepository } from "./repositories/payoutRepository";
 import type { ProviderKeyRepository } from "./repositories/providerKeyRepository";
+import type { SettlementRepository } from "./repositories/settlementRepository";
 import type { SessionRepository } from "./repositories/sessionRepository";
 import type { WalletRepository } from "./repositories/walletRepository";
 import { encryptSecret, maskSecret, validateBasicProviderKey } from "./secretEncryption";
@@ -38,6 +39,7 @@ export type BuildApiServerOptions = {
   walletRepository?: WalletRepository;
   paymentRepository?: PaymentRepository;
   payoutRepository?: PayoutRepository;
+  settlementRepository?: SettlementRepository;
   stripeCheckoutClient?: StripeCheckoutClient;
   stripeWebhookSecret?: string;
   payoutThresholdUsd?: string;
@@ -142,6 +144,18 @@ function requirePayoutSupport(options: BuildApiServerOptions): PayoutRepository 
   }
 
   return options.payoutRepository;
+}
+
+function requireSettlementSupport(options: BuildApiServerOptions): SettlementRepository {
+  if (options.settlementRepository === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_request",
+      message: "Settlement repository is not configured.",
+      statusCode: 500
+    });
+  }
+
+  return options.settlementRepository;
 }
 
 function requireDeveloperConsoleSupport(
@@ -305,6 +319,25 @@ const PayoutRunRequestSchema = z
   })
   .strict();
 
+const PayoutApproveRequestSchema = z
+  .object({
+    operator_note: z.string().min(1).max(1000).optional()
+  })
+  .strict();
+
+const WalletAdjustmentRequestSchema = z
+  .object({
+    kind: z.enum(["adjustment", "refund", "chargeback"]).default("adjustment"),
+    direction: z.enum(["credit", "debit"]),
+    amount_usd: MoneyStringSchema.refine(
+      (value) => parseMoneyToUnits(value) > 0n,
+      "Wallet adjustment amount must be greater than zero."
+    ),
+    reason: z.string().min(1).max(1000).optional(),
+    idempotency_key: z.string().min(8).max(128).optional()
+  })
+  .strict();
+
 function getStripeSignatureHeader(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -427,7 +460,8 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     options.providerKeyRepository?.close !== undefined ||
     options.walletRepository?.close !== undefined ||
     options.paymentRepository?.close !== undefined ||
-    options.payoutRepository?.close !== undefined
+    options.payoutRepository?.close !== undefined ||
+    options.settlementRepository?.close !== undefined
   ) {
     app.addHook("onClose", async () => {
       await options.sessionRepository.close?.();
@@ -437,6 +471,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       await options.walletRepository?.close?.();
       await options.paymentRepository?.close?.();
       await options.payoutRepository?.close?.();
+      await options.settlementRepository?.close?.();
     });
   }
 
@@ -756,6 +791,146 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         now: now()
       });
       return payout;
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.post("/v1/admin/payouts/:id/approve", async (request, reply) => {
+    try {
+      const payoutRepository = requirePayoutSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid payout id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const parsed = PayoutApproveRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid payout approval request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const payout = await payoutRepository.approvePayout({
+        payoutId: params.data.id,
+        operatorNote: parsed.data.operator_note,
+        now: now()
+      });
+      return payout;
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/admin/reconciliation/ledger", async (request, reply) => {
+    try {
+      const settlementRepository = requireSettlementSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      return await settlementRepository.getLedgerReconciliation(now());
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.post("/v1/admin/wallets/:id/adjustments", async (request, reply) => {
+    try {
+      const settlementRepository = requireSettlementSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid wallet id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const parsed = WalletAdjustmentRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid wallet adjustment request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const adjustment = await settlementRepository.createWalletAdjustment({
+        walletId: params.data.id,
+        kind: parsed.data.kind,
+        direction: parsed.data.direction,
+        amountUsd: parsed.data.amount_usd,
+        reason: parsed.data.reason,
+        idempotencyKey: parsed.data.idempotency_key,
+        now: now()
+      });
+      return reply.code(201).send(adjustment);
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/admin/reports/usage.csv", async (request, reply) => {
+    try {
+      const settlementRepository = requireSettlementSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      return reply.type("text/csv; charset=utf-8").send(await settlementRepository.exportUsageCsv());
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/admin/reports/revenue.csv", async (request, reply) => {
+    try {
+      const settlementRepository = requireSettlementSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      return reply
+        .type("text/csv; charset=utf-8")
+        .send(await settlementRepository.exportRevenueCsv());
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/admin/reports/payouts.csv", async (request, reply) => {
+    try {
+      const settlementRepository = requireSettlementSupport(options);
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
+      return reply
+        .type("text/csv; charset=utf-8")
+        .send(await settlementRepository.exportPayoutsCsv());
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
       return reply

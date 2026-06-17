@@ -4,6 +4,22 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.7.0 - 2026-06-18
+
+### Added
+
+- Admin ledger reconciliation endpoint that reconstructs wallet balances from ledger entries.
+- Admin wallet adjustment/refund/chargeback endpoint with idempotency support, audit logs, and ledger entries.
+- Payout approval endpoint and payout state gate requiring `processing` before `mark-paid`.
+- Admin CSV exports for usage, revenue, and payouts.
+- Stripe webhook replay script for local/test-mode verification.
+- English and Simplified Chinese billing and settlement guides.
+
+### Changed
+
+- Local seed data now records demo opening credits as a ledger entry so reconciliation can close on fresh databases.
+- Local smoke test now verifies ledger reconciliation after a gateway request.
+
 ## 0.6.0 - 2026-06-18
 
 ### Added

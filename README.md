@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `0.6.0` source beta. The local stack includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout mock, and operations hooks.
+> Status: `0.7.0` source beta. The local stack includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, and operations hooks.
 
 ---
 
@@ -252,6 +252,10 @@ React usage display, Local Bridge diagnostics, and offline local usage reporting
 See the [operations guide](docs/operations.md) for request IDs, readiness,
 metrics, rate limits, migration rollback, backup, and restore.
 
+See the [billing and settlement guide](docs/billing-settlement.md) for Stripe
+webhook replay, ledger reconciliation, wallet adjustments, payout review, and
+CSV exports.
+
 ---
 
 ## API compatibility
@@ -290,7 +294,13 @@ DELETE /v1/developer/provider-keys/:id
 POST   /v1/user/stripe/checkout-sessions
 POST   /v1/stripe/webhook
 POST   /v1/admin/payouts/run-mock
+POST   /v1/admin/payouts/:id/approve
 POST   /v1/admin/payouts/:id/mark-paid
+GET    /v1/admin/reconciliation/ledger
+POST   /v1/admin/wallets/:id/adjustments
+GET    /v1/admin/reports/usage.csv
+GET    /v1/admin/reports/revenue.csv
+GET    /v1/admin/reports/payouts.csv
 GET    /v1/apps/:id/usage
 ```
 

@@ -8,7 +8,7 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `0.1.0` is a source MVP. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout mock, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `0.7.0` is a source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
 Current production blockers:
 
@@ -162,6 +162,12 @@ Exit criteria:
 ## `0.7.0` Billing And Settlement Beta
 
 Goal: make money movement auditable before any real payout workflow.
+
+Status: implemented in source. Admin APIs now cover ledger reconciliation, wallet
+adjustment/refund/chargeback events, payout approval before mark-paid, and CSV
+exports for usage, revenue, and payouts. The local smoke test checks ledger
+reconciliation, and `pnpm stripe:webhook:replay` supports Stripe test-mode replay
+verification.
 
 Scope:
 

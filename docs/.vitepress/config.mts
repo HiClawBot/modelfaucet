@@ -43,6 +43,7 @@ export default defineConfig({
           { text: "Provider Routing", link: "/provider-routing" },
           { text: "SDK and Local Bridge", link: "/sdk-local-bridge" },
           { text: "Operations", link: "/operations" },
+          { text: "Billing and Settlement", link: "/billing-settlement" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -55,6 +56,7 @@ export default defineConfig({
           { text: "Provider Routing", link: "/zh-CN/provider-routing" },
           { text: "SDK 和 Local Bridge", link: "/zh-CN/sdk-local-bridge" },
           { text: "运维和可观测性", link: "/zh-CN/operations" },
+          { text: "Billing 和 Settlement", link: "/zh-CN/billing-settlement" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

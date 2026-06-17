@@ -61,3 +61,27 @@ on conflict (owner_scope, owner_id) do update
 set
   balance_usd = excluded.balance_usd,
   updated_at = now();
+
+insert into ledger_entries (wallet_id, direction, amount_usd, reason, metadata)
+select
+  wallets.id,
+  'credit',
+  wallets.balance_usd,
+  'seed_opening_balance',
+  '{"seed":"crm-demo","purpose":"opening end-user test credits"}'::jsonb
+from wallets
+join end_users on end_users.id = wallets.owner_id
+join apps on apps.id = end_users.app_id
+where
+  wallets.owner_scope = 'end_user'
+  and wallets.balance_usd > 0
+  and apps.public_app_id = 'app_pub_demo'
+  and end_users.external_user_hash = 'sha256:ce028a7fdc9eb8b2725cb3d9c2cd6546c287e40c69162e2b6dc948f8947d0885'
+  and not exists (
+    select 1
+    from ledger_entries
+    where
+      ledger_entries.wallet_id = wallets.id
+      and ledger_entries.reason = 'seed_opening_balance'
+      and ledger_entries.metadata->>'seed' = 'crm-demo'
+  );

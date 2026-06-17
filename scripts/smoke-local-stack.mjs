@@ -354,6 +354,17 @@ async function main() {
       throw new Error(`Dashboard usage did not include request ${requestId}.`);
     }
 
+    const reconciliation = await readJson(
+      await fetch(`${apiBaseUrl}/v1/admin/reconciliation/ledger`, {
+        headers: {
+          authorization: `Bearer ${childEnv.ADMIN_TOKEN ?? "mf_admin_dev"}`
+        }
+      })
+    );
+    if (reconciliation.summary?.mismatch_count !== 0) {
+      throw new Error(`Ledger reconciliation mismatch: ${JSON.stringify(reconciliation)}`);
+    }
+
     console.log(
       `Smoke test passed: request ${requestId}, route ${completion.modelfaucet.route_mode}, ledger entries ${ledgerCount}.`
     );

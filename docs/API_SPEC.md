@@ -573,7 +573,139 @@ Response:
 
 ---
 
-## 8. Usage and Revenue API
+## 8. Billing And Settlement API
+
+All endpoints in this section require the admin bearer token. CSV and
+reconciliation responses never include raw provider keys or BYOK secrets.
+
+### POST /v1/admin/payouts/run-mock
+
+Creates pending payout records for developer wallets that meet the configured
+threshold.
+
+Request:
+
+```json
+{
+  "threshold_usd": "1.00000000"
+}
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "developer_id": "22222222-2222-4222-8222-222222222222",
+      "amount_usd": "12.50000000",
+      "status": "pending",
+      "provider": "mock"
+    }
+  ]
+}
+```
+
+### POST /v1/admin/payouts/:id/approve
+
+Moves a pending payout to `processing`. This approval gate is required before a
+payout can be marked paid.
+
+Request:
+
+```json
+{
+  "operator_note": "reviewed against ledger reconciliation"
+}
+```
+
+Response: payout summary.
+
+### POST /v1/admin/payouts/:id/mark-paid
+
+Marks an approved payout paid and debits the developer wallet. Payouts that have
+not passed `approve` are rejected.
+
+Response: payout summary.
+
+### GET /v1/admin/reconciliation/ledger
+
+Reconstructs wallet balances from `ledger_entries` and compares them with the
+current `wallets.balance_usd` value.
+
+Response:
+
+```json
+{
+  "generated_at": "2026-06-18T00:00:00.000Z",
+  "summary": {
+    "wallet_count": 4,
+    "balanced_count": 4,
+    "mismatch_count": 0
+  },
+  "items": [
+    {
+      "wallet_id": "33333333-3333-4333-8333-333333333333",
+      "owner_scope": "end_user",
+      "owner_id": "44444444-4444-4444-8444-444444444444",
+      "wallet_balance_usd": "9.99870000",
+      "ledger_balance_usd": "9.99870000",
+      "delta_usd": "0.00000000",
+      "status": "balanced"
+    }
+  ]
+}
+```
+
+### POST /v1/admin/wallets/:id/adjustments
+
+Records an explicit adjustment, refund, or chargeback against a wallet. The
+operation updates the wallet balance, writes a ledger entry, and creates an audit
+log.
+
+Request:
+
+```json
+{
+  "kind": "refund",
+  "direction": "credit",
+  "amount_usd": "2.50000000",
+  "reason": "test-mode refund",
+  "idempotency_key": "refund-demo-001"
+}
+```
+
+Response:
+
+```json
+{
+  "id": "55555555-5555-4555-8555-555555555555",
+  "wallet_id": "33333333-3333-4333-8333-333333333333",
+  "kind": "refund",
+  "direction": "credit",
+  "amount_usd": "2.50000000",
+  "status": "applied",
+  "reason": "test-mode refund",
+  "idempotency_key": "refund-demo-001",
+  "wallet_balance_usd": "12.49870000"
+}
+```
+
+### GET /v1/admin/reports/usage.csv
+
+Returns a CSV export with request-level usage, token counts, route mode, provider,
+cost, retail price, channel revenue, and platform revenue.
+
+### GET /v1/admin/reports/revenue.csv
+
+Returns a CSV export with app/developer-level revenue totals.
+
+### GET /v1/admin/reports/payouts.csv
+
+Returns a CSV export with payout period records and review status.
+
+## 9. Usage and Revenue API
 
 ### GET /v1/apps/:id/usage
 

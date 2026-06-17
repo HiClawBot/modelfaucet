@@ -8,7 +8,7 @@
 
 ## 当前基线
 
-ModelFaucet `0.1.0` 已达到源码 MVP 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout mock、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `0.7.0` 已达到源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
 当前生产发布阻塞项：
 
@@ -157,6 +157,8 @@ developer-console API 支撑。
 ## `0.7.0` Billing 和 Settlement Beta
 
 目标：在任何真实 payout 前让资金流可审计。
+
+状态：源码已实现。Admin API 现在覆盖 ledger reconciliation、wallet adjustment/refund/chargeback events、payout approval before mark-paid，以及 usage、revenue、payouts CSV export。本地 smoke test 会检查 ledger reconciliation，`pnpm stripe:webhook:replay` 支持 Stripe test-mode replay verification。
 
 范围：
 

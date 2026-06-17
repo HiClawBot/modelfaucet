@@ -44,6 +44,7 @@ pnpm smoke:local
 - 验证 `usage_events` 写入。
 - 验证该请求对应的 ledger entries。
 - 验证 dashboard usage aggregate 包含该请求。
+- 验证 ledger reconciliation 没有 mismatch。
 
 脚本不会打印 session token 或 provider secret。
 

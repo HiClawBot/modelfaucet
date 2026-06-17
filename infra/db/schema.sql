@@ -152,6 +152,23 @@ create table if not exists wallet_topups (
 create index if not exists idx_wallet_topups_wallet_created on wallet_topups(wallet_id, created_at desc);
 create index if not exists idx_wallet_topups_status on wallet_topups(status);
 
+create table if not exists wallet_adjustments (
+  id uuid primary key default uuid_generate_v4(),
+  wallet_id uuid not null references wallets(id),
+  kind text not null check (kind in ('adjustment', 'refund', 'chargeback')),
+  direction text not null check (direction in ('debit', 'credit')),
+  amount_usd numeric(18,8) not null check (amount_usd > 0),
+  status text not null default 'applied' check (status in ('applied')),
+  reason text,
+  idempotency_key text unique,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_wallet_adjustments_wallet_created on wallet_adjustments(wallet_id, created_at desc);
+create index if not exists idx_wallet_adjustments_kind_created on wallet_adjustments(kind, created_at desc);
+
 create table if not exists payouts (
   id uuid primary key default uuid_generate_v4(),
   developer_id uuid not null references developers(id),

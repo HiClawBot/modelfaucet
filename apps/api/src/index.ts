@@ -6,6 +6,7 @@ import { PostgresDeveloperConsoleRepository } from "./repositories/developerCons
 import { PostgresPaymentRepository } from "./repositories/paymentRepository";
 import { PostgresPayoutRepository } from "./repositories/payoutRepository";
 import { PostgresProviderKeyRepository } from "./repositories/providerKeyRepository";
+import { PostgresSettlementRepository } from "./repositories/settlementRepository";
 import { PostgresSessionRepository } from "./repositories/sessionRepository";
 import { PostgresWalletRepository } from "./repositories/walletRepository";
 import { buildApiServer } from "./server";
@@ -18,6 +19,7 @@ export * from "./repositories/developerConsoleRepository";
 export * from "./repositories/paymentRepository";
 export * from "./repositories/payoutRepository";
 export * from "./repositories/providerKeyRepository";
+export * from "./repositories/settlementRepository";
 export * from "./repositories/sessionRepository";
 export * from "./repositories/walletRepository";
 export * from "./secretEncryption";
@@ -48,6 +50,9 @@ export async function startApiServer(): Promise<void> {
   const payoutRepository = new PostgresPayoutRepository({
     connectionString: env.databaseUrl
   });
+  const settlementRepository = new PostgresSettlementRepository({
+    connectionString: env.databaseUrl
+  });
   const stripeCheckoutClient =
     env.stripeSecretKey === undefined
       ? undefined
@@ -60,6 +65,7 @@ export async function startApiServer(): Promise<void> {
     walletRepository,
     paymentRepository,
     payoutRepository,
+    settlementRepository,
     stripeCheckoutClient,
     stripeWebhookSecret: env.stripeWebhookSecret,
     payoutThresholdUsd: env.payoutThresholdUsd,

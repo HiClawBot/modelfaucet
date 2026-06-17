@@ -17,6 +17,11 @@ export type PayoutRepository = {
     thresholdUsd: string;
     now: Date;
   }): Promise<PayoutSummary[]>;
+  approvePayout(input: {
+    payoutId: string;
+    operatorNote?: string;
+    now: Date;
+  }): Promise<PayoutSummary>;
   markPayoutPaid(input: {
     payoutId: string;
     now: Date;
@@ -174,6 +179,117 @@ export class PostgresPayoutRepository implements PayoutRepository {
     }
   }
 
+  async approvePayout(input: {
+    payoutId: string;
+    operatorNote?: string;
+    now: Date;
+  }): Promise<PayoutSummary> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("begin");
+      const payoutResult = await client.query<PayoutRow>(
+        `
+          select
+            id,
+            developer_id,
+            amount_usd::text,
+            status,
+            provider,
+            provider_payout_id
+          from payouts
+          where id = $1
+          for update
+        `,
+        [input.payoutId]
+      );
+      const payout = payoutResult.rows[0];
+      if (payout === undefined) {
+        throw new ModelFaucetError({
+          code: "invalid_request",
+          message: "Payout was not found.",
+          statusCode: 404
+        });
+      }
+
+      if (payout.status === "processing") {
+        await client.query("commit");
+        return toPayoutSummary(payout);
+      }
+
+      if (payout.status !== "pending") {
+        throw new ModelFaucetError({
+          code: "invalid_request",
+          message: "Only pending payouts can be approved.",
+          statusCode: 400
+        });
+      }
+
+      const updated = await client.query<PayoutRow>(
+        `
+          update payouts
+          set status = 'processing',
+              metadata = metadata || jsonb_strip_nulls($2::jsonb),
+              updated_at = $3
+          where id = $1
+          returning
+            id,
+            developer_id,
+            amount_usd::text,
+            status,
+            provider,
+            provider_payout_id
+        `,
+        [
+          payout.id,
+          JSON.stringify({
+            approved_at: input.now.toISOString(),
+            operator_note: input.operatorNote ?? null
+          }),
+          input.now
+        ]
+      );
+      const approved = updated.rows[0];
+      if (approved === undefined) {
+        throw new ModelFaucetError({
+          code: "invalid_request",
+          message: "Payout could not be approved.",
+          statusCode: 500
+        });
+      }
+
+      await client.query(
+        `
+          insert into audit_logs (
+            actor_scope,
+            actor_id,
+            action,
+            resource_type,
+            resource_id,
+            metadata
+          )
+          values ('admin', null, 'payout.approve', 'payout', $1, $2::jsonb)
+        `,
+        [
+          approved.id,
+          JSON.stringify({
+            developer_id: approved.developer_id,
+            amount_usd: approved.amount_usd,
+            operator_note: input.operatorNote ?? null
+          })
+        ]
+      );
+
+      await client.query("commit");
+      return toPayoutSummary(approved);
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async markPayoutPaid(input: { payoutId: string; now: Date }): Promise<PayoutSummary> {
     const client = await this.pool.connect();
 
@@ -208,10 +324,10 @@ export class PostgresPayoutRepository implements PayoutRepository {
         return toPayoutSummary(payout);
       }
 
-      if (payout.status !== "pending" && payout.status !== "processing") {
+      if (payout.status !== "processing") {
         throw new ModelFaucetError({
           code: "invalid_request",
-          message: "Only pending or processing payouts can be marked paid.",
+          message: "Payout must be approved before it can be marked paid.",
           statusCode: 400
         });
       }

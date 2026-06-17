@@ -1,7 +1,7 @@
 {
   "name": "modelfaucet",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
@@ -23,6 +23,7 @@
     "db:migrate": "psql $DATABASE_URL -f infra/db/schema.sql",
     "db:seed": "psql $DATABASE_URL -f infra/db/seed.sql",
     "db:reset:dev": "node scripts/reset-dev-db.mjs",
+    "stripe:webhook:replay": "node scripts/replay-stripe-webhook.mjs",
     "smoke:local": "node scripts/smoke-local-stack.mjs",
     "smoke:provider": "node scripts/smoke-provider-route.mjs"
   },

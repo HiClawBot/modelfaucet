@@ -44,6 +44,7 @@ The smoke test:
 - Verifies a `usage_events` row.
 - Verifies ledger entries for the request.
 - Verifies the dashboard usage aggregate includes the request.
+- Verifies ledger reconciliation has zero mismatches.
 
 The script does not print session tokens or provider secrets.
 
