@@ -1,0 +1,69 @@
+import { defineConfig } from "vitepress";
+
+export default defineConfig({
+  title: "ModelFaucet",
+  description:
+    "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
+  base: "/modelfaucet/",
+  cleanUrls: true,
+  lastUpdated: true,
+  head: [
+    ["meta", { property: "og:title", content: "ModelFaucet" }],
+    [
+      "meta",
+      {
+        property: "og:description",
+        content:
+          "Open-source LLM distribution gateway, SDK, BYOK, Local Bridge, usage ledger, and revenue sharing."
+      }
+    ],
+    ["meta", { property: "og:type", content: "website" }]
+  ],
+  themeConfig: {
+    logo: "/assets/modelfaucet-logo.png",
+    siteTitle: "ModelFaucet",
+    search: {
+      provider: "local"
+    },
+    nav: [
+      { text: "Guide", link: "/quickstart" },
+      { text: "API", link: "/API_SPEC" },
+      { text: "Security", link: "/SECURITY" },
+      { text: "Release", link: "/RELEASE_CHECKLIST" },
+      { text: "中文", link: "/zh-CN/" }
+    ],
+    sidebar: [
+      {
+        text: "Start",
+        items: [
+          { text: "Overview", link: "/" },
+          { text: "Quickstart", link: "/quickstart" },
+          { text: "Chinese Overview", link: "/zh-CN/" }
+        ]
+      },
+      {
+        text: "Reference",
+        items: [
+          { text: "API Spec", link: "/API_SPEC" },
+          { text: "Security", link: "/SECURITY" },
+          { text: "Whitepaper", link: "/WHITEPAPER" },
+          { text: "Release Checklist", link: "/RELEASE_CHECKLIST" }
+        ]
+      },
+      {
+        text: "Implementation",
+        items: [
+          { text: "Construction Guide", link: "/CONSTRUCTION" },
+          { text: "Codex Tasks", link: "/CODEX_TASKS" }
+        ]
+      }
+    ],
+    socialLinks: [
+      { icon: "github", link: "https://github.com/HiClawBot/modelfaucet" }
+    ],
+    footer: {
+      message: "Released under the Apache-2.0 license.",
+      copyright: "Copyright 2026 ModelFaucet contributors"
+    }
+  }
+});

@@ -8,7 +8,11 @@ import type { FaucetClient } from "@modelfaucet/sdk";
 function testClient(chat: FaucetClient["chat"]): FaucetClient {
   return {
     createSession: vi.fn(),
-    chat
+    chat,
+    local: {
+      detectBridge: vi.fn(),
+      listModels: vi.fn()
+    }
   };
 }
 

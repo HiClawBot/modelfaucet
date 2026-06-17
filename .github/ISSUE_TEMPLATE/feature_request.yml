@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest a product, platform, SDK, or infrastructure improvement.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or developer problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the desired behavior or API shape.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Control API
+        - Gateway
+        - SDK
+        - React package
+        - Dashboard
+        - Local Bridge
+        - Billing / ledger
+        - Docs / release
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy notes
+      description: Note any provider-key, BYOK, local-network, billing, or data-retention implications.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

@@ -220,6 +220,20 @@ Expected behavior:
 
 ---
 
+## Documentation site
+
+The repository includes a VitePress docs site for GitHub Pages.
+
+```bash
+pnpm docs:dev
+pnpm docs:build
+pnpm docs:preview
+```
+
+The Pages workflow publishes the docs from `docs/.vitepress/dist` on pushes to `main`.
+
+---
+
 ## API compatibility
 
 ModelFaucet exposes OpenAI-compatible endpoints where possible:
@@ -376,6 +390,12 @@ Start here:
 docs/WHITEPAPER.md
   Product vision, business model, and system architecture.
 
+docs/index.md
+  Documentation site homepage.
+
+docs/quickstart.md
+  Documentation site quickstart.
+
 docs/CONSTRUCTION.md
   Build plan, repo structure, milestones, tasks, acceptance criteria.
 
@@ -423,7 +443,7 @@ A preliminary web search did not identify a major LLM infrastructure project wit
 [x] Add CODE_OF_CONDUCT.md
 [x] Add CONTRIBUTING.md
 [x] Add SECURITY.md
-[ ] Add docs site config
+[x] Add docs site config
 [x] Add pnpm workspace
 [x] Add apps/api
 [x] Add apps/gateway

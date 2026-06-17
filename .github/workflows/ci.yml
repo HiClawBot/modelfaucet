@@ -73,3 +73,6 @@ jobs:
 
       - name: Build CRM demo
         run: pnpm --filter crm-demo build
+
+      - name: Build docs site
+        run: pnpm docs:build

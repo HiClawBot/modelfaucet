@@ -218,6 +218,20 @@ const result = await faucet.chat({
 
 ---
 
+## 文档站
+
+仓库包含用于 GitHub Pages 的 VitePress 文档站配置。
+
+```bash
+pnpm docs:dev
+pnpm docs:build
+pnpm docs:preview
+```
+
+Pages workflow 会在推送到 `main` 后，从 `docs/.vitepress/dist` 发布文档站。
+
+---
+
 ## API 兼容性
 
 ModelFaucet 尽量暴露 OpenAI-compatible endpoints：
@@ -374,6 +388,12 @@ Phase 6 - Public open-source launch
 docs/WHITEPAPER.md
   产品愿景、商业模式和系统架构。
 
+docs/index.md
+  文档站首页。
+
+docs/quickstart.md
+  文档站 quickstart。
+
 docs/CONSTRUCTION.md
   构建计划、仓库结构、milestones、tasks、acceptance criteria。
 
@@ -421,7 +441,7 @@ Apache-2.0。详见 `LICENSE`。
 [x] Add CODE_OF_CONDUCT.md
 [x] Add CONTRIBUTING.md
 [x] Add SECURITY.md
-[ ] Add docs site config
+[x] Add docs site config
 [x] Add pnpm workspace
 [x] Add apps/api
 [x] Add apps/gateway

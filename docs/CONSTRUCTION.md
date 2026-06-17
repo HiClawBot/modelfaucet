@@ -257,7 +257,7 @@ modelfaucet/
 
 `.env.example` 必须包含：
 
-```env
+```bash
 NODE_ENV=development
 PORT_API=3001
 PORT_GATEWAY=3002

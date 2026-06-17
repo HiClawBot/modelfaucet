@@ -2,6 +2,15 @@
 
 All notable changes to ModelFaucet will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- VitePress documentation site configuration and GitHub Pages deployment workflow.
+- CI docs-site build verification.
+- GitHub issue templates, pull request template, and Dependabot configuration.
+- Bilingual documentation site entry points and README links.
+
 ## 0.1.0 - 2026-06-17
 
 ### Added

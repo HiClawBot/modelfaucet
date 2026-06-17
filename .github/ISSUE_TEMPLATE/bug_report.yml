@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible ModelFaucet bug.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not paste real provider keys, Stripe secrets, JWTs, session tokens, or private URLs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest sequence of commands or requests that reproduces the issue.
+      placeholder: |
+        1. Run ...
+        2. Call ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Control API
+        - Gateway
+        - SDK
+        - React package
+        - Dashboard
+        - Local Bridge
+        - Billing / ledger
+        - Docs / release
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "0.1.0 or commit SHA"
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node, pnpm, Go, PostgreSQL, browser, or Docker versions if relevant.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Redact secrets before pasting logs.
+      render: shell

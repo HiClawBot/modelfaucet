@@ -11,6 +11,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm test` passes.
 - `pnpm --filter @modelfaucet/dashboard build` passes.
 - `pnpm --filter crm-demo build` passes.
+- `pnpm docs:build` passes.
 - `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.

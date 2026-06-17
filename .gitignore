@@ -5,6 +5,7 @@ node_modules
 dist
 .next
 .turbo
+docs/.vitepress/cache
 coverage
 .DS_Store
 *.log
