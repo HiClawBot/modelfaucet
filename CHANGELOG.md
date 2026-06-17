@@ -4,6 +4,17 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.6.0 - 2026-06-18
+
+### Added
+
+- API and Gateway request IDs via `x-request-id`, including automatic request IDs in error responses.
+- API and Gateway `/ready` endpoints for shallow container readiness checks.
+- API and Gateway Prometheus-style `/metrics` endpoints for request totals, duration sums, and rate-limit counters.
+- In-memory API and Gateway rate limiters with configurable window and request count.
+- Operations runbook covering request tracing, readiness, metrics, rate limits, migration rollback, backup, and restore.
+- English and Simplified Chinese operations guides.
+
 ## 0.5.0 - 2026-06-18
 
 ### Added

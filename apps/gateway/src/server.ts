@@ -1,7 +1,10 @@
 import {
   ChatCompletionRequestSchema,
   ModelFaucetError,
-  createErrorResponse
+  createErrorResponse,
+  createRequestId,
+  InMemoryMetrics,
+  InMemoryRateLimiter
 } from "@modelfaucet/shared";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -10,6 +13,9 @@ import type { MockCompletionRepository } from "./repositories/mockCompletionRepo
 
 export type BuildGatewayServerOptions = {
   mockCompletionRepository: MockCompletionRepository;
+  metrics?: InMemoryMetrics;
+  rateLimiter?: InMemoryRateLimiter;
+  requestIdFactory?: () => string;
   now?: () => Date;
   logger?: boolean;
 };
@@ -35,12 +41,106 @@ function extractBearerToken(header: string | undefined): string | undefined {
   return match?.[1];
 }
 
+function routeLabel(path: string): string {
+  return path.split("?")[0] ?? path;
+}
+
+function shouldSkipRateLimit(route: string): boolean {
+  return route === "/health" || route === "/ready" || route === "/metrics";
+}
+
+function injectRequestId(payload: unknown, requestId: string): unknown {
+  if (typeof payload !== "string" || !payload.includes("\"error\"")) {
+    return payload;
+  }
+
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "error" in parsed &&
+      typeof parsed.error === "object" &&
+      parsed.error !== null &&
+      !("request_id" in parsed.error)
+    ) {
+      return JSON.stringify({
+        ...parsed,
+        error: {
+          ...parsed.error,
+          request_id: requestId
+        }
+      });
+    }
+  } catch {
+    return payload;
+  }
+
+  return payload;
+}
+
 export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const now = options.now ?? (() => new Date());
+  const metrics = options.metrics ?? new InMemoryMetrics();
+  const requestIdFactory =
+    options.requestIdFactory ?? (() => createRequestId(Date.now(), Math.random));
+  const requestIds = new WeakMap<object, string>();
+  const requestStartedAt = new WeakMap<object, number>();
 
   app.register(cors, {
     origin: true
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    const incomingRequestId = request.headers["x-request-id"];
+    const requestId =
+      typeof incomingRequestId === "string" && incomingRequestId.trim().length > 0
+        ? incomingRequestId.trim()
+        : requestIdFactory();
+    const route = routeLabel(request.url);
+    requestIds.set(request.raw, requestId);
+    requestStartedAt.set(request.raw, Date.now());
+    reply.header("x-request-id", requestId);
+
+    if (options.rateLimiter !== undefined && !shouldSkipRateLimit(route)) {
+      const rateLimit = options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
+      reply.header("x-ratelimit-remaining", String(rateLimit.remaining));
+      reply.header("x-ratelimit-reset", String(Math.ceil(rateLimit.resetAtMs / 1000)));
+      if (!rateLimit.allowed) {
+        metrics.incrementRateLimited("@modelfaucet/gateway", route);
+        const retryAfterSeconds = Math.max(
+          1,
+          Math.ceil((rateLimit.resetAtMs - Date.now()) / 1000)
+        );
+        const error = new ModelFaucetError({
+          code: "rate_limited",
+          message: "Rate limit exceeded.",
+          requestId,
+          statusCode: 429
+        });
+        return reply
+          .header("retry-after", String(retryAfterSeconds))
+          .code(error.statusCode)
+          .send(createErrorResponse(error));
+      }
+    }
+  });
+
+  app.addHook("onSend", async (request, _reply, payload) => {
+    const requestId = requestIds.get(request.raw);
+    return requestId === undefined ? payload : injectRequestId(payload, requestId);
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    const startedAt = requestStartedAt.get(request.raw) ?? Date.now();
+    metrics.observeRequest({
+      service: "@modelfaucet/gateway",
+      method: request.method,
+      route: routeLabel(request.url),
+      statusCode: reply.statusCode,
+      durationMs: Date.now() - startedAt
+    });
   });
 
   if (options.mockCompletionRepository.close !== undefined) {
@@ -53,6 +153,18 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     ok: true,
     service: "@modelfaucet/gateway"
   }));
+
+  app.get("/ready", async () => ({
+    ok: true,
+    service: "@modelfaucet/gateway",
+    checks: {
+      repository: "configured"
+    }
+  }));
+
+  app.get("/metrics", async (_request, reply) =>
+    reply.type("text/plain; version=0.0.4").send(metrics.renderPrometheus())
+  );
 
   app.get("/health/providers", async () => {
     if (options.mockCompletionRepository.checkProviderHealth === undefined) {

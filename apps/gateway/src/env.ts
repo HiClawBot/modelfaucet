@@ -10,6 +10,8 @@ export type GatewayEnv = {
   providerTimeoutMs: number;
   providerMaxRetries: number;
   providerRetryDelayMs: number;
+  rateLimitMaxRequests: number;
+  rateLimitWindowMs: number;
 };
 
 function parseInteger(value: string | undefined, fallback: number): number {
@@ -20,6 +22,19 @@ function parseInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error(`Expected a positive integer, got ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseNonNegativeInteger(value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`Expected a non-negative integer, got ${value}`);
   }
 
   return parsed;
@@ -50,6 +65,11 @@ export function loadGatewayEnv(source: NodeJS.ProcessEnv = process.env): Gateway
     secretEncryptionKey: requireEnv(source, "SECRET_ENCRYPTION_KEY"),
     providerTimeoutMs: parseInteger(source.PROVIDER_TIMEOUT_MS, 30_000),
     providerMaxRetries: parseInteger(source.PROVIDER_MAX_RETRIES, 1),
-    providerRetryDelayMs: parseInteger(source.PROVIDER_RETRY_DELAY_MS, 250)
+    providerRetryDelayMs: parseInteger(source.PROVIDER_RETRY_DELAY_MS, 250),
+    rateLimitMaxRequests: parseNonNegativeInteger(
+      source.GATEWAY_RATE_LIMIT_MAX_REQUESTS,
+      1200
+    ),
+    rateLimitWindowMs: parseInteger(source.GATEWAY_RATE_LIMIT_WINDOW_MS, 60_000)
   };
 }

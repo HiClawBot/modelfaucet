@@ -141,6 +141,10 @@ Exit criteria:
 
 Goal: make the system operable under real traffic.
 
+Status: implemented in source. API and Gateway now emit request IDs, expose
+readiness and Prometheus-style metrics endpoints, and include configurable
+in-memory rate limits with operations runbooks for rollback, backup, and restore.
+
 Scope:
 
 - Structured logs with request IDs across API, Gateway, and workers.

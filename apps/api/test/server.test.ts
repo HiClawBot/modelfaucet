@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { buildApiServer, hashExternalUserId, hashSessionToken } from "../src/index";
 import type {
   DashboardRepository,
@@ -29,9 +30,82 @@ describe("api server", () => {
 
     const response = await server.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toBeDefined();
     expect(response.json()).toEqual({
       ok: true,
       service: "@modelfaucet/api"
+    });
+  });
+
+  it("returns readiness and metrics", async () => {
+    const server = buildApiServer({
+      sessionRepository: {
+        async createVirtualSession(): Promise<CreateVirtualSessionResult> {
+          throw new Error("not used");
+        }
+      },
+      gatewayBaseUrl: "http://localhost:3002/v1",
+      sessionTokenTtlSeconds: 3600,
+      requestIdFactory: () => "req_api_test"
+    });
+
+    const ready = await server.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.headers["x-request-id"]).toBe("req_api_test");
+    expect(ready.json()).toMatchObject({
+      ok: true,
+      checks: {
+        database: "configured"
+      }
+    });
+
+    const metrics = await server.inject({ method: "GET", url: "/metrics" });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.body).toContain("modelfaucet_http_requests_total");
+    expect(metrics.body).toContain('service="@modelfaucet/api"');
+  });
+
+  it("adds request ids to errors and applies rate limits", async () => {
+    const server = buildApiServer({
+      sessionRepository: {
+        async createVirtualSession(): Promise<CreateVirtualSessionResult> {
+          throw new Error("not used");
+        }
+      },
+      rateLimiter: new InMemoryRateLimiter(1, 1000),
+      gatewayBaseUrl: "http://localhost:3002/v1",
+      sessionTokenTtlSeconds: 3600,
+      requestIdFactory: () => "req_api_limited"
+    });
+
+    const invalid = await server.inject({
+      method: "POST",
+      url: "/v1/sessions",
+      payload: {
+        public_app_id: "app_pub_demo"
+      }
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json()).toMatchObject({
+      error: {
+        request_id: "req_api_limited"
+      }
+    });
+
+    const limited = await server.inject({
+      method: "POST",
+      url: "/v1/sessions",
+      payload: {
+        public_app_id: "app_pub_demo"
+      }
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.headers["retry-after"]).toBeDefined();
+    expect(limited.json()).toMatchObject({
+      error: {
+        code: "rate_limited",
+        request_id: "req_api_limited"
+      }
     });
   });
 

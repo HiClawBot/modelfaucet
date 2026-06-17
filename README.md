@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `0.5.0` source beta. The local stack includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, and payout mock.
+> Status: `0.6.0` source beta. The local stack includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout mock, and operations hooks.
 
 ---
 
@@ -249,6 +249,9 @@ retry, health-check, fallback, and real-provider smoke behavior.
 See the [SDK and Local Bridge guide](docs/sdk-local-bridge.md) for `runFeature`,
 React usage display, Local Bridge diagnostics, and offline local usage reporting.
 
+See the [operations guide](docs/operations.md) for request IDs, readiness,
+metrics, rate limits, migration rollback, backup, and restore.
+
 ---
 
 ## API compatibility
@@ -265,6 +268,8 @@ It also exposes ModelFaucet-specific endpoints:
 
 ```txt
 POST   /v1/sessions
+GET    /ready
+GET    /metrics
 GET    /v1/user/wallet
 POST   /v1/admin/wallets/:id/credit-test-balance
 POST   /v1/user/provider-keys

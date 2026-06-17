@@ -56,6 +56,14 @@ secret_validation_failed
 
 ## 2. Session API
 
+### GET /ready
+
+Readiness endpoint for API container probes.
+
+### GET /metrics
+
+Prometheus-style text metrics for API request totals, duration sums, and rate-limit counters.
+
 ### POST /v1/sessions
 
 Creates a short-lived session token for an app end user.
@@ -98,6 +106,14 @@ Rules:
 ---
 
 ## 3. Gateway API
+
+### GET /ready
+
+Readiness endpoint for Gateway container probes.
+
+### GET /metrics
+
+Prometheus-style text metrics for Gateway request totals, duration sums, and rate-limit counters.
 
 ### GET /health/providers
 

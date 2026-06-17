@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadGatewayEnv } from "./env";
 import { LiteLlmClient } from "./litellm";
 import { PostgresMockCompletionRepository } from "./repositories/mockCompletionRepository";
@@ -31,6 +32,10 @@ export async function startGatewayServer(): Promise<void> {
   );
   const server = buildGatewayServer({
     mockCompletionRepository,
+    rateLimiter: new InMemoryRateLimiter(
+      env.rateLimitMaxRequests,
+      env.rateLimitWindowMs
+    ),
     logger: env.nodeEnv !== "test"
   });
 

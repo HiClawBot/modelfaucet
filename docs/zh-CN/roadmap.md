@@ -138,6 +138,8 @@ developer-console API 支撑。
 
 目标：让系统在真实流量下可运维。
 
+状态：源码已实现。API 和 Gateway 现在会返回 request ID，暴露 readiness 和 Prometheus-style metrics endpoint，并包含可配置的内存 rate limit；同时补充 rollback、backup 和 restore runbook。
+
 范围：
 
 - API、Gateway、workers 全链路结构化日志和 request ID。

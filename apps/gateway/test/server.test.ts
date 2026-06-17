@@ -1,4 +1,4 @@
-import { ModelFaucetError } from "@modelfaucet/shared";
+import { InMemoryRateLimiter, ModelFaucetError } from "@modelfaucet/shared";
 import { describe, expect, it } from "vitest";
 import { buildGatewayServer, hashSessionToken } from "../src/index";
 import type {
@@ -44,9 +44,79 @@ describe("gateway server", () => {
 
     const response = await server.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toBeDefined();
     expect(response.json()).toEqual({
       ok: true,
       service: "@modelfaucet/gateway"
+    });
+  });
+
+  it("returns readiness and metrics", async () => {
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        }
+      },
+      requestIdFactory: () => "req_gateway_test"
+    });
+
+    const ready = await server.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.headers["x-request-id"]).toBe("req_gateway_test");
+    expect(ready.json()).toMatchObject({
+      ok: true,
+      checks: {
+        repository: "configured"
+      }
+    });
+
+    const metrics = await server.inject({ method: "GET", url: "/metrics" });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.body).toContain("modelfaucet_http_requests_total");
+    expect(metrics.body).toContain('service="@modelfaucet/gateway"');
+  });
+
+  it("adds request ids to errors and applies rate limits", async () => {
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        }
+      },
+      rateLimiter: new InMemoryRateLimiter(1, 1000),
+      requestIdFactory: () => "req_gateway_limited"
+    });
+
+    const missingAuth = await server.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      payload: {
+        model: "auto:customer_reply",
+        messages: [{ role: "user", content: "Hello" }]
+      }
+    });
+    expect(missingAuth.statusCode).toBe(401);
+    expect(missingAuth.json()).toMatchObject({
+      error: {
+        request_id: "req_gateway_limited"
+      }
+    });
+
+    const limited = await server.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      payload: {
+        model: "auto:customer_reply",
+        messages: [{ role: "user", content: "Hello" }]
+      }
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toMatchObject({
+      error: {
+        code: "rate_limited",
+        request_id: "req_gateway_limited"
+      }
     });
   });
 

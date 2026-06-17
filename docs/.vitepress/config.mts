@@ -42,6 +42,7 @@ export default defineConfig({
           { text: "Local Smoke Test", link: "/local-smoke" },
           { text: "Provider Routing", link: "/provider-routing" },
           { text: "SDK and Local Bridge", link: "/sdk-local-bridge" },
+          { text: "Operations", link: "/operations" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -53,6 +54,7 @@ export default defineConfig({
           { text: "本地 Smoke Test", link: "/zh-CN/local-smoke" },
           { text: "Provider Routing", link: "/zh-CN/provider-routing" },
           { text: "SDK 和 Local Bridge", link: "/zh-CN/sdk-local-bridge" },
+          { text: "运维和可观测性", link: "/zh-CN/operations" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

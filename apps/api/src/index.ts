@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadApiEnv } from "./env";
 import { PostgresDashboardRepository } from "./repositories/dashboardRepository";
 import { PostgresDeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
@@ -62,6 +63,10 @@ export async function startApiServer(): Promise<void> {
     stripeCheckoutClient,
     stripeWebhookSecret: env.stripeWebhookSecret,
     payoutThresholdUsd: env.payoutThresholdUsd,
+    rateLimiter: new InMemoryRateLimiter(
+      env.rateLimitMaxRequests,
+      env.rateLimitWindowMs
+    ),
     secretEncryptionKey: env.secretEncryptionKey,
     developerAdminToken: env.developerAdminToken,
     adminToken: env.adminToken,

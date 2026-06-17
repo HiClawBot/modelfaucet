@@ -1,7 +1,7 @@
 {
   "name": "modelfaucet",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
   "packageManager": "pnpm@9.0.0",
   "scripts": {

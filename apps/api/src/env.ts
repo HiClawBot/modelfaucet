@@ -10,6 +10,8 @@ export type ApiEnv = {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   payoutThresholdUsd: string;
+  rateLimitMaxRequests: number;
+  rateLimitWindowMs: number;
 };
 
 function parseInteger(value: string | undefined, fallback: number): number {
@@ -20,6 +22,19 @@ function parseInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error(`Expected a positive integer, got ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseNonNegativeInteger(value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`Expected a non-negative integer, got ${value}`);
   }
 
   return parsed;
@@ -53,6 +68,11 @@ export function loadApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
       source.STRIPE_WEBHOOK_SECRET.trim() !== ""
         ? source.STRIPE_WEBHOOK_SECRET
         : undefined,
-    payoutThresholdUsd: source.PAYOUT_THRESHOLD_USD ?? "1.00000000"
+    payoutThresholdUsd: source.PAYOUT_THRESHOLD_USD ?? "1.00000000",
+    rateLimitMaxRequests: parseNonNegativeInteger(
+      source.API_RATE_LIMIT_MAX_REQUESTS,
+      1200
+    ),
+    rateLimitWindowMs: parseInteger(source.API_RATE_LIMIT_WINDOW_MS, 60_000)
   };
 }
