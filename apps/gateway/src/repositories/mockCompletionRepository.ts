@@ -9,7 +9,11 @@ import {
 } from "@modelfaucet/shared";
 import pg from "pg";
 import { createGatewayRequestId } from "../crypto";
-import type { CompletionProvider } from "../litellm";
+import type {
+  CompletionProvider,
+  ProviderCompletionResult,
+  ProviderHealthResult
+} from "../litellm";
 import { decryptSecret } from "../secretEncryption";
 
 const { Pool } = pg;
@@ -36,6 +40,7 @@ export type MockCompletionResult = {
 
 export type MockCompletionRepository = {
   createMockCompletion(input: CreateMockCompletionInput): Promise<MockCompletionResult>;
+  checkProviderHealth?(): Promise<ProviderHealthResult>;
   close?(): Promise<void>;
 };
 
@@ -69,6 +74,7 @@ type ProviderCredentialRow = {
   encrypted_secret_ref: string;
   models_allowed: string[] | null;
   budget_limit_usd: string | null;
+  fallback_to_platform: boolean;
 };
 
 function getRequestedFeatureKey(request: ChatCompletionRequest): string | undefined {
@@ -138,6 +144,22 @@ export function featurePolicyPrefersDeveloperKey(policy: JsonObject | undefined)
 
   const platformIndex = routePreference.indexOf("platform_pool");
   return platformIndex < 0 || developerKeyIndex < platformIndex;
+}
+
+export function featurePolicyAllowsPlatformFallback(policy: JsonObject | undefined): boolean {
+  if (policy === undefined) {
+    return false;
+  }
+
+  return (
+    policy.fallback_to_platform === true ||
+    policy.provider_fallback === "platform_pool" ||
+    policy.provider_fallback === "platform"
+  );
+}
+
+function isProviderRouteError(error: unknown): boolean {
+  return error instanceof ModelFaucetError && error.code === "provider_error";
 }
 
 async function ensureWallet(
@@ -281,29 +303,26 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
       const developerCredential = developerKeyIsPreferred
         ? await this.findActiveDeveloperCredential(client, session.developer_id)
         : undefined;
-      const selectedCredential = byokCredential ?? developerCredential;
-      const routeMode: RouteMode =
+      const initialCredential = byokCredential ?? developerCredential;
+      const initialRouteMode: RouteMode =
         byokCredential !== undefined
           ? "byok"
           : developerCredential !== undefined
             ? "developer_key"
             : "platform";
-      const providerCompletion = await this.completionProvider.createChatCompletion({
+      const routedCompletion = await this.createProviderCompletion({
         request: input.request,
         featureKey,
-        providerCredential:
-          selectedCredential === undefined
-            ? undefined
-            : {
-                provider: selectedCredential.provider,
-                apiKey: decryptSecret(
-                  selectedCredential.encrypted_secret_ref,
-                  this.secretEncryptionKey
-                ),
-                baseUrl: selectedCredential.base_url ?? undefined,
-                modelsAllowed: selectedCredential.models_allowed ?? []
-              }
+        routeMode: initialRouteMode,
+        credential: initialCredential,
+        allowPlatformFallback:
+          initialCredential !== undefined &&
+          (initialCredential.fallback_to_platform ||
+            featurePolicyAllowsPlatformFallback(featurePolicy))
       });
+      const routeMode = routedCompletion.routeMode;
+      const selectedCredential = routedCompletion.credential;
+      const providerCompletion = routedCompletion.providerCompletion;
       const promptTokens = providerCompletion.promptTokens;
       const completionTokens = providerCompletion.completionTokens;
       const rated =
@@ -326,8 +345,8 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
               channelShareBps: 4000
             });
 
-      if (developerCredential !== undefined) {
-        await this.assertDeveloperBudget(client, session.developer_id, developerCredential, rated);
+      if (routeMode === "developer_key" && selectedCredential !== undefined) {
+        await this.assertDeveloperBudget(client, session.developer_id, selectedCredential, rated);
       }
 
       const endUserWallet = await ensureWallet(client, "end_user", session.end_user_id);
@@ -407,7 +426,11 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
                 ? "end_user"
                 : routeMode === "developer_key"
                   ? "developer"
-                  : undefined
+                  : undefined,
+            provider_fallback: routedCompletion.fallback,
+            provider_attempts: providerCompletion.attempts,
+            usage_source: providerCompletion.usageSource,
+            usage_warnings: providerCompletion.usageWarnings
           })
         ]
       );
@@ -494,6 +517,85 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
     await this.pool.end();
   }
 
+  async checkProviderHealth(): Promise<ProviderHealthResult> {
+    if (this.completionProvider.checkHealth === undefined) {
+      return {
+        ok: true,
+        provider: "unknown",
+        latencyMs: 0
+      };
+    }
+
+    return this.completionProvider.checkHealth();
+  }
+
+  private async createProviderCompletion(input: {
+    request: ChatCompletionRequest;
+    featureKey?: string;
+    routeMode: RouteMode;
+    credential?: ProviderCredentialRow;
+    allowPlatformFallback: boolean;
+  }): Promise<{
+    routeMode: RouteMode;
+    credential?: ProviderCredentialRow;
+    providerCompletion: ProviderCompletionResult;
+    fallback?: JsonObject;
+  }> {
+    try {
+      return {
+        routeMode: input.routeMode,
+        credential: input.credential,
+        providerCompletion: await this.completionProvider.createChatCompletion({
+          request: input.request,
+          featureKey: input.featureKey,
+          providerCredential: this.toProviderCredentialContext(input.credential)
+        })
+      };
+    } catch (error) {
+      if (
+        input.credential === undefined ||
+        !input.allowPlatformFallback ||
+        !isProviderRouteError(error)
+      ) {
+        throw error;
+      }
+
+      return {
+        routeMode: "platform",
+        providerCompletion: await this.completionProvider.createChatCompletion({
+          request: input.request,
+          featureKey: input.featureKey
+        }),
+        fallback: {
+          from_route_mode: input.routeMode,
+          from_provider: input.credential.provider,
+          provider_credential_id: input.credential.id,
+          reason: "provider_error"
+        }
+      };
+    }
+  }
+
+  private toProviderCredentialContext(credential: ProviderCredentialRow | undefined):
+    | {
+        provider: string;
+        apiKey: string;
+        baseUrl?: string;
+        modelsAllowed: string[];
+      }
+    | undefined {
+    if (credential === undefined) {
+      return undefined;
+    }
+
+    return {
+      provider: credential.provider,
+      apiKey: decryptSecret(credential.encrypted_secret_ref, this.secretEncryptionKey),
+      baseUrl: credential.base_url ?? undefined,
+      modelsAllowed: credential.models_allowed ?? []
+    };
+  }
+
   private async findActiveByokCredential(
     client: pg.PoolClient,
     endUserId: string
@@ -506,7 +608,8 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
           base_url,
           encrypted_secret_ref,
           models_allowed,
-          budget_limit_usd::text
+          budget_limit_usd::text,
+          fallback_to_platform
         from provider_credentials
         where
           owner_scope = 'end_user'
@@ -533,7 +636,8 @@ export class PostgresMockCompletionRepository implements MockCompletionRepositor
           base_url,
           encrypted_secret_ref,
           models_allowed,
-          budget_limit_usd::text
+          budget_limit_usd::text,
+          fallback_to_platform
         from provider_credentials
         where
           owner_scope = 'developer'

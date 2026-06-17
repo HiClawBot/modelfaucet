@@ -76,6 +76,8 @@ ModelFaucet `0.1.0` 已达到源码 MVP 状态。当前包含 Control API、Gate
 
 目标：让云端模型路由能承载真实测试流量。
 
+状态：源码已实现。Provider request 已支持 timeout/retry、脱敏 attempt metadata、provider health check、usage reconciliation、显式 streaming guard，以及只使用服务端 secret 的真实 provider smoke。
+
 范围：
 
 - 使用至少一个服务端测试 provider key 验证 LiteLLM。

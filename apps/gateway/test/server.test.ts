@@ -50,6 +50,31 @@ describe("gateway server", () => {
     });
   });
 
+  it("returns provider health without checking user provider keys", async () => {
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        },
+        async checkProviderHealth() {
+          return {
+            ok: true,
+            provider: "litellm",
+            statusCode: 200,
+            latencyMs: 8
+          };
+        }
+      }
+    });
+
+    const response = await server.inject({ method: "GET", url: "/health/providers" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      providers: [{ provider: "litellm", statusCode: 200 }]
+    });
+  });
+
   it("returns an OpenAI-like mock response for a valid session", async () => {
     let captured: CreateMockCompletionInput | undefined;
     const repository: MockCompletionRepository = {
@@ -137,6 +162,41 @@ describe("gateway server", () => {
       modelfaucet: {
         route_mode: "byok",
         estimated_price_usd: "0.00000000"
+      }
+    });
+  });
+
+  it("rejects streaming requests until streaming ledger accounting is enabled", async () => {
+    const repository: MockCompletionRepository = {
+      async createMockCompletion() {
+        throw new Error("not used");
+      }
+    };
+    const server = buildGatewayServer({
+      mockCompletionRepository: repository
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: {
+        authorization: "Bearer mf_sess_testtoken"
+      },
+      payload: {
+        model: "auto:customer_reply",
+        stream: true,
+        messages: [{ role: "user", content: "Help me reply to a customer." }],
+        metadata: { feature_key: "customer_reply" }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "invalid_request",
+        details: {
+          streaming_supported: false
+        }
       }
     });
   });

@@ -7,6 +7,9 @@ export type GatewayEnv = {
   liteLlmBaseUrl: string;
   liteLlmMasterKey: string;
   secretEncryptionKey: string;
+  providerTimeoutMs: number;
+  providerMaxRetries: number;
+  providerRetryDelayMs: number;
 };
 
 function parseInteger(value: string | undefined, fallback: number): number {
@@ -44,6 +47,9 @@ export function loadGatewayEnv(source: NodeJS.ProcessEnv = process.env): Gateway
     databaseUrl: requireEnv(source, "DATABASE_URL"),
     liteLlmBaseUrl,
     liteLlmMasterKey: requireEnv(source, "LITELLM_MASTER_KEY"),
-    secretEncryptionKey: requireEnv(source, "SECRET_ENCRYPTION_KEY")
+    secretEncryptionKey: requireEnv(source, "SECRET_ENCRYPTION_KEY"),
+    providerTimeoutMs: parseInteger(source.PROVIDER_TIMEOUT_MS, 30_000),
+    providerMaxRetries: parseInteger(source.PROVIDER_MAX_RETRIES, 1),
+    providerRetryDelayMs: parseInteger(source.PROVIDER_RETRY_DELAY_MS, 250)
   };
 }

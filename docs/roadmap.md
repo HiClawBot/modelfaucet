@@ -76,6 +76,8 @@ Exit criteria:
 
 Goal: make cloud model routing credible for real test traffic.
 
+Status: implemented in source. Provider requests now have timeout/retry controls, sanitized attempt metadata, provider health checks, usage reconciliation, explicit streaming guards, and server-side real-provider smoke support.
+
 Scope:
 
 - Verify LiteLLM with at least one real server-side test provider key.

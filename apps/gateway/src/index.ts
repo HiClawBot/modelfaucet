@@ -15,7 +15,10 @@ export async function startGatewayServer(): Promise<void> {
   const env = loadGatewayEnv();
   const liteLlmClient = new LiteLlmClient({
     baseUrl: env.liteLlmBaseUrl,
-    masterKey: env.liteLlmMasterKey
+    masterKey: env.liteLlmMasterKey,
+    timeoutMs: env.providerTimeoutMs,
+    maxRetries: env.providerMaxRetries,
+    retryDelayMs: env.providerRetryDelayMs
   });
   const mockCompletionRepository = new PostgresMockCompletionRepository(
     {

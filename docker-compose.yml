@@ -119,6 +119,9 @@ services:
       LITELLM_BASE_URL: ${LITELLM_BASE_URL:-http://litellm:4000}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-test-litellm-master-key}
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-dev_32_bytes_replace_me_replace_me}
+      PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-30000}
+      PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-1}
+      PROVIDER_RETRY_DELAY_MS: ${PROVIDER_RETRY_DELAY_MS:-250}
     ports:
       - "3002:3002"
     depends_on:

@@ -54,6 +54,21 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     service: "@modelfaucet/gateway"
   }));
 
+  app.get("/health/providers", async () => {
+    if (options.mockCompletionRepository.checkProviderHealth === undefined) {
+      return {
+        ok: true,
+        providers: []
+      };
+    }
+
+    const provider = await options.mockCompletionRepository.checkProviderHealth();
+    return {
+      ok: provider.ok,
+      providers: [provider]
+    };
+  });
+
   app.post("/v1/chat/completions", async (request, reply) => {
     const sessionToken = extractBearerToken(request.headers.authorization);
     if (sessionToken === undefined) {
@@ -72,6 +87,18 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
         message: "Invalid chat completion request.",
         statusCode: 400,
         details: parsed.error.flatten()
+      });
+      return reply.code(error.statusCode).send(createErrorResponse(error));
+    }
+
+    if (parsed.data.stream === true) {
+      const error = new ModelFaucetError({
+        code: "invalid_request",
+        message: "Streaming responses are not enabled in this gateway release.",
+        statusCode: 400,
+        details: {
+          streaming_supported: false
+        }
       });
       return reply.code(error.statusCode).send(createErrorResponse(error));
     }

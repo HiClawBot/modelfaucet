@@ -243,6 +243,9 @@ The Pages workflow publishes the docs from `docs/.vitepress/dist` on pushes to `
 See the [local smoke test guide](docs/local-smoke.md) for Docker Compose and
 non-Docker verification.
 
+See the [provider routing guide](docs/provider-routing.md) for LiteLLM timeout,
+retry, health-check, fallback, and real-provider smoke behavior.
+
 ---
 
 ## API compatibility

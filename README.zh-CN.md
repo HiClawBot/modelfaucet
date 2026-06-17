@@ -192,6 +192,8 @@ pnpm --filter crm-demo dev
 
 如果要使用平台云端路由，请在使用 LiteLLM 之前把真实的测试 provider key 放入 `.env`，例如 `OPENAI_API_KEY=<your-test-key>`。不要提交 `.env`。没有 provider key 时，可以用 BYOK、Local Bridge 或 mock provider smoke path 完成端到端模型调用。
 
+Provider routing 的 timeout、retry、health check、fallback 和真实 provider smoke 见 [provider routing guide](docs/provider-routing.md)。
+
 在 demo app 中：
 
 ```ts

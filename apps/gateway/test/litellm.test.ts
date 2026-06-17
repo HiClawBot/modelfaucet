@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LiteLlmClient,
   buildLiteLlmChatCompletionsUrl,
+  buildLiteLlmHealthUrl,
   loadGatewayEnv
 } from "../src/index";
 
@@ -78,6 +79,78 @@ describe("LiteLlmClient", () => {
     expect(result.model).toBe("gpt-test");
     expect(result.promptTokens).toBe(2);
     expect(result.completionTokens).toBeGreaterThan(0);
+    expect(result.usageSource).toBe("estimated");
+    expect(result.usageWarnings).toEqual([
+      "provider_prompt_tokens_missing",
+      "provider_completion_tokens_missing"
+    ]);
+  });
+
+  it("reconciles partial provider token usage with total tokens", async () => {
+    const client = new LiteLlmClient({
+      baseUrl: "https://litellm.example/v1",
+      masterKey: "sk-litellm-dev-master-key",
+      fetch: async () =>
+        jsonResponse({
+          model: "gpt-test",
+          choices: [{ message: { role: "assistant", content: "Reconciled usage" } }],
+          usage: {
+            prompt_tokens: 3,
+            total_tokens: 11
+          }
+        })
+    });
+
+    const result = await client.createChatCompletion({
+      request: {
+        model: "gpt-test",
+        messages: [{ role: "user", content: "hello" }]
+      }
+    });
+
+    expect(result.promptTokens).toBe(3);
+    expect(result.completionTokens).toBe(8);
+    expect(result.usageSource).toBe("reconciled");
+  });
+
+  it("retries retryable provider failures before succeeding", async () => {
+    const calls: Array<{ input: string | URL; init?: RequestInit }> = [];
+    const client = new LiteLlmClient({
+      baseUrl: "https://litellm.example",
+      masterKey: "sk-litellm-dev-master-key",
+      maxRetries: 1,
+      retryDelayMs: 1,
+      fetch: async (input, init) => {
+        calls.push({ input, init });
+        if (calls.length === 1) {
+          return jsonResponse({ error: { message: "temporarily unavailable" } }, 503);
+        }
+
+        return jsonResponse({
+          model: "auto-text",
+          choices: [{ message: { role: "assistant", content: "Recovered" } }],
+          usage: {
+            prompt_tokens: 4,
+            completion_tokens: 2,
+            total_tokens: 6
+          }
+        });
+      }
+    });
+
+    const result = await client.createChatCompletion({
+      request: {
+        model: "auto:customer_reply",
+        messages: [{ role: "user", content: "Retry this" }]
+      }
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(result.messageContent).toBe("Recovered");
+    expect(result.attempts).toMatchObject([
+      { attempt: 1, statusCode: 503, retryable: true },
+      { attempt: 2, statusCode: 200, retryable: false }
+    ]);
   });
 
   it("uses server-side BYOK credentials without the LiteLLM master key", async () => {
@@ -156,6 +229,37 @@ describe("LiteLlmClient", () => {
     expect(buildLiteLlmChatCompletionsUrl("https://litellm.example/v1")).toBe(
       "https://litellm.example/v1/chat/completions"
     );
+  });
+
+  it("normalizes LiteLLM health URLs", () => {
+    expect(buildLiteLlmHealthUrl("https://litellm.example")).toBe(
+      "https://litellm.example/health"
+    );
+    expect(buildLiteLlmHealthUrl("https://litellm.example/v1")).toBe(
+      "https://litellm.example/health"
+    );
+  });
+
+  it("checks provider health without exposing secrets", async () => {
+    const calls: Array<{ input: string | URL; init?: RequestInit }> = [];
+    const client = new LiteLlmClient({
+      baseUrl: "https://litellm.example",
+      masterKey: "sk-litellm-dev-master-key",
+      fetch: async (input, init) => {
+        calls.push({ input, init });
+        return jsonResponse({ ok: true });
+      }
+    });
+
+    await expect(client.checkHealth()).resolves.toMatchObject({
+      ok: true,
+      provider: "litellm",
+      statusCode: 200
+    });
+    expect(String(calls[0]?.input)).toBe("https://litellm.example/health");
+    expect(calls[0]?.init?.headers).toMatchObject({
+      authorization: "Bearer sk-litellm-dev-master-key"
+    });
   });
 
   it("rejects localhost LiteLLM URLs in production", () => {

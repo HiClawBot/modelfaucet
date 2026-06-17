@@ -99,6 +99,27 @@ Rules:
 
 ## 3. Gateway API
 
+### GET /health/providers
+
+Returns sanitized provider health information for operator checks. It must not
+include raw provider keys, Authorization headers, or secret-bearing URLs.
+
+Example response:
+
+```json
+{
+  "ok": true,
+  "providers": [
+    {
+      "ok": true,
+      "provider": "litellm",
+      "statusCode": 200,
+      "latencyMs": 12
+    }
+  ]
+}
+```
+
 ### POST /v1/chat/completions
 
 OpenAI-compatible chat completions endpoint.
@@ -160,7 +181,7 @@ Response:
 }
 ```
 
-Streaming response follows OpenAI-compatible SSE chunks and includes a final usage event where supported.
+`stream: true` is currently rejected with `invalid_request` until streaming ledger accounting is implemented.
 
 ---
 

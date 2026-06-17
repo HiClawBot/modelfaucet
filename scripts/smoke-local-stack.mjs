@@ -8,13 +8,71 @@ const databaseUrl = process.env.DATABASE_URL;
 const apiPort = Number(process.env.SMOKE_API_PORT ?? "3101");
 const gatewayPort = Number(process.env.SMOKE_GATEWAY_PORT ?? "3102");
 const providerPort = Number(process.env.SMOKE_PROVIDER_PORT ?? "4100");
+const providerMode = process.env.SMOKE_PROVIDER_MODE ?? "mock";
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 const gatewayBaseUrl = `http://127.0.0.1:${gatewayPort}/v1`;
-const providerBaseUrl = `http://127.0.0.1:${providerPort}`;
+const mockProviderBaseUrl = `http://127.0.0.1:${providerPort}`;
 
 function assertRequiredEnvironment() {
   if (databaseUrl === undefined || databaseUrl.trim() === "") {
     throw new Error("DATABASE_URL is required for the local stack smoke test.");
+  }
+
+  if (providerMode !== "mock" && providerMode !== "external") {
+    throw new Error("SMOKE_PROVIDER_MODE must be either 'mock' or 'external'.");
+  }
+}
+
+function isPrivateNetworkHostname(hostname) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (normalized === "localhost" || normalized.endsWith(".localhost")) {
+    return true;
+  }
+
+  if (
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe8") ||
+    normalized.startsWith("fe9") ||
+    normalized.startsWith("fea") ||
+    normalized.startsWith("feb")
+  ) {
+    return true;
+  }
+
+  const octets = normalized.split(".");
+  if (octets.length !== 4) {
+    return false;
+  }
+
+  const parts = octets.map((part) => Number(part));
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  const [first = -1, second = -1] = parts;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
+}
+
+function assertExternalProviderBaseUrl(value) {
+  if (value === undefined || value.trim() === "") {
+    throw new Error("LITELLM_BASE_URL is required when SMOKE_PROVIDER_MODE=external.");
+  }
+
+  const url = new URL(value);
+  if (isPrivateNetworkHostname(url.hostname) && process.env.SMOKE_ALLOW_PRIVATE_PROVIDER !== "1") {
+    throw new Error(
+      "External provider smoke refuses localhost/private LITELLM_BASE_URL without SMOKE_ALLOW_PRIVATE_PROVIDER=1."
+    );
   }
 }
 
@@ -166,10 +224,12 @@ async function cleanup(startedServices, mockProvider) {
     await stopService(service);
   }
 
-  mockProvider.closeAllConnections?.();
-  await new Promise((resolve) => {
-    mockProvider.close(resolve);
-  });
+  if (mockProvider !== undefined) {
+    mockProvider.closeAllConnections?.();
+    await new Promise((resolve) => {
+      mockProvider.close(resolve);
+    });
+  }
 }
 
 async function main() {
@@ -179,10 +239,18 @@ async function main() {
   run("pnpm", ["db:migrate"]);
   run("pnpm", ["db:seed"]);
 
-  const mockProvider = await startMockOpenAiCompatibleServer({
-    host: "127.0.0.1",
-    port: providerPort
-  });
+  const externalProviderBaseUrl = process.env.LITELLM_BASE_URL;
+  if (providerMode === "external") {
+    assertExternalProviderBaseUrl(externalProviderBaseUrl);
+  }
+
+  const mockProvider =
+    providerMode === "mock"
+      ? await startMockOpenAiCompatibleServer({
+          host: "127.0.0.1",
+          port: providerPort
+        })
+      : undefined;
   const childEnv = {
     ...process.env,
     NODE_ENV: "test",
@@ -190,7 +258,8 @@ async function main() {
     SECRET_ENCRYPTION_KEY:
       process.env.SECRET_ENCRYPTION_KEY ?? "dev_32_bytes_replace_me_replace_me",
     LITELLM_MASTER_KEY: process.env.LITELLM_MASTER_KEY ?? "sk-test-litellm-master-key",
-    LITELLM_BASE_URL: providerBaseUrl,
+    LITELLM_BASE_URL:
+      providerMode === "mock" ? mockProviderBaseUrl : String(externalProviderBaseUrl),
     PORT_API: String(apiPort),
     PORT_GATEWAY: String(gatewayPort),
     GATEWAY_BASE_URL: gatewayBaseUrl
@@ -203,6 +272,13 @@ async function main() {
   try {
     await waitForHealth(`${apiBaseUrl}/health`, "api", startedServices[0]);
     await waitForHealth(`http://127.0.0.1:${gatewayPort}/health`, "gateway", startedServices[1]);
+
+    const providerHealth = await readJson(
+      await fetch(`http://127.0.0.1:${gatewayPort}/health/providers`)
+    );
+    if (providerHealth.ok !== true) {
+      throw new Error(`Provider health check failed: ${JSON.stringify(providerHealth)}`);
+    }
 
     const session = await readJson(
       await fetch(`${apiBaseUrl}/v1/sessions`, {

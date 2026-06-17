@@ -40,6 +40,7 @@ export default defineConfig({
           { text: "Overview", link: "/" },
           { text: "Quickstart", link: "/quickstart" },
           { text: "Local Smoke Test", link: "/local-smoke" },
+          { text: "Provider Routing", link: "/provider-routing" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -49,6 +50,7 @@ export default defineConfig({
         items: [
           { text: "中文概览", link: "/zh-CN/" },
           { text: "本地 Smoke Test", link: "/zh-CN/local-smoke" },
+          { text: "Provider Routing", link: "/zh-CN/provider-routing" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

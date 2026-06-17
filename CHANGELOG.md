@@ -4,6 +4,18 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.3.0 - 2026-06-18
+
+### Added
+
+- Provider timeout, retry, and retry-delay controls for the Gateway LiteLLM client.
+- Sanitized provider attempt metadata and `/health/providers`.
+- Provider usage reconciliation for missing or inconsistent token usage fields.
+- BYOK/developer-key fallback-to-platform controls when credentials or feature policy explicitly allow fallback.
+- Explicit streaming guard for `stream: true` until streaming ledger accounting is implemented.
+- `pnpm smoke:provider` for real-provider route verification using server-side LiteLLM environment only.
+- English and Simplified Chinese provider routing guides.
+
 ## 0.2.0 - 2026-06-18
 
 ### Added
