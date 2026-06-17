@@ -41,7 +41,7 @@ jobs:
           version: "9.0.0"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: services/local-bridge/go.mod
 
