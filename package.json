@@ -1,7 +1,7 @@
 {
   "name": "modelfaucet",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
@@ -21,7 +21,9 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs --host 127.0.0.1",
     "db:migrate": "psql $DATABASE_URL -f infra/db/schema.sql",
-    "db:seed": "psql $DATABASE_URL -f infra/db/seed.sql"
+    "db:seed": "psql $DATABASE_URL -f infra/db/seed.sql",
+    "db:reset:dev": "node scripts/reset-dev-db.mjs",
+    "smoke:local": "node scripts/smoke-local-stack.mjs"
   },
   "keywords": [
     "llm",

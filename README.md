@@ -178,16 +178,24 @@ pnpm install
 pnpm db:migrate
 pnpm db:seed
 
-# 4. Start API, gateway, and dashboard
+# 4. Optional: run the local end-to-end smoke test
+pnpm smoke:local
+
+# 5. Start API, gateway, and dashboard
 pnpm dev
 
-# 5. Run CRM demo in another shell
+# 6. Run CRM demo in another shell
 pnpm --filter crm-demo dev
 ```
 
+For a zero-secret local smoke path, `pnpm smoke:local` starts a local
+OpenAI-compatible mock provider and verifies session creation, gateway routing,
+usage recording, ledger entries, and dashboard aggregates.
+
 For platform cloud routing, put a real test provider key in `.env` before using
 LiteLLM, for example `OPENAI_API_KEY=<your-test-key>`. Do not commit `.env`.
-Without a provider key, use BYOK or the Local Bridge for end-to-end model calls.
+Without a provider key, use BYOK, the Local Bridge, or the mock provider smoke path
+for end-to-end model calls.
 
 Then in the demo app:
 
@@ -231,6 +239,9 @@ pnpm docs:preview
 ```
 
 The Pages workflow publishes the docs from `docs/.vitepress/dist` on pushes to `main`.
+
+See the [local smoke test guide](docs/local-smoke.md) for Docker Compose and
+non-Docker verification.
 
 ---
 

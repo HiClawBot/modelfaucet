@@ -56,6 +56,8 @@ Exit criteria:
 
 Goal: make a new contributor or pilot user able to run the complete system locally with Docker.
 
+Status: implemented in source. Local non-Docker smoke is covered by `pnpm smoke:local`; Docker Compose syntax is validated in CI and can be run on Docker-capable machines.
+
 Scope:
 
 - Validate `docker compose up` for PostgreSQL, Redis, LiteLLM, API, Gateway, Dashboard, and CRM demo.

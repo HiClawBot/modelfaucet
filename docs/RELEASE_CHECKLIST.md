@@ -9,6 +9,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm lint` passes.
 - `pnpm typecheck` passes.
 - `pnpm test` passes.
+- `pnpm smoke:local` passes against a seeded local PostgreSQL database.
 - `pnpm --filter @modelfaucet/dashboard build` passes.
 - `pnpm --filter crm-demo build` passes.
 - `pnpm docs:build` passes.

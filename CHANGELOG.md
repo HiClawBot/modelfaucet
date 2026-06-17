@@ -4,6 +4,8 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.2.0 - 2026-06-18
+
 ### Added
 
 - VitePress documentation site configuration and GitHub Pages deployment workflow.
@@ -14,6 +16,11 @@ All notable changes to ModelFaucet will be documented in this file.
 - Controlled major dependency upgrade for TypeScript 6, ESLint 10, Vitest 4, root Vite 8, and Zod 4.
 - Dependabot npm grouping now only combines minor and patch updates, leaving major updates as separate PRs.
 - English and Simplified Chinese roadmap pages for the path from source MVP to hosted beta and GA.
+- Local OpenAI-compatible mock provider for zero-secret smoke testing.
+- `pnpm smoke:local` end-to-end smoke test covering sessions, gateway routing, usage, ledger entries, and dashboard aggregates.
+- `pnpm db:reset:dev` for repeatable local demo database resets.
+- Docker Compose application stack for API, Gateway, Dashboard, CRM demo, LiteLLM, Redis, PostgreSQL, and the local mock provider.
+- English and Simplified Chinese local smoke test guides.
 
 ## 0.1.0 - 2026-06-17
 

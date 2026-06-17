@@ -69,6 +69,15 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Local stack smoke test
+        env:
+          SECRET_ENCRYPTION_KEY: dev_32_bytes_replace_me_replace_me
+          LITELLM_MASTER_KEY: sk-test-litellm-master-key
+        run: pnpm smoke:local
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
       - name: Build dashboard
         run: pnpm --filter @modelfaucet/dashboard build
 

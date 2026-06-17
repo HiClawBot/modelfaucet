@@ -42,4 +42,6 @@ OPENAI_API_KEY=<your-test-key>
 
 完整中文 README 见 [README.zh-CN.md](https://github.com/HiClawBot/modelfaucet/blob/main/README.zh-CN.md)。
 
+本地全链路验证见 [本地 Smoke Test](./local-smoke.md)。
+
 后续版本规划见 [版本路线图](./roadmap.md)。

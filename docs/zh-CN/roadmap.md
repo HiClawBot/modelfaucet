@@ -56,6 +56,8 @@ ModelFaucet `0.1.0` 已达到源码 MVP 状态。当前包含 Control API、Gate
 
 目标：让新贡献者或 pilot 用户能用 Docker 跑完整系统。
 
+状态：源码已实现。非 Docker 本地 smoke 由 `pnpm smoke:local` 覆盖；Docker Compose 配置在 CI 中校验，可在具备 Docker 的机器上运行。
+
 范围：
 
 - 验证 PostgreSQL、Redis、LiteLLM、API、Gateway、Dashboard 和 CRM demo 的 `docker compose up`。

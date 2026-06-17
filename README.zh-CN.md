@@ -178,14 +178,19 @@ pnpm install
 pnpm db:migrate
 pnpm db:seed
 
-# 4. 启动 API、gateway 和 dashboard
+# 4. 可选：运行本地端到端 smoke test
+pnpm smoke:local
+
+# 5. 启动 API、gateway 和 dashboard
 pnpm dev
 
-# 5. 在另一个 shell 里启动 CRM demo
+# 6. 在另一个 shell 里启动 CRM demo
 pnpm --filter crm-demo dev
 ```
 
-如果要使用平台云端路由，请在使用 LiteLLM 之前把真实的测试 provider key 放入 `.env`，例如 `OPENAI_API_KEY=<your-test-key>`。不要提交 `.env`。没有 provider key 时，可以用 BYOK 或 Local Bridge 完成端到端模型调用。
+如果要零真实密钥跑本地 smoke path，`pnpm smoke:local` 会启动本地 OpenAI-compatible mock provider，并验证 session 创建、gateway routing、usage 记录、ledger entries 和 dashboard aggregate。
+
+如果要使用平台云端路由，请在使用 LiteLLM 之前把真实的测试 provider key 放入 `.env`，例如 `OPENAI_API_KEY=<your-test-key>`。不要提交 `.env`。没有 provider key 时，可以用 BYOK、Local Bridge 或 mock provider smoke path 完成端到端模型调用。
 
 在 demo app 中：
 
