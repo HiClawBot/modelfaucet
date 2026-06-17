@@ -96,6 +96,10 @@ ModelFaucet `0.1.0` 已达到源码 MVP 状态。当前包含 Control API、Gate
 
 目标：把 Dashboard 从 MVP viewer 变成可用的开发者控制台。
 
+状态：源码已实现。Dashboard 现在包含 Apps、Features、Operations、Usage、
+Revenue 和 Provider Keys 页面，并由 developer admin token 保护的
+developer-console API 支撑。
+
 范围：
 
 - App 和 feature CRUD，加上校验。

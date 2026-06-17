@@ -3,7 +3,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
-import { fetchDeveloperProviderKeys, fetchUsageDashboard } from "../src/api";
+import {
+  fetchDeveloperApps,
+  fetchDeveloperProviderKeys,
+  fetchUsageDashboard
+} from "../src/api";
 import { dashboardApp } from "../src/index";
 
 const dashboardResponse = {
@@ -57,6 +61,95 @@ const providerKeysResponse = {
   ]
 };
 
+const appsResponse = {
+  items: [
+    {
+      public_app_id: "app_pub_demo",
+      name: "CRM Demo",
+      vertical: "crm",
+      default_revenue_share_bps: 4000,
+      status: "active",
+      developer_id: "22222222-2222-4222-8222-222222222222",
+      developer_name: "Demo Developer",
+      developer_email: "dev@example.com",
+      created_at: "2026-06-17T00:00:00.000Z",
+      updated_at: "2026-06-17T00:00:00.000Z"
+    }
+  ]
+};
+
+const featureResponse = {
+  items: [
+    {
+      id: "11111111-1111-4111-8111-111111111111",
+      public_app_id: "app_pub_demo",
+      feature_key: "customer_reply",
+      display_name: "Customer reply",
+      policy: {
+        route_preference: ["local", "developer_key", "platform_pool"]
+      },
+      pricing: {
+        mode: "usage_markup",
+        markup_percent: 30,
+        channel_share_bps: 4000
+      },
+      created_at: "2026-06-17T00:00:00.000Z",
+      updated_at: "2026-06-17T00:00:00.000Z"
+    }
+  ]
+};
+
+const operationsResponse = {
+  wallets: [
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      owner_scope: "developer",
+      owner_id: "22222222-2222-4222-8222-222222222222",
+      owner_name: "Demo Developer",
+      balance_usd: "1.25000000",
+      updated_at: "2026-06-17T00:00:00.000Z"
+    }
+  ],
+  topups: [
+    {
+      id: "44444444-4444-4444-8444-444444444444",
+      wallet_id: "33333333-3333-4333-8333-333333333333",
+      owner_scope: "end_user",
+      owner_id: "55555555-5555-4555-8555-555555555555",
+      provider: "stripe",
+      provider_checkout_session_id: "cs_test_123",
+      amount_usd: "5.00000000",
+      status: "credited",
+      created_at: "2026-06-17T00:00:00.000Z",
+      updated_at: "2026-06-17T00:00:00.000Z"
+    }
+  ],
+  payouts: [
+    {
+      id: "66666666-6666-4666-8666-666666666666",
+      developer_id: "22222222-2222-4222-8222-222222222222",
+      developer_name: "Demo Developer",
+      amount_usd: "1.25000000",
+      status: "pending",
+      provider: "mock",
+      created_at: "2026-06-17T00:00:00.000Z",
+      updated_at: "2026-06-17T00:00:00.000Z"
+    }
+  ],
+  audit_logs: [
+    {
+      id: "77777777-7777-4777-8777-777777777777",
+      actor_scope: "developer",
+      action: "feature.create",
+      resource_type: "app_feature",
+      metadata: {
+        public_app_id: "app_pub_demo"
+      },
+      created_at: "2026-06-17T00:00:00.000Z"
+    }
+  ]
+};
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -100,6 +193,20 @@ describe("dashboard app", () => {
         }
       }
     );
+  });
+
+  it("fetches developer apps with admin authorization", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(appsResponse));
+
+    await expect(fetchDeveloperApps(fetcher, "http://api.test", "mf_admin_dev")).resolves.toEqual(
+      appsResponse.items
+    );
+
+    expect(fetcher).toHaveBeenCalledWith("http://api.test/v1/developer/apps", {
+      headers: {
+        authorization: "Bearer mf_admin_dev"
+      }
+    });
   });
 
   it("renders overview totals", async () => {
@@ -215,5 +322,146 @@ describe("dashboard app", () => {
     });
     expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
     expect(screen.queryByText("sk-test-provider-secret-wxyz")).toBeNull();
+  });
+
+  it("renders the apps console and creates an app", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/usage")) {
+        return jsonResponse(dashboardResponse);
+      }
+
+      if (url.endsWith("/v1/developer/apps") && init?.method === "POST") {
+        return jsonResponse(
+          {
+            ...appsResponse.items[0],
+            public_app_id: "app_pub_support",
+            name: "Support Console",
+            default_revenue_share_bps: 4200
+          },
+          201
+        );
+      }
+
+      return jsonResponse(appsResponse);
+    });
+
+    render(
+      <App
+        apiBaseUrl="http://api.test"
+        developerAdminToken="mf_admin_dev"
+        fetcher={fetcher}
+        initialPath="/apps"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("app_pub_demo")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("Public app ID"), {
+      target: { value: "app_pub_support" }
+    });
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Support Console" }
+    });
+    fireEvent.change(screen.getByLabelText("Vertical"), {
+      target: { value: "support" }
+    });
+    fireEvent.change(screen.getByLabelText("Revenue bps"), {
+      target: { value: "4200" }
+    });
+    fireEvent.click(screen.getByText("Create app"));
+
+    await waitFor(() => {
+      expect(screen.getByText("App created.")).toBeTruthy();
+    });
+
+    const postCall = fetcher.mock.calls.find(
+      ([input, init]) => String(input) === "http://api.test/v1/developer/apps" && init?.method === "POST"
+    );
+    expect(postCall).toBeDefined();
+    expect(postCall?.[1]?.headers).toEqual({
+      authorization: "Bearer mf_admin_dev",
+      "content-type": "application/json"
+    });
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
+      public_app_id: "app_pub_support",
+      name: "Support Console",
+      vertical: "support",
+      default_revenue_share_bps: 4200,
+      status: "active"
+    });
+  });
+
+  it("renders feature policy editing and reports invalid JSON", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/usage")) {
+        return jsonResponse(dashboardResponse);
+      }
+
+      return jsonResponse(featureResponse);
+    });
+
+    render(
+      <App
+        apiBaseUrl="http://api.test"
+        developerAdminToken="mf_admin_dev"
+        fetcher={fetcher}
+        initialPath="/features"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("customer_reply").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getByLabelText("Feature key"), {
+      target: { value: "ticket_summary" }
+    });
+    fireEvent.change(screen.getByLabelText("Display name"), {
+      target: { value: "Ticket summary" }
+    });
+    fireEvent.change(screen.getByLabelText("Policy JSON"), {
+      target: { value: "{invalid" }
+    });
+    fireEvent.click(screen.getByText("Create feature"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+    });
+    expect(
+      fetcher.mock.calls.some(
+        ([input, init]) => String(input).includes("/features") && init?.method === "POST"
+      )
+    ).toBe(false);
+  });
+
+  it("renders operations wallet, payout, top-up, and audit data", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/usage")) {
+        return jsonResponse(dashboardResponse);
+      }
+
+      return jsonResponse(operationsResponse);
+    });
+
+    render(
+      <App
+        apiBaseUrl="http://api.test"
+        developerAdminToken="mf_admin_dev"
+        fetcher={fetcher}
+        initialPath="/operations"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Demo Developer").length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText("$1.250000").length).toBeGreaterThan(0);
+    expect(screen.getByText("feature.create")).toBeTruthy();
+    expect(screen.getByText("stripe")).toBeTruthy();
   });
 });

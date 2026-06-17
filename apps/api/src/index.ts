@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { loadApiEnv } from "./env";
 import { PostgresDashboardRepository } from "./repositories/dashboardRepository";
+import { PostgresDeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
 import { PostgresPaymentRepository } from "./repositories/paymentRepository";
 import { PostgresPayoutRepository } from "./repositories/payoutRepository";
 import { PostgresProviderKeyRepository } from "./repositories/providerKeyRepository";
@@ -12,6 +13,7 @@ import { StripeRestCheckoutClient } from "./stripe";
 export * from "./crypto";
 export * from "./env";
 export * from "./repositories/dashboardRepository";
+export * from "./repositories/developerConsoleRepository";
 export * from "./repositories/paymentRepository";
 export * from "./repositories/payoutRepository";
 export * from "./repositories/providerKeyRepository";
@@ -28,6 +30,9 @@ export async function startApiServer(): Promise<void> {
     connectionString: env.databaseUrl
   });
   const dashboardRepository = new PostgresDashboardRepository({
+    connectionString: env.databaseUrl
+  });
+  const developerConsoleRepository = new PostgresDeveloperConsoleRepository({
     connectionString: env.databaseUrl
   });
   const providerKeyRepository = new PostgresProviderKeyRepository({
@@ -49,6 +54,7 @@ export async function startApiServer(): Promise<void> {
   const server = buildApiServer({
     sessionRepository,
     dashboardRepository,
+    developerConsoleRepository,
     providerKeyRepository,
     walletRepository,
     paymentRepository,

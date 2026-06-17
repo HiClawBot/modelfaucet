@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：MVP 实现。当前本地栈包含 Control API、Gateway、Dashboard、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值和 payout mock。
+> 状态：`0.4.0` 源码 beta。当前本地栈包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值和 payout mock。
 
 ---
 
@@ -258,6 +258,15 @@ POST   /v1/admin/wallets/:id/credit-test-balance
 POST   /v1/user/provider-keys
 GET    /v1/user/provider-keys
 DELETE /v1/user/provider-keys/:id
+GET    /v1/developer/apps
+POST   /v1/developer/apps
+PATCH  /v1/developer/apps/:publicAppId
+DELETE /v1/developer/apps/:publicAppId
+GET    /v1/developer/apps/:publicAppId/features
+POST   /v1/developer/apps/:publicAppId/features
+PATCH  /v1/developer/apps/:publicAppId/features/:featureKey
+DELETE /v1/developer/apps/:publicAppId/features/:featureKey
+GET    /v1/developer/operations
 POST   /v1/developer/provider-keys
 GET    /v1/developer/provider-keys
 DELETE /v1/developer/provider-keys/:id

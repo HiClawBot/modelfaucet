@@ -13,6 +13,7 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { createSessionToken, hashExternalUserId, hashSessionToken } from "./crypto";
 import type { DashboardRepository } from "./repositories/dashboardRepository";
+import type { DeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
 import type { PaymentRepository } from "./repositories/paymentRepository";
 import type { PayoutRepository } from "./repositories/payoutRepository";
 import type { ProviderKeyRepository } from "./repositories/providerKeyRepository";
@@ -29,6 +30,7 @@ import {
 export type BuildApiServerOptions = {
   sessionRepository: SessionRepository;
   dashboardRepository?: DashboardRepository;
+  developerConsoleRepository?: DeveloperConsoleRepository;
   providerKeyRepository?: ProviderKeyRepository;
   walletRepository?: WalletRepository;
   paymentRepository?: PaymentRepository;
@@ -136,6 +138,20 @@ function requirePayoutSupport(options: BuildApiServerOptions): PayoutRepository 
   return options.payoutRepository;
 }
 
+function requireDeveloperConsoleSupport(
+  options: BuildApiServerOptions
+): DeveloperConsoleRepository {
+  if (options.developerConsoleRepository === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_request",
+      message: "Developer console repository is not configured.",
+      statusCode: 500
+    });
+  }
+
+  return options.developerConsoleRepository;
+}
+
 function requireSessionToken(request: { headers: { authorization?: string } }): string {
   const sessionToken = extractBearerToken(request.headers.authorization);
   if (sessionToken === undefined) {
@@ -151,6 +167,55 @@ function requireSessionToken(request: { headers: { authorization?: string } }): 
 
 const AddDeveloperProviderKeyRequestSchema = AddProviderKeyRequestSchema.extend({
   public_app_id: PublicAppIdSchema
+});
+
+const DeveloperAppStatusSchema = z.enum(["active", "disabled"]);
+
+const CreateDeveloperAppRequestSchema = z
+  .object({
+    public_app_id: PublicAppIdSchema,
+    name: z.string().min(1).max(256),
+    vertical: z.string().min(1).max(128).optional(),
+    default_revenue_share_bps: z.number().int().min(0).max(10000).optional().default(4000),
+    status: DeveloperAppStatusSchema.optional().default("active")
+  })
+  .strict();
+
+const UpdateDeveloperAppRequestSchema = z
+  .object({
+    name: z.string().min(1).max(256).optional(),
+    vertical: z.string().min(1).max(128).optional(),
+    default_revenue_share_bps: z.number().int().min(0).max(10000).optional(),
+    status: DeveloperAppStatusSchema.optional()
+  })
+  .strict();
+
+const DeveloperJsonObjectSchema = z.record(z.string(), z.unknown());
+
+const CreateDeveloperFeatureRequestSchema = z
+  .object({
+    feature_key: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_:-]+$/),
+    display_name: z.string().min(1).max(256),
+    policy: DeveloperJsonObjectSchema.optional().default({}),
+    pricing: DeveloperJsonObjectSchema.optional().default({})
+  })
+  .strict();
+
+const UpdateDeveloperFeatureRequestSchema = z
+  .object({
+    display_name: z.string().min(1).max(256).optional(),
+    policy: DeveloperJsonObjectSchema.optional(),
+    pricing: DeveloperJsonObjectSchema.optional()
+  })
+  .strict();
+
+const DeveloperAppParamsSchema = z.object({
+  publicAppId: PublicAppIdSchema
+});
+
+const DeveloperFeatureParamsSchema = z.object({
+  publicAppId: PublicAppIdSchema,
+  featureKey: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_:-]+$/)
 });
 
 function requireDeveloperAdminToken(
@@ -258,6 +323,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   if (
     options.sessionRepository.close !== undefined ||
     options.dashboardRepository?.close !== undefined ||
+    options.developerConsoleRepository?.close !== undefined ||
     options.providerKeyRepository?.close !== undefined ||
     options.walletRepository?.close !== undefined ||
     options.paymentRepository?.close !== undefined ||
@@ -266,6 +332,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     app.addHook("onClose", async () => {
       await options.sessionRepository.close?.();
       await options.dashboardRepository?.close?.();
+      await options.developerConsoleRepository?.close?.();
       await options.providerKeyRepository?.close?.();
       await options.walletRepository?.close?.();
       await options.paymentRepository?.close?.();
@@ -576,6 +643,272 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         now: now()
       });
       return payout;
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/developer/apps", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const items = await repository.listApps();
+      return { items };
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.post("/v1/developer/apps", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const parsed = CreateDeveloperAppRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid developer app request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const app = await repository.createApp({
+        publicAppId: parsed.data.public_app_id,
+        name: parsed.data.name,
+        vertical: parsed.data.vertical,
+        defaultRevenueShareBps: parsed.data.default_revenue_share_bps,
+        status: parsed.data.status,
+        now: now()
+      });
+      return reply.code(201).send(app);
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.patch("/v1/developer/apps/:publicAppId", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const params = DeveloperAppParamsSchema.safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid public app id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const parsed = UpdateDeveloperAppRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid developer app update request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      return await repository.updateApp({
+        publicAppId: params.data.publicAppId,
+        name: parsed.data.name,
+        vertical: parsed.data.vertical,
+        defaultRevenueShareBps: parsed.data.default_revenue_share_bps,
+        status: parsed.data.status,
+        now: now()
+      });
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.delete("/v1/developer/apps/:publicAppId", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const params = DeveloperAppParamsSchema.safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid public app id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      return await repository.archiveApp(params.data.publicAppId, now());
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/developer/apps/:publicAppId/features", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const params = DeveloperAppParamsSchema.safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid public app id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const items = await repository.listFeatures(params.data.publicAppId);
+      return { items };
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.post("/v1/developer/apps/:publicAppId/features", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const params = DeveloperAppParamsSchema.safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid public app id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const parsed = CreateDeveloperFeatureRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid developer feature request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const feature = await repository.createFeature({
+        publicAppId: params.data.publicAppId,
+        featureKey: parsed.data.feature_key,
+        displayName: parsed.data.display_name,
+        policy: parsed.data.policy,
+        pricing: parsed.data.pricing,
+        now: now()
+      });
+      return reply.code(201).send(feature);
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.patch(
+    "/v1/developer/apps/:publicAppId/features/:featureKey",
+    async (request, reply) => {
+      try {
+        const repository = requireDeveloperConsoleSupport(options);
+        requireDeveloperAdminToken(request, options.developerAdminToken);
+        const params = DeveloperFeatureParamsSchema.safeParse(request.params);
+        if (!params.success) {
+          const error = new ModelFaucetError({
+            code: "invalid_request",
+            message: "Missing or invalid feature route parameters.",
+            statusCode: 400,
+            details: params.error.flatten()
+          });
+          return reply.code(error.statusCode).send(createErrorResponse(error));
+        }
+
+        const parsed = UpdateDeveloperFeatureRequestSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          const error = new ModelFaucetError({
+            code: "invalid_request",
+            message: "Invalid developer feature update request.",
+            statusCode: 400,
+            details: parsed.error.flatten()
+          });
+          return reply.code(error.statusCode).send(createErrorResponse(error));
+        }
+
+        return await repository.updateFeature({
+          publicAppId: params.data.publicAppId,
+          featureKey: params.data.featureKey,
+          displayName: parsed.data.display_name,
+          policy: parsed.data.policy,
+          pricing: parsed.data.pricing,
+          now: now()
+        });
+      } catch (error) {
+        const modelFaucetError = toModelFaucetError(error);
+        return reply
+          .code(modelFaucetError.statusCode)
+          .send(createErrorResponse(modelFaucetError));
+      }
+    }
+  );
+
+  app.delete(
+    "/v1/developer/apps/:publicAppId/features/:featureKey",
+    async (request, reply) => {
+      try {
+        const repository = requireDeveloperConsoleSupport(options);
+        requireDeveloperAdminToken(request, options.developerAdminToken);
+        const params = DeveloperFeatureParamsSchema.safeParse(request.params);
+        if (!params.success) {
+          const error = new ModelFaucetError({
+            code: "invalid_request",
+            message: "Missing or invalid feature route parameters.",
+            statusCode: 400,
+            details: params.error.flatten()
+          });
+          return reply.code(error.statusCode).send(createErrorResponse(error));
+        }
+
+        await repository.deleteFeature(params.data.publicAppId, params.data.featureKey);
+        return { ok: true };
+      } catch (error) {
+        const modelFaucetError = toModelFaucetError(error);
+        return reply
+          .code(modelFaucetError.statusCode)
+          .send(createErrorResponse(modelFaucetError));
+      }
+    }
+  );
+
+  app.get("/v1/developer/operations", async (request, reply) => {
+    try {
+      const repository = requireDeveloperConsoleSupport(options);
+      requireDeveloperAdminToken(request, options.developerAdminToken);
+      return await repository.getOperations();
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
       return reply

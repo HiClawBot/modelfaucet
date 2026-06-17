@@ -3,10 +3,22 @@ import {
   DEFAULT_API_BASE_URL,
   DEFAULT_DEVELOPER_ADMIN_TOKEN,
   DEFAULT_PUBLIC_APP_ID,
+  archiveDeveloperApp,
+  createDeveloperApp,
+  createDeveloperFeature,
   createDeveloperProviderKey,
+  deleteDeveloperFeature,
   deleteDeveloperProviderKey,
+  fetchDeveloperApps,
+  fetchDeveloperFeatures,
+  fetchDeveloperOperations,
   fetchDeveloperProviderKeys,
   fetchUsageDashboard,
+  updateDeveloperApp,
+  updateDeveloperFeature,
+  type DeveloperAppSummary,
+  type DeveloperFeatureSummary,
+  type DeveloperOperationsSummary,
   type FetchLike,
   type ProviderKeySummary,
   type UsageDashboardRow,
@@ -22,10 +34,20 @@ export type AppProps = {
   developerAdminToken?: string;
 };
 
-type PageKey = "dashboard" | "usage" | "revenue" | "providerKeys";
+type PageKey =
+  | "dashboard"
+  | "apps"
+  | "features"
+  | "operations"
+  | "usage"
+  | "revenue"
+  | "providerKeys";
 
 const navItems: Array<{ href: string; label: string; page: PageKey }> = [
   { href: "/dashboard", label: "Overview", page: "dashboard" },
+  { href: "/apps", label: "Apps", page: "apps" },
+  { href: "/features", label: "Features", page: "features" },
+  { href: "/operations", label: "Operations", page: "operations" },
   { href: "/apps/app_pub_demo/usage", label: "Usage", page: "usage" },
   { href: "/revenue", label: "Revenue", page: "revenue" },
   { href: "/provider-keys", label: "Provider keys", page: "providerKeys" }
@@ -34,6 +56,18 @@ const navItems: Array<{ href: string; label: string; page: PageKey }> = [
 function resolvePage(pathname: string): PageKey {
   if (pathname.startsWith("/apps/app_pub_demo/usage")) {
     return "usage";
+  }
+
+  if (pathname.startsWith("/features")) {
+    return "features";
+  }
+
+  if (pathname.startsWith("/operations")) {
+    return "operations";
+  }
+
+  if (pathname.startsWith("/apps")) {
+    return "apps";
   }
 
   if (pathname.startsWith("/revenue")) {
@@ -58,6 +92,14 @@ function formatDate(value: string): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatBps(value: number): string {
+  return `${(value / 100).toFixed(2)}%`;
+}
+
+function formatJson(value: Record<string, unknown>): string {
+  return JSON.stringify(value, null, 2);
 }
 
 function Metric({
@@ -209,6 +251,724 @@ function splitModels(value: FormDataEntryValue | null): string[] {
 
 function optionalString(value: FormDataEntryValue | null): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function parseJsonObject(label: string, value: FormDataEntryValue | null): Record<string, unknown> {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return {};
+  }
+
+  const parsed = JSON.parse(value) as unknown;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${label} must be a JSON object.`);
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+function parseRevenueShare(value: FormDataEntryValue | null): number {
+  const share = Number(optionalString(value) ?? "4000");
+  if (!Number.isInteger(share) || share < 0 || share > 10000) {
+    throw new Error("Revenue share must be a whole number from 0 to 10000 bps.");
+  }
+
+  return share;
+}
+
+function appStatus(value: FormDataEntryValue | null): "active" | "disabled" {
+  return value === "disabled" ? "disabled" : "active";
+}
+
+function AppsPage({
+  fetcher,
+  apiBaseUrl,
+  developerAdminToken
+}: {
+  fetcher?: FetchLike;
+  apiBaseUrl: string;
+  developerAdminToken: string;
+}) {
+  const [apps, setApps] = useState<DeveloperAppSummary[]>([]);
+  const [editingApp, setEditingApp] = useState<DeveloperAppSummary | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadApps = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      setApps(await fetchDeveloperApps(fetcher, apiBaseUrl, developerAdminToken));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Apps could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiBaseUrl, developerAdminToken, fetcher]);
+
+  useEffect(() => {
+    void loadApps();
+  }, [loadApps]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const publicAppId = optionalString(formData.get("public_app_id"));
+    const name = optionalString(formData.get("name"));
+    if (publicAppId === undefined || name === undefined) {
+      setError("Public app ID and name are required.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const input = {
+        public_app_id: publicAppId,
+        name,
+        vertical: optionalString(formData.get("vertical")),
+        default_revenue_share_bps: parseRevenueShare(
+          formData.get("default_revenue_share_bps")
+        ),
+        status: appStatus(formData.get("status"))
+      };
+      if (editingApp === undefined) {
+        await createDeveloperApp(input, fetcher, apiBaseUrl, developerAdminToken);
+        setMessage("App created.");
+      } else {
+        await updateDeveloperApp(
+          editingApp.public_app_id,
+          {
+            name: input.name,
+            vertical: input.vertical,
+            default_revenue_share_bps: input.default_revenue_share_bps,
+            status: input.status
+          },
+          fetcher,
+          apiBaseUrl,
+          developerAdminToken
+        );
+        setEditingApp(undefined);
+        setMessage("App updated.");
+      }
+
+      form.reset();
+      await loadApps();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "App could not be saved.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleArchive(publicAppId: string) {
+    setError("");
+    setMessage("");
+    try {
+      await archiveDeveloperApp(publicAppId, fetcher, apiBaseUrl, developerAdminToken);
+      setMessage("App archived.");
+      await loadApps();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "App could not be archived.");
+    }
+  }
+
+  return (
+    <>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Developer console</p>
+            <h2>Apps</h2>
+          </div>
+          <span className="count-label">{apps.length} apps</span>
+        </div>
+        <form className="key-form console-form" key={editingApp?.public_app_id ?? "new-app"} onSubmit={handleSubmit}>
+          <label>
+            Public app ID
+            <input
+              name="public_app_id"
+              defaultValue={editingApp?.public_app_id ?? ""}
+              placeholder="app_pub_support"
+              readOnly={editingApp !== undefined}
+            />
+          </label>
+          <label>
+            Name
+            <input name="name" defaultValue={editingApp?.name ?? ""} placeholder="Support Console" />
+          </label>
+          <label>
+            Vertical
+            <input name="vertical" defaultValue={editingApp?.vertical ?? ""} placeholder="crm" />
+          </label>
+          <label>
+            Revenue bps
+            <input
+              name="default_revenue_share_bps"
+              inputMode="numeric"
+              defaultValue={editingApp?.default_revenue_share_bps ?? 4000}
+            />
+          </label>
+          <label>
+            Status
+            <select name="status" defaultValue={editingApp?.status === "disabled" ? "disabled" : "active"}>
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </label>
+          <button type="submit" disabled={isSaving}>
+            {editingApp === undefined ? "Create app" : "Save app"}
+          </button>
+          {editingApp !== undefined ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setEditingApp(undefined)}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </form>
+        {message.length > 0 ? <p className="success">{message}</p> : null}
+        {error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
+      </section>
+      <section className="content-section">
+        {isLoading ? <p className="empty-state">Loading apps...</p> : null}
+        {!isLoading && apps.length === 0 ? (
+          <p className="empty-state">No apps have been created.</p>
+        ) : null}
+        {apps.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Public app ID</th>
+                  <th>Name</th>
+                  <th>Vertical</th>
+                  <th>Share</th>
+                  <th>Status</th>
+                  <th>Developer</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map((app) => (
+                  <tr key={app.public_app_id}>
+                    <td>{app.public_app_id}</td>
+                    <td>{app.name}</td>
+                    <td>{app.vertical ?? "unscoped"}</td>
+                    <td>{formatBps(app.default_revenue_share_bps)}</td>
+                    <td>{app.status}</td>
+                    <td>{app.developer_name}</td>
+                    <td>{formatDate(app.updated_at)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => setEditingApp(app)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="table-button"
+                          type="button"
+                          disabled={app.status === "disabled"}
+                          onClick={() => void handleArchive(app.public_app_id)}
+                        >
+                          Archive
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+const defaultPolicyJson = JSON.stringify(
+  {
+    route_preference: ["local", "end_user_byok", "developer_key", "platform_pool"],
+    privacy: "redact_pii_before_cloud",
+    model_policy: "cheapest_sufficient"
+  },
+  null,
+  2
+);
+
+const defaultPricingJson = JSON.stringify(
+  {
+    mode: "usage_markup",
+    markup_percent: 30,
+    channel_share_bps: 4000
+  },
+  null,
+  2
+);
+
+function FeaturesPage({
+  fetcher,
+  apiBaseUrl,
+  publicAppId,
+  developerAdminToken
+}: {
+  fetcher?: FetchLike;
+  apiBaseUrl: string;
+  publicAppId: string;
+  developerAdminToken: string;
+}) {
+  const [selectedPublicAppId, setSelectedPublicAppId] = useState(publicAppId);
+  const [features, setFeatures] = useState<DeveloperFeatureSummary[]>([]);
+  const [editingFeature, setEditingFeature] = useState<DeveloperFeatureSummary | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadFeatures = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      setFeatures(
+        await fetchDeveloperFeatures(
+          fetcher,
+          apiBaseUrl,
+          selectedPublicAppId,
+          developerAdminToken
+        )
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Features could not be loaded."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiBaseUrl, developerAdminToken, fetcher, selectedPublicAppId]);
+
+  useEffect(() => {
+    void loadFeatures();
+  }, [loadFeatures]);
+
+  function handleScopeSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextAppId = optionalString(new FormData(event.currentTarget).get("public_app_id"));
+    if (nextAppId !== undefined) {
+      setEditingFeature(undefined);
+      setSelectedPublicAppId(nextAppId);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const featureKey = optionalString(formData.get("feature_key"));
+    const displayName = optionalString(formData.get("display_name"));
+    if (featureKey === undefined || displayName === undefined) {
+      setError("Feature key and display name are required.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const policy = parseJsonObject("Policy", formData.get("policy_json"));
+      const pricing = parseJsonObject("Pricing", formData.get("pricing_json"));
+      if (editingFeature === undefined) {
+        await createDeveloperFeature(
+          selectedPublicAppId,
+          {
+            feature_key: featureKey,
+            display_name: displayName,
+            policy,
+            pricing
+          },
+          fetcher,
+          apiBaseUrl,
+          developerAdminToken
+        );
+        setMessage("Feature created.");
+      } else {
+        await updateDeveloperFeature(
+          selectedPublicAppId,
+          editingFeature.feature_key,
+          {
+            display_name: displayName,
+            policy,
+            pricing
+          },
+          fetcher,
+          apiBaseUrl,
+          developerAdminToken
+        );
+        setEditingFeature(undefined);
+        setMessage("Feature updated.");
+      }
+
+      form.reset();
+      await loadFeatures();
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Feature could not be saved."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(featureKey: string) {
+    setError("");
+    setMessage("");
+    try {
+      await deleteDeveloperFeature(
+        selectedPublicAppId,
+        featureKey,
+        fetcher,
+        apiBaseUrl,
+        developerAdminToken
+      );
+      setMessage("Feature deleted.");
+      await loadFeatures();
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Feature could not be deleted."
+      );
+    }
+  }
+
+  return (
+    <>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Route policy</p>
+            <h2>Features</h2>
+          </div>
+          <span className="count-label">{selectedPublicAppId}</span>
+        </div>
+        <form className="key-form scope-form" onSubmit={handleScopeSubmit}>
+          <label>
+            App ID
+            <input name="public_app_id" defaultValue={selectedPublicAppId} />
+          </label>
+          <button type="submit">Load features</button>
+        </form>
+        <form
+          className="key-form console-form feature-form"
+          key={editingFeature?.feature_key ?? "new-feature"}
+          onSubmit={handleSubmit}
+        >
+          <label>
+            Feature key
+            <input
+              name="feature_key"
+              defaultValue={editingFeature?.feature_key ?? ""}
+              placeholder="customer_reply"
+              readOnly={editingFeature !== undefined}
+            />
+          </label>
+          <label>
+            Display name
+            <input
+              name="display_name"
+              defaultValue={editingFeature?.display_name ?? ""}
+              placeholder="Customer reply"
+            />
+          </label>
+          <label className="form-wide">
+            Policy JSON
+            <textarea
+              name="policy_json"
+              defaultValue={
+                editingFeature === undefined ? defaultPolicyJson : formatJson(editingFeature.policy)
+              }
+            />
+          </label>
+          <label className="form-wide">
+            Pricing JSON
+            <textarea
+              name="pricing_json"
+              defaultValue={
+                editingFeature === undefined ? defaultPricingJson : formatJson(editingFeature.pricing)
+              }
+            />
+          </label>
+          <button type="submit" disabled={isSaving}>
+            {editingFeature === undefined ? "Create feature" : "Save feature"}
+          </button>
+          {editingFeature !== undefined ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setEditingFeature(undefined)}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </form>
+        {message.length > 0 ? <p className="success">{message}</p> : null}
+        {error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
+      </section>
+      <section className="content-section">
+        {isLoading ? <p className="empty-state">Loading features...</p> : null}
+        {!isLoading && features.length === 0 ? (
+          <p className="empty-state">No features have been created.</p>
+        ) : null}
+        {features.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Name</th>
+                  <th>Policy</th>
+                  <th>Pricing</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {features.map((feature) => (
+                  <tr key={feature.id}>
+                    <td>{feature.feature_key}</td>
+                    <td>{feature.display_name}</td>
+                    <td>{formatJson(feature.policy)}</td>
+                    <td>{formatJson(feature.pricing)}</td>
+                    <td>{formatDate(feature.updated_at)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => setEditingFeature(feature)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => void handleDelete(feature.feature_key)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+function OperationsPage({
+  fetcher,
+  apiBaseUrl,
+  developerAdminToken
+}: {
+  fetcher?: FetchLike;
+  apiBaseUrl: string;
+  developerAdminToken: string;
+}) {
+  const [data, setData] = useState<DeveloperOperationsSummary | undefined>();
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchDeveloperOperations(fetcher, apiBaseUrl, developerAdminToken).then(
+      (summary) => {
+        if (isMounted) {
+          setData(summary);
+        }
+      },
+      (caughtError: unknown) => {
+        if (isMounted) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Operations data could not be loaded."
+          );
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiBaseUrl, developerAdminToken, fetcher]);
+
+  if (error.length > 0) {
+    return <p className="error" role="alert">{error}</p>;
+  }
+
+  if (data === undefined) {
+    return <p className="empty-state">Loading operations...</p>;
+  }
+
+  return (
+    <>
+      <section className="metrics revenue-metrics" aria-label="Operations totals">
+        <Metric label="Wallets" value={data.wallets.length} />
+        <Metric label="Top-ups" value={data.topups.length} />
+        <Metric label="Payouts" value={data.payouts.length} />
+      </section>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Money movement</p>
+            <h2>Wallets</h2>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Owner</th>
+                <th>Scope</th>
+                <th>Balance</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.wallets.map((wallet) => (
+                <tr key={wallet.id}>
+                  <td>{wallet.owner_name ?? wallet.owner_id}</td>
+                  <td>{wallet.owner_scope}</td>
+                  <td>{formatMoney(wallet.balance_usd)}</td>
+                  <td>{formatDate(wallet.updated_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Review queue</p>
+            <h2>Payouts</h2>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Developer</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Provider</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.payouts.map((payout) => (
+                <tr key={payout.id}>
+                  <td>{payout.developer_name}</td>
+                  <td>{formatMoney(payout.amount_usd)}</td>
+                  <td>{payout.status}</td>
+                  <td>{payout.provider ?? "none"}</td>
+                  <td>{formatDate(payout.updated_at)}</td>
+                </tr>
+              ))}
+              {data.payouts.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No payouts have been created.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Sensitive actions</p>
+            <h2>Audit log</h2>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Actor</th>
+                <th>Resource</th>
+                <th>Metadata</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.audit_logs.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{entry.action}</td>
+                  <td>{entry.actor_scope}</td>
+                  <td>{entry.resource_type}</td>
+                  <td>{formatJson(entry.metadata)}</td>
+                  <td>{formatDate(entry.created_at)}</td>
+                </tr>
+              ))}
+              {data.audit_logs.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No audit log entries are available.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="content-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Stripe test mode</p>
+            <h2>Top-ups</h2>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Wallet</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topups.map((topup) => (
+                <tr key={topup.id}>
+                  <td>{topup.provider}</td>
+                  <td>{formatMoney(topup.amount_usd)}</td>
+                  <td>{topup.status}</td>
+                  <td>{topup.wallet_id}</td>
+                  <td>{formatDate(topup.created_at)}</td>
+                </tr>
+              ))}
+              {data.topups.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No top-ups have been recorded.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
 }
 
 function ProviderKeysPage({
@@ -423,6 +1183,7 @@ export function App({
   const page = resolvePage(
     initialPath ?? (typeof window === "undefined" ? "/dashboard" : window.location.pathname)
   );
+  const requiresUsageData = page === "dashboard" || page === "usage" || page === "revenue";
 
   useEffect(() => {
     let isMounted = true;
@@ -476,14 +1237,36 @@ export function App({
             <p className="eyebrow">{data?.public_app_id ?? DEFAULT_PUBLIC_APP_ID}</p>
             <h2>{data?.app_name ?? "CRM Demo"}</h2>
           </div>
-          <span className="status-chip">Read-only MVP</span>
+          <span className="status-chip">Console beta</span>
         </header>
 
-        {error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
-        {data === undefined && error.length === 0 ? (
+        {requiresUsageData && error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
+        {requiresUsageData && data === undefined && error.length === 0 ? (
           <p className="empty-state">Loading dashboard data...</p>
         ) : null}
         {data !== undefined && page === "dashboard" ? <OverviewPage data={data} /> : null}
+        {page === "apps" ? (
+          <AppsPage
+            fetcher={fetcher}
+            apiBaseUrl={apiBaseUrl}
+            developerAdminToken={developerAdminToken}
+          />
+        ) : null}
+        {page === "features" ? (
+          <FeaturesPage
+            fetcher={fetcher}
+            apiBaseUrl={apiBaseUrl}
+            publicAppId={publicAppId}
+            developerAdminToken={developerAdminToken}
+          />
+        ) : null}
+        {page === "operations" ? (
+          <OperationsPage
+            fetcher={fetcher}
+            apiBaseUrl={apiBaseUrl}
+            developerAdminToken={developerAdminToken}
+          />
+        ) : null}
         {data !== undefined && page === "usage" ? <UsagePage data={data} /> : null}
         {data !== undefined && page === "revenue" ? <RevenuePage data={data} /> : null}
         {page === "providerKeys" ? (

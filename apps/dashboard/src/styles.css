@@ -196,9 +196,9 @@ nav a[aria-current="page"] {
 }
 
 .key-form input,
-.key-form select {
+.key-form select,
+.key-form textarea {
   width: 100%;
-  min-height: 40px;
   border: 1px solid #b9c3d2;
   border-radius: 6px;
   padding: 9px 10px;
@@ -208,6 +208,33 @@ nav a[aria-current="page"] {
   font-size: 14px;
   font-weight: 650;
   text-transform: none;
+}
+
+.key-form input,
+.key-form select {
+  min-height: 40px;
+}
+
+.key-form textarea {
+  min-height: 138px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.console-form {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.scope-form {
+  grid-template-columns: minmax(240px, 360px) 140px;
+}
+
+.feature-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-wide {
+  grid-column: span 1;
 }
 
 .checkbox-row {
@@ -220,7 +247,8 @@ nav a[aria-current="page"] {
 }
 
 .key-form button,
-.table-button {
+.table-button,
+.secondary-button {
   min-height: 40px;
   border: 0;
   border-radius: 6px;
@@ -232,20 +260,32 @@ nav a[aria-current="page"] {
   cursor: pointer;
 }
 
-.key-form button {
+.key-form button,
+.secondary-button {
   align-self: end;
 }
 
 .key-form button:disabled,
-.table-button:disabled {
+.table-button:disabled,
+.secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.secondary-button {
+  color: #344054;
+  background: #e4e9f1;
 }
 
 .table-button {
   min-height: 32px;
   padding: 7px 10px;
   font-size: 12px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .table-wrap {
@@ -282,6 +322,13 @@ td {
   color: #1d2737;
   font-size: 14px;
   font-weight: 650;
+}
+
+td:nth-child(3),
+td:nth-child(4) {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 tbody tr:last-child td {
@@ -334,6 +381,12 @@ tbody tr:last-child td {
   .key-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .console-form,
+  .scope-form,
+  .feature-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
@@ -354,5 +407,15 @@ tbody tr:last-child td {
 
   .key-form {
     grid-template-columns: 1fr;
+  }
+
+  .console-form,
+  .scope-form,
+  .feature-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-wide {
+    grid-column: span 1;
   }
 }

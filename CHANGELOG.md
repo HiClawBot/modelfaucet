@@ -4,6 +4,16 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.4.0 - 2026-06-18
+
+### Added
+
+- Developer console API for app create/list/update/archive workflows.
+- Feature manifest API for route policy and pricing JSON create/list/update/delete workflows.
+- Operations API for wallets, Stripe test top-ups, payouts, and audit-log review.
+- Dashboard Apps, Features, and Operations pages with component coverage for key states.
+- API and dashboard tests for developer-console authorization, CRUD workflows, and secret-free operations responses.
+
 ## 0.3.0 - 2026-06-18
 
 ### Added

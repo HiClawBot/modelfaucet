@@ -369,54 +369,100 @@ Request:
 
 ---
 
-## 7. Developer API
+## 7. Developer Console API
 
-### POST /v1/developers
+All developer-console routes require `Authorization: Bearer <DEVELOPER_ADMIN_TOKEN>`.
+Provider API keys are managed only through explicit provider-key endpoints; app,
+feature, operations, wallet, payout, and audit responses never include raw
+provider secrets.
 
-Request:
-
-```json
-{
-  "name": "Demo Developer",
-  "email": "dev@example.com"
-}
-```
+### GET /v1/developer/apps
 
 Response:
 
 ```json
 {
-  "id": "dev_123",
-  "name": "Demo Developer",
-  "email": "dev@example.com"
+  "items": [
+    {
+      "public_app_id": "app_pub_demo",
+      "name": "CRM Demo",
+      "vertical": "crm",
+      "default_revenue_share_bps": 4000,
+      "status": "active",
+      "developer_id": "22222222-2222-4222-8222-222222222222",
+      "developer_name": "Demo Developer",
+      "developer_email": "dev@example.com",
+      "created_at": "2026-06-17T00:00:00.000Z",
+      "updated_at": "2026-06-17T00:00:00.000Z"
+    }
+  ]
 }
 ```
 
-### POST /v1/apps
+### POST /v1/developer/apps
 
 Request:
 
 ```json
 {
-  "developer_id": "dev_123",
-  "name": "CRM Demo",
-  "vertical": "crm",
-  "default_revenue_share_bps": 4000
+  "public_app_id": "app_pub_support",
+  "name": "Support Console",
+  "vertical": "support",
+  "default_revenue_share_bps": 4200,
+  "status": "active"
 }
 ```
+
+Response: app summary.
+
+### PATCH /v1/developer/apps/:publicAppId
+
+Request:
+
+```json
+{
+  "name": "Support Console",
+  "default_revenue_share_bps": 4500,
+  "status": "active"
+}
+```
+
+Response: app summary.
+
+### DELETE /v1/developer/apps/:publicAppId
+
+Archives an app by setting `status = disabled`.
+
+Response: app summary.
+
+### GET /v1/developer/apps/:publicAppId/features
 
 Response:
 
 ```json
 {
-  "id": "app_123",
-  "public_app_id": "app_pub_demo",
-  "developer_id": "dev_123",
-  "name": "CRM Demo"
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "public_app_id": "app_pub_demo",
+      "feature_key": "customer_reply",
+      "display_name": "Customer reply",
+      "policy": {
+        "route_preference": ["local", "developer_key", "platform_pool"]
+      },
+      "pricing": {
+        "mode": "usage_markup",
+        "markup_percent": 30,
+        "channel_share_bps": 4000
+      },
+      "created_at": "2026-06-17T00:00:00.000Z",
+      "updated_at": "2026-06-17T00:00:00.000Z"
+    }
+  ]
 }
 ```
 
-### POST /v1/apps/:id/features
+### POST /v1/developer/apps/:publicAppId/features
 
 Request:
 
@@ -434,6 +480,57 @@ Request:
     "markup_percent": 30,
     "channel_share_bps": 4000
   }
+}
+```
+
+Response: feature summary.
+
+### PATCH /v1/developer/apps/:publicAppId/features/:featureKey
+
+Request:
+
+```json
+{
+  "display_name": "Customer reply",
+  "pricing": {
+    "mode": "usage_markup",
+    "markup_percent": 35,
+    "channel_share_bps": 4200
+  }
+}
+```
+
+Response: feature summary.
+
+### DELETE /v1/developer/apps/:publicAppId/features/:featureKey
+
+Response:
+
+```json
+{
+  "ok": true
+}
+```
+
+### GET /v1/developer/operations
+
+Response:
+
+```json
+{
+  "wallets": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "owner_scope": "developer",
+      "owner_id": "22222222-2222-4222-8222-222222222222",
+      "owner_name": "Demo Developer",
+      "balance_usd": "1.25000000",
+      "updated_at": "2026-06-17T00:00:00.000Z"
+    }
+  ],
+  "topups": [],
+  "payouts": [],
+  "audit_logs": []
 }
 ```
 

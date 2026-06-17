@@ -96,6 +96,10 @@ Exit criteria:
 
 Goal: turn the dashboard from an MVP viewer into a usable developer console.
 
+Status: implemented in source. The dashboard now includes Apps, Features,
+Operations, Usage, Revenue, and Provider Keys pages backed by developer-console
+APIs protected by the developer admin token.
+
 Scope:
 
 - App and feature CRUD with validation.
