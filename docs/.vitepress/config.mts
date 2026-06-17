@@ -27,6 +27,7 @@ export default defineConfig({
     },
     nav: [
       { text: "Guide", link: "/quickstart" },
+      { text: "Roadmap", link: "/roadmap" },
       { text: "API", link: "/API_SPEC" },
       { text: "Security", link: "/SECURITY" },
       { text: "Release", link: "/RELEASE_CHECKLIST" },
@@ -38,7 +39,15 @@ export default defineConfig({
         items: [
           { text: "Overview", link: "/" },
           { text: "Quickstart", link: "/quickstart" },
+          { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
+        ]
+      },
+      {
+        text: "Chinese",
+        items: [
+          { text: "中文概览", link: "/zh-CN/" },
+          { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },
       {

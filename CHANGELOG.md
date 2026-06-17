@@ -13,6 +13,7 @@ All notable changes to ModelFaucet will be documented in this file.
 - GitHub Actions workflow upgrades with automatic Pages enablement.
 - Controlled major dependency upgrade for TypeScript 6, ESLint 10, Vitest 4, root Vite 8, and Zod 4.
 - Dependabot npm grouping now only combines minor and patch updates, leaving major updates as separate PRs.
+- English and Simplified Chinese roadmap pages for the path from source MVP to hosted beta and GA.
 
 ## 0.1.0 - 2026-06-17
 

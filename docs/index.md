@@ -30,3 +30,5 @@ features:
 ModelFaucet is at MVP source-release status. The repository includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, and payout mock.
 
 For hosted production, complete the [release checklist](./RELEASE_CHECKLIST.md), including Docker smoke tests, a real LiteLLM test route, Stripe webhook delivery, deployment secrets, and namespace/trademark checks.
+
+See the [roadmap](./roadmap.md) for the planned path from source MVP to hosted beta and general availability.

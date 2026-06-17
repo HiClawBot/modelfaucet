@@ -41,3 +41,5 @@ OPENAI_API_KEY=<your-test-key>
 - 云端服务不访问用户私有网络。
 
 完整中文 README 见 [README.zh-CN.md](https://github.com/HiClawBot/modelfaucet/blob/main/README.zh-CN.md)。
+
+后续版本规划见 [版本路线图](./roadmap.md)。
