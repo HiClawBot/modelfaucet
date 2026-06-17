@@ -4,6 +4,21 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.8.0 - 2026-06-18
+
+### Added
+
+- Threat and abuse model documentation in English and Simplified Chinese.
+- Expanded private-network URL guard coverage for carrier NAT, metadata hostnames, IPv4-mapped IPv6, unspecified IPv6, and alternate localhost IPv4 notation.
+- Production CORS allowlist requirements for API and Gateway via `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
+- API and Gateway CORS/env regression tests.
+- `pnpm security:audit` dependency audit script.
+
+### Changed
+
+- CI now runs dependency audit in addition to secret scanning, schema/seed verification, lint, typecheck, tests, smoke, app builds, and docs build.
+- Security documentation now reflects the 0.8 source-beta acceptance checklist.
+
 ## 0.7.0 - 2026-06-18
 
 ### Added

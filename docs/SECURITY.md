@@ -1,7 +1,7 @@
 # ModelFaucet Security Architecture
 
-Version: v0.1 Draft  
-Date: 2026-06-17
+Version: v0.8 Source Beta
+Date: 2026-06-18
 
 ---
 
@@ -285,6 +285,9 @@ high error rate with successful provider charges
 attempts to use private network base_url in cloud mode
 ```
 
+The current threat and abuse model is tracked in
+[`threat-abuse-model.md`](./threat-abuse-model.md).
+
 ---
 
 ## 10. Compliance checklist before launch
@@ -309,13 +312,15 @@ attempts to use private network base_url in cloud mode
 Codex should implement tests for:
 
 ```txt
-[ ] provider key is never returned after creation
-[ ] provider key is not present in frontend bundle
-[ ] expired session cannot call gateway
-[ ] unknown public_app_id cannot create session
-[ ] cloud API rejects localhost/private base_url
-[ ] BYOK route does not create platform upstream cost
-[ ] local route does not call cloud provider
-[ ] usage event has request_id and route_mode
-[ ] ledger write is idempotent by request_id
+[x] provider key is never returned after creation
+[x] provider key is not present in frontend bundle
+[x] expired session cannot call gateway
+[x] unknown public_app_id cannot create session
+[x] cloud API rejects localhost/private base_url
+[x] BYOK route does not create platform upstream cost
+[x] local route does not call cloud provider
+[x] usage event has request_id and route_mode
+[x] ledger write is idempotent by request_id
+[x] production API/Gateway CORS requires explicit allowlists
+[x] dependency audit and secret scan run in CI
 ```

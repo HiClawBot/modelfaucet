@@ -8,7 +8,7 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `0.7.0` is a source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `0.8.0` is a source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
 Current production blockers:
 
@@ -186,6 +186,11 @@ Exit criteria:
 ## `0.8.0` Security Hardening
 
 Goal: reduce risk before hosted beta.
+
+Status: implemented in source. The release adds a threat/abuse model, expanded
+SSRF/private-network URL guard coverage, production CORS allowlist requirements
+for API and Gateway, dependency audit in CI, and security acceptance checklist
+updates.
 
 Scope:
 

@@ -4,7 +4,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-当前状态：`0.7.0` 源码 beta，包含 payout review、ledger reconciliation、CSV settlement reports 和 operations hooks。
+当前状态：`0.8.0` 源码 beta，包含 payout review、ledger reconciliation、CSV settlement reports、operations hooks 和 security hardening checks。
 
 ## 它包含什么
 
@@ -47,5 +47,7 @@ OPENAI_API_KEY=<your-test-key>
 本地全链路验证见 [本地 Smoke Test](./local-smoke.md)。
 
 Billing 和 settlement 操作见 [Billing 和 Settlement](./billing-settlement.md)。
+
+安全不变量和 abuse model 见 [Threat 和 Abuse Model](./threat-abuse-model.md)。
 
 后续版本规划见 [版本路线图](./roadmap.md)。

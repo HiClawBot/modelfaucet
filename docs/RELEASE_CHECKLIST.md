@@ -6,6 +6,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 
 - `pnpm install --frozen-lockfile` completes.
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
+- `pnpm security:audit` reports no high-severity production dependency advisories.
 - `pnpm lint` passes.
 - `pnpm typecheck` passes.
 - `pnpm test` passes.
@@ -18,6 +19,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - Provider API keys are only documented as server-side environment variables.
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
+- Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
 
 ## Hosted production release
 

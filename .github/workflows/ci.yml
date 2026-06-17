@@ -55,6 +55,9 @@ jobs:
       - name: Verify secrets
         run: pnpm verify:secrets
 
+      - name: Dependency audit
+        run: pnpm security:audit
+
       - name: Verify database schema and seed
         run: |
           pnpm db:migrate

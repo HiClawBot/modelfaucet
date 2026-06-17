@@ -77,6 +77,35 @@ describe("gateway server", () => {
     expect(metrics.body).toContain('service="@modelfaucet/gateway"');
   });
 
+  it("uses an exact CORS allowlist when configured", async () => {
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        }
+      },
+      corsOrigins: ["https://app.example"]
+    });
+
+    const allowed = await server.inject({
+      method: "GET",
+      url: "/health",
+      headers: {
+        origin: "https://app.example"
+      }
+    });
+    expect(allowed.headers["access-control-allow-origin"]).toBe("https://app.example");
+
+    const blocked = await server.inject({
+      method: "GET",
+      url: "/health",
+      headers: {
+        origin: "https://evil.example"
+      }
+    });
+    expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("adds request ids to errors and applies rate limits", async () => {
     const server = buildGatewayServer({
       mockCompletionRepository: {

@@ -8,7 +8,7 @@
 
 ## 当前基线
 
-ModelFaucet `0.7.0` 已达到源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `0.8.0` 已达到源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
 当前生产发布阻塞项：
 
@@ -177,6 +177,8 @@ developer-console API 支撑。
 ## `0.8.0` 安全加固
 
 目标：Hosted beta 前降低关键风险。
+
+状态：源码已实现。本版本新增 threat/abuse model，扩展 SSRF/private-network URL guard 覆盖，要求 API 和 Gateway production CORS 显式 allowlist，在 CI 中加入 dependency audit，并更新 security acceptance checklist。
 
 范围：
 

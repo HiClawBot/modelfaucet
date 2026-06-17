@@ -60,8 +60,38 @@ describe("shared schemas", () => {
     expect(parsed.models_allowed).toEqual([]);
     expect(parsed.priority).toBe(100);
     expect(isCloudSafeBaseUrl("https://api.openai.com/v1")).toBe(true);
-    expect(AddProviderKeyRequestSchema.safeParse({ provider: "openai", api_key: "sk-test", base_url: "http://localhost:11434/v1" }).success).toBe(false);
-    expect(AddProviderKeyRequestSchema.safeParse({ provider: "openai", api_key: "sk-test", base_url: "http://192.168.1.20:8000/v1" }).success).toBe(false);
+
+    const blockedBaseUrls = [
+      "http://localhost:11434/v1",
+      "http://127.0.0.1:11434/v1",
+      "http://0.0.0.0:11434/v1",
+      "http://10.1.2.3:8000/v1",
+      "http://100.64.0.1:8000/v1",
+      "http://172.16.0.1:8000/v1",
+      "http://172.31.255.255:8000/v1",
+      "http://192.168.1.20:8000/v1",
+      "http://169.254.169.254/latest/meta-data",
+      "http://metadata.google.internal/computeMetadata/v1",
+      "http://[::1]:11434/v1",
+      "http://[::]:11434/v1",
+      "http://[fc00::1]:11434/v1",
+      "http://[fd00::1]:11434/v1",
+      "http://[fe80::1]:11434/v1",
+      "http://[::ffff:127.0.0.1]:11434/v1",
+      "http://2130706433:11434/v1",
+      "http://0x7f000001:11434/v1",
+      "http://0177.0.0.1:11434/v1"
+    ];
+
+    for (const baseUrl of blockedBaseUrls) {
+      expect(
+        AddProviderKeyRequestSchema.safeParse({
+          provider: "openai",
+          api_key: "sk-test",
+          base_url: baseUrl
+        }).success
+      ).toBe(false);
+    }
   });
 
   it("rejects invalid usage and revenue payloads", () => {
@@ -102,4 +132,3 @@ describe("shared schemas", () => {
     ).toBe("byok");
   });
 });
-

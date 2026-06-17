@@ -44,6 +44,7 @@ export default defineConfig({
           { text: "SDK and Local Bridge", link: "/sdk-local-bridge" },
           { text: "Operations", link: "/operations" },
           { text: "Billing and Settlement", link: "/billing-settlement" },
+          { text: "Threat and Abuse Model", link: "/threat-abuse-model" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -57,6 +58,7 @@ export default defineConfig({
           { text: "SDK 和 Local Bridge", link: "/zh-CN/sdk-local-bridge" },
           { text: "运维和可观测性", link: "/zh-CN/operations" },
           { text: "Billing 和 Settlement", link: "/zh-CN/billing-settlement" },
+          { text: "Threat 和 Abuse Model", link: "/zh-CN/threat-abuse-model" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

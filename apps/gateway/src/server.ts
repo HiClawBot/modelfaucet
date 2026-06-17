@@ -13,6 +13,7 @@ import type { MockCompletionRepository } from "./repositories/mockCompletionRepo
 
 export type BuildGatewayServerOptions = {
   mockCompletionRepository: MockCompletionRepository;
+  corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
   rateLimiter?: InMemoryRateLimiter;
   requestIdFactory?: () => string;
@@ -89,7 +90,7 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
   const requestStartedAt = new WeakMap<object, number>();
 
   app.register(cors, {
-    origin: true
+    origin: options.corsOrigins ?? true
   });
 
   app.addHook("onRequest", async (request, reply) => {

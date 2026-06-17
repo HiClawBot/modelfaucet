@@ -6,6 +6,7 @@ export type GatewayEnv = {
   databaseUrl: string;
   liteLlmBaseUrl: string;
   liteLlmMasterKey: string;
+  corsOrigins: true | string[];
   secretEncryptionKey: string;
   providerTimeoutMs: number;
   providerMaxRetries: number;
@@ -49,6 +50,50 @@ function requireEnv(source: NodeJS.ProcessEnv, key: string): string {
   return value;
 }
 
+function parseCorsOrigins(
+  value: string | undefined,
+  nodeEnv: string,
+  key: string
+): true | string[] {
+  if (value === undefined || value.trim() === "") {
+    if (nodeEnv === "production") {
+      throw new Error(`${key} is required in production.`);
+    }
+
+    return true;
+  }
+
+  if (value.trim() === "*") {
+    if (nodeEnv === "production") {
+      throw new Error(`${key} must not be '*' in production.`);
+    }
+
+    return true;
+  }
+
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (origins.length === 0) {
+    throw new Error(`${key} must include at least one origin.`);
+  }
+
+  for (const origin of origins) {
+    try {
+      const url = new URL(origin);
+      if (url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
+        throw new Error("invalid origin");
+      }
+    } catch {
+      throw new Error(`${key} contains an invalid origin: ${origin}`);
+    }
+  }
+
+  return origins;
+}
+
 export function loadGatewayEnv(source: NodeJS.ProcessEnv = process.env): GatewayEnv {
   const nodeEnv = source.NODE_ENV ?? "development";
   const liteLlmBaseUrl = source.LITELLM_BASE_URL ?? "http://localhost:4000";
@@ -62,6 +107,11 @@ export function loadGatewayEnv(source: NodeJS.ProcessEnv = process.env): Gateway
     databaseUrl: requireEnv(source, "DATABASE_URL"),
     liteLlmBaseUrl,
     liteLlmMasterKey: requireEnv(source, "LITELLM_MASTER_KEY"),
+    corsOrigins: parseCorsOrigins(
+      source.GATEWAY_CORS_ORIGINS,
+      nodeEnv,
+      "GATEWAY_CORS_ORIGINS"
+    ),
     secretEncryptionKey: requireEnv(source, "SECRET_ENCRYPTION_KEY"),
     providerTimeoutMs: parseInteger(source.PROVIDER_TIMEOUT_MS, 30_000),
     providerMaxRetries: parseInteger(source.PROVIDER_MAX_RETRIES, 1),

@@ -1,7 +1,7 @@
 {
   "name": "modelfaucet",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
@@ -17,6 +17,7 @@
     "test:ts": "turbo run test",
     "test:go": "cd services/local-bridge && go test ./...",
     "verify:secrets": "node scripts/verify-no-real-secrets.mjs",
+    "security:audit": "pnpm audit --prod --audit-level high",
     "docs:dev": "vitepress dev docs --host 127.0.0.1",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs --host 127.0.0.1",

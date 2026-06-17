@@ -3,6 +3,7 @@ export type ApiEnv = {
   port: number;
   databaseUrl: string;
   gatewayBaseUrl: string;
+  corsOrigins: true | string[];
   sessionTokenTtlSeconds: number;
   secretEncryptionKey: string;
   developerAdminToken: string;
@@ -49,12 +50,58 @@ function requireEnv(source: NodeJS.ProcessEnv, key: string): string {
   return value;
 }
 
+function parseCorsOrigins(
+  value: string | undefined,
+  nodeEnv: string,
+  key: string
+): true | string[] {
+  if (value === undefined || value.trim() === "") {
+    if (nodeEnv === "production") {
+      throw new Error(`${key} is required in production.`);
+    }
+
+    return true;
+  }
+
+  if (value.trim() === "*") {
+    if (nodeEnv === "production") {
+      throw new Error(`${key} must not be '*' in production.`);
+    }
+
+    return true;
+  }
+
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (origins.length === 0) {
+    throw new Error(`${key} must include at least one origin.`);
+  }
+
+  for (const origin of origins) {
+    try {
+      const url = new URL(origin);
+      if (url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
+        throw new Error("invalid origin");
+      }
+    } catch {
+      throw new Error(`${key} contains an invalid origin: ${origin}`);
+    }
+  }
+
+  return origins;
+}
+
 export function loadApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
+  const nodeEnv = source.NODE_ENV ?? "development";
   return {
-    nodeEnv: source.NODE_ENV ?? "development",
+    nodeEnv,
     port: parseInteger(source.PORT_API, 3001),
     databaseUrl: requireEnv(source, "DATABASE_URL"),
     gatewayBaseUrl: source.GATEWAY_BASE_URL ?? "http://localhost:3002/v1",
+    corsOrigins: parseCorsOrigins(source.API_CORS_ORIGINS, nodeEnv, "API_CORS_ORIGINS"),
     sessionTokenTtlSeconds: parseInteger(source.SESSION_TOKEN_TTL_SECONDS, 3600),
     secretEncryptionKey: requireEnv(source, "SECRET_ENCRYPTION_KEY"),
     developerAdminToken: source.DEVELOPER_ADMIN_TOKEN ?? "mf_admin_dev",

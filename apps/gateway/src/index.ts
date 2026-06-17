@@ -32,6 +32,7 @@ export async function startGatewayServer(): Promise<void> {
   );
   const server = buildGatewayServer({
     mockCompletionRepository,
+    corsOrigins: env.corsOrigins,
     rateLimiter: new InMemoryRateLimiter(
       env.rateLimitMaxRequests,
       env.rateLimitWindowMs

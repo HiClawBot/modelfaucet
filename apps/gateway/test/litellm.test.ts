@@ -153,6 +153,45 @@ describe("LiteLlmClient", () => {
     ]);
   });
 
+  it("does not expose provider credentials in failure details", async () => {
+    const client = new LiteLlmClient({
+      baseUrl: "https://litellm.example",
+      masterKey: "sk-litellm-dev-master-key",
+      maxRetries: 0,
+      fetch: async () =>
+        jsonResponse(
+          {
+            error: {
+              message: "provider rejected the request"
+            }
+          },
+          500
+        )
+    });
+
+    try {
+      await client.createChatCompletion({
+        request: {
+          model: "gpt-test",
+          messages: [{ role: "user", content: "Hello" }]
+        },
+        providerCredential: {
+          provider: "openai",
+          apiKey: "sk-user-owned-key",
+          baseUrl: "https://api.openai.com/v1",
+          modelsAllowed: []
+        }
+      });
+      throw new Error("Expected provider failure");
+    } catch (error) {
+      const details = JSON.stringify((error as { details?: unknown }).details ?? {});
+      expect(details).toContain("openai");
+      expect(details).not.toContain("sk-litellm-dev-master-key");
+      expect(details).not.toContain("sk-user-owned-key");
+      expect(details).not.toContain("authorization");
+    }
+  });
+
   it("uses server-side BYOK credentials without the LiteLLM master key", async () => {
     const calls: Array<{ input: string | URL; init?: RequestInit }> = [];
     const client = new LiteLlmClient({
@@ -272,5 +311,41 @@ describe("LiteLlmClient", () => {
         SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me"
       })
     ).toThrow("Production LiteLLM base URL must not point to localhost or a private LAN");
+  });
+
+  it("requires an explicit gateway CORS allowlist in production", () => {
+    expect(() =>
+      loadGatewayEnv({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me"
+      })
+    ).toThrow("GATEWAY_CORS_ORIGINS is required in production.");
+
+    expect(() =>
+      loadGatewayEnv({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        GATEWAY_CORS_ORIGINS: "*"
+      })
+    ).toThrow("GATEWAY_CORS_ORIGINS must not be '*' in production.");
+  });
+
+  it("parses gateway CORS origins as an exact production allowlist", () => {
+    expect(
+      loadGatewayEnv({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        GATEWAY_CORS_ORIGINS: "https://app.example,https://admin.example"
+      }).corsOrigins
+    ).toEqual(["https://app.example", "https://admin.example"]);
   });
 });

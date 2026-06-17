@@ -76,6 +76,7 @@ export async function startApiServer(): Promise<void> {
     secretEncryptionKey: env.secretEncryptionKey,
     developerAdminToken: env.developerAdminToken,
     adminToken: env.adminToken,
+    corsOrigins: env.corsOrigins,
     gatewayBaseUrl: env.gatewayBaseUrl,
     sessionTokenTtlSeconds: env.sessionTokenTtlSeconds,
     logger: env.nodeEnv !== "test"

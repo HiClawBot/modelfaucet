@@ -15,14 +15,80 @@ export const FeatureKeySchema = z.string().min(1).max(128).regex(identifierPatte
 export const RequestIdSchema = z.string().min(1).max(128).regex(identifierPattern);
 export const MoneyStringSchema = z.string().regex(moneyPattern);
 
+function isPrivateIpv4Parts(parts: number[]): boolean {
+  const [first = -1, second = -1] = parts;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
+}
+
+function parseIpv4Parts(hostname: string): number[] | undefined {
+  const octets = hostname.split(".");
+  if (octets.length !== 4) {
+    return undefined;
+  }
+
+  const parts = octets.map((part) => Number(part));
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return undefined;
+  }
+
+  return parts;
+}
+
+function parseIpv4MappedIpv6Parts(hostname: string): number[] | undefined {
+  if (!hostname.startsWith("::ffff:")) {
+    return undefined;
+  }
+
+  const suffix = hostname.slice("::ffff:".length);
+  const dottedParts = parseIpv4Parts(suffix);
+  if (dottedParts !== undefined) {
+    return dottedParts;
+  }
+
+  const groups = suffix.split(":");
+  if (groups.length !== 2) {
+    return undefined;
+  }
+
+  const high = Number.parseInt(groups[0] ?? "", 16);
+  const low = Number.parseInt(groups[1] ?? "", 16);
+  if (
+    !Number.isInteger(high) ||
+    !Number.isInteger(low) ||
+    high < 0 ||
+    high > 0xffff ||
+    low < 0 ||
+    low > 0xffff
+  ) {
+    return undefined;
+  }
+
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+}
+
 export function isPrivateNetworkHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const hostnameWithoutTrailingDot = normalized.replace(/\.$/, "");
 
-  if (normalized === "localhost" || normalized.endsWith(".localhost")) {
+  if (
+    hostnameWithoutTrailingDot === "localhost" ||
+    hostnameWithoutTrailingDot.endsWith(".localhost") ||
+    hostnameWithoutTrailingDot === "metadata" ||
+    hostnameWithoutTrailingDot === "metadata.google.internal"
+  ) {
     return true;
   }
 
   if (
+    normalized === "::" ||
     normalized === "::1" ||
     normalized === "0:0:0:0:0:0:0:1" ||
     normalized.startsWith("fc") ||
@@ -35,25 +101,17 @@ export function isPrivateNetworkHostname(hostname: string): boolean {
     return true;
   }
 
-  const octets = normalized.split(".");
-  if (octets.length !== 4) {
+  const mappedIpv4Parts = parseIpv4MappedIpv6Parts(normalized);
+  if (mappedIpv4Parts !== undefined) {
+    return isPrivateIpv4Parts(mappedIpv4Parts);
+  }
+
+  const parts = parseIpv4Parts(normalized);
+  if (parts === undefined) {
     return false;
   }
 
-  const parts = octets.map((part) => Number(part));
-  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
-    return false;
-  }
-
-  const [first = -1, second = -1] = parts;
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) ||
-    (first === 169 && second === 254)
-  );
+  return isPrivateIpv4Parts(parts);
 }
 
 export function isCloudSafeBaseUrl(value: string): boolean {
@@ -176,4 +234,3 @@ export type AddProviderKeyRequestInput = z.infer<typeof AddProviderKeyRequestSch
 export type UsageEventInput = z.infer<typeof UsageEventSchema>;
 export type RatedUsageInput = z.infer<typeof RatedUsageSchema>;
 export type RevenueRuleInput = z.infer<typeof RevenueRuleSchema>;
-

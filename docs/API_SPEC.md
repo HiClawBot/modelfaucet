@@ -1,7 +1,7 @@
 # ModelFaucet API Specification
 
-Version: v0.1 Draft  
-Date: 2026-06-17
+Version: v0.8 Source Beta
+Date: 2026-06-18
 
 ---
 
@@ -21,6 +21,23 @@ Auth:
 Developer/admin endpoints: Bearer mf_admin_xxx
 End-user/session endpoints: Bearer mf_sess_xxx
 Gateway endpoints: Bearer mf_sess_xxx
+```
+
+CORS:
+
+```txt
+Development may use permissive CORS for local demos.
+Production API deployments must set API_CORS_ORIGINS.
+Production Gateway deployments must set GATEWAY_CORS_ORIGINS.
+Production CORS origins must be explicit http/https origins and cannot be *.
+```
+
+Provider URL safety:
+
+```txt
+Cloud-routed provider base URLs reject localhost, private LAN, link-local,
+carrier NAT, metadata hostnames, private IPv6, and IPv4-mapped private hosts.
+Local Bridge is the only local/LAN model path and runs inside the user boundary.
 ```
 
 Errors:

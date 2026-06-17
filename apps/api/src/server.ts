@@ -46,6 +46,7 @@ export type BuildApiServerOptions = {
   secretEncryptionKey?: string;
   developerAdminToken?: string;
   adminToken?: string;
+  corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
   rateLimiter?: InMemoryRateLimiter;
   requestIdFactory?: () => string;
@@ -399,7 +400,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   const requestStartedAt = new WeakMap<object, number>();
 
   app.register(cors, {
-    origin: true
+    origin: options.corsOrigins ?? true
   });
 
   app.addHook("onRequest", async (request, reply) => {
