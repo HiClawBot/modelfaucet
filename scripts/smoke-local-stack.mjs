@@ -54,6 +54,7 @@ function startService(name, filter, env) {
   const child = spawn("pnpm", ["--filter", filter, "dev"], {
     cwd: repoRoot,
     env,
+    detached: true,
     stdio: ["ignore", "pipe", "pipe"]
   });
   const output = [];
@@ -75,6 +76,51 @@ function startService(name, filter, env) {
       return output.join("").slice(-4000);
     }
   };
+}
+
+async function stopService(service) {
+  if (service.child.exitCode !== null || service.child.signalCode !== null) {
+    return;
+  }
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+
+    service.child.once("exit", finish);
+
+    if (service.child.pid === undefined) {
+      service.child.kill("SIGTERM");
+    } else {
+      try {
+        process.kill(-service.child.pid, "SIGTERM");
+      } catch {
+        service.child.kill("SIGTERM");
+      }
+    }
+
+    setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      if (service.child.pid !== undefined) {
+        try {
+          process.kill(-service.child.pid, "SIGKILL");
+        } catch {
+          service.child.kill("SIGKILL");
+        }
+      } else {
+        service.child.kill("SIGKILL");
+      }
+      finish();
+    }, 2_000).unref();
+  });
 }
 
 async function waitForHealth(url, service, started) {
@@ -116,15 +162,14 @@ async function readJson(response) {
 }
 
 async function cleanup(startedServices, mockProvider) {
+  for (const service of startedServices.reverse()) {
+    await stopService(service);
+  }
+
+  mockProvider.closeAllConnections?.();
   await new Promise((resolve) => {
     mockProvider.close(resolve);
   });
-
-  for (const service of startedServices.reverse()) {
-    if (service.child.exitCode === null) {
-      service.child.kill("SIGTERM");
-    }
-  }
 }
 
 async function main() {
