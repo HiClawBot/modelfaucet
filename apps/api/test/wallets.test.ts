@@ -19,9 +19,9 @@ describe("wallet routes", () => {
         expect(sessionTokenHash).toBe(hashSessionToken("mf_sess_wallet"));
         expect(now).toEqual(new Date("2026-06-17T00:00:00.000Z"));
         return {
-          id: "11111111-1111-1111-1111-111111111111",
+          id: "11111111-1111-4111-8111-111111111111",
           owner_scope: "end_user",
-          owner_id: "22222222-2222-2222-2222-222222222222",
+          owner_id: "22222222-2222-4222-8222-222222222222",
           balance_usd: "10.00000000"
         };
       }
@@ -50,9 +50,9 @@ describe("wallet routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       owner_scope: "end_user",
-      owner_id: "22222222-2222-2222-2222-222222222222",
+      owner_id: "22222222-2222-4222-8222-222222222222",
       balance_usd: "10.00000000"
     });
     expect(getUserWallet).toHaveBeenCalledOnce();
@@ -62,14 +62,14 @@ describe("wallet routes", () => {
     const creditTestBalance = vi.fn<WalletRepository["creditTestBalance"]>(
       async (input) => {
         expect(input).toEqual({
-          walletId: "11111111-1111-1111-1111-111111111111",
+          walletId: "11111111-1111-4111-8111-111111111111",
           amountUsd: "5.25000000",
           now: new Date("2026-06-17T00:00:00.000Z")
         });
         return {
           id: input.walletId,
           owner_scope: "end_user",
-          owner_id: "22222222-2222-2222-2222-222222222222",
+          owner_id: "22222222-2222-4222-8222-222222222222",
           balance_usd: "5.25000000"
         };
       }
@@ -91,7 +91,7 @@ describe("wallet routes", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/v1/admin/wallets/11111111-1111-1111-1111-111111111111/credit-test-balance",
+      url: "/v1/admin/wallets/11111111-1111-4111-8111-111111111111/credit-test-balance",
       headers: {
         authorization: "Bearer mf_admin_test"
       },
@@ -102,9 +102,9 @@ describe("wallet routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       owner_scope: "end_user",
-      owner_id: "22222222-2222-2222-2222-222222222222",
+      owner_id: "22222222-2222-4222-8222-222222222222",
       balance_usd: "5.25000000"
     });
     expect(creditTestBalance).toHaveBeenCalledOnce();
@@ -129,7 +129,7 @@ describe("wallet routes", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/v1/admin/wallets/11111111-1111-1111-1111-111111111111/credit-test-balance",
+      url: "/v1/admin/wallets/11111111-1111-4111-8111-111111111111/credit-test-balance",
       payload: {
         amount_usd: "5.25000000"
       }
@@ -162,7 +162,7 @@ describe("wallet routes", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/v1/admin/wallets/11111111-1111-1111-1111-111111111111/credit-test-balance",
+      url: "/v1/admin/wallets/11111111-1111-4111-8111-111111111111/credit-test-balance",
       headers: {
         authorization: "Bearer mf_admin_test"
       },

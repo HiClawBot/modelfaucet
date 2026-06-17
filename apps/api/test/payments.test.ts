@@ -20,9 +20,9 @@ function walletRepository(): WalletRepository {
     async getUserWallet(sessionTokenHash) {
       expect(sessionTokenHash).toBe(hashSessionToken("mf_sess_stripe"));
       return {
-        id: "11111111-1111-1111-1111-111111111111",
+        id: "11111111-1111-4111-8111-111111111111",
         owner_scope: "end_user",
-        owner_id: "22222222-2222-2222-2222-222222222222",
+        owner_id: "22222222-2222-4222-8222-222222222222",
         balance_usd: "0.00000000"
       };
     },
@@ -60,7 +60,7 @@ describe("stripe payment routes", () => {
     const createCheckoutSession = vi.fn<StripeCheckoutClient["createCheckoutSession"]>(
       async (input) => {
         expect(input).toEqual({
-          walletId: "11111111-1111-1111-1111-111111111111",
+          walletId: "11111111-1111-4111-8111-111111111111",
           amountUsd: "5.25000000",
           successUrl: "https://example.com/success",
           cancelUrl: "https://example.com/cancel"
@@ -75,13 +75,13 @@ describe("stripe payment routes", () => {
       PaymentRepository["createPendingStripeCheckoutTopup"]
     >(async (input) => {
       expect(input).toMatchObject({
-        walletId: "11111111-1111-1111-1111-111111111111",
+        walletId: "11111111-1111-4111-8111-111111111111",
         checkoutSessionId: "cs_test_123",
         checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
         amountUsd: "5.25000000"
       });
       return {
-        id: "33333333-3333-3333-3333-333333333333",
+        id: "33333333-3333-4333-8333-333333333333",
         wallet_id: input.walletId,
         provider: "stripe",
         provider_checkout_session_id: input.checkoutSessionId,
@@ -122,7 +122,7 @@ describe("stripe payment routes", () => {
     expect(response.json()).toEqual({
       checkout_session_id: "cs_test_123",
       checkout_url: "https://checkout.stripe.com/c/pay/cs_test_123",
-      wallet_id: "11111111-1111-1111-1111-111111111111",
+      wallet_id: "11111111-1111-4111-8111-111111111111",
       amount_usd: "5.25000000",
       status: "pending"
     });
@@ -140,8 +140,8 @@ describe("stripe payment routes", () => {
         amountUsd: "5.25000000"
       });
       return {
-        id: "33333333-3333-3333-3333-333333333333",
-        wallet_id: "11111111-1111-1111-1111-111111111111",
+        id: "33333333-3333-4333-8333-333333333333",
+        wallet_id: "11111111-1111-4111-8111-111111111111",
         provider: "stripe",
         provider_checkout_session_id: input.checkoutSessionId,
         provider_event_id: input.stripeEventId,

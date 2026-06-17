@@ -45,7 +45,7 @@ describe("provider key routes", () => {
       async createUserProviderKey(input) {
         captured = input;
         return {
-          id: "11111111-1111-1111-1111-111111111111",
+          id: "11111111-1111-4111-8111-111111111111",
           provider: input.provider,
           base_url: input.baseUrl,
           masked: input.maskedSecret,
@@ -93,7 +93,7 @@ describe("provider key routes", () => {
     expect(response.statusCode).toBe(201);
     expect(response.body).not.toContain(rawKey);
     expect(response.json()).toEqual({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       provider: "openai",
       base_url: "https://api.openai.com/v1",
       masked: "sk-...abcd",
@@ -121,7 +121,7 @@ describe("provider key routes", () => {
         expect(sessionTokenHash).toBe(hashSessionToken("mf_sess_test"));
         return [
           {
-            id: "11111111-1111-1111-1111-111111111111",
+            id: "11111111-1111-4111-8111-111111111111",
             provider: "openai",
             masked: "sk-...abcd",
             status: "active",
@@ -157,7 +157,7 @@ describe("provider key routes", () => {
     expect(response.json()).toEqual({
       items: [
         {
-          id: "11111111-1111-1111-1111-111111111111",
+          id: "11111111-1111-4111-8111-111111111111",
           provider: "openai",
           masked: "sk-...abcd",
           status: "active",
@@ -192,7 +192,7 @@ describe("provider key routes", () => {
 
     const response = await server.inject({
       method: "DELETE",
-      url: "/v1/user/provider-keys/11111111-1111-1111-1111-111111111111",
+      url: "/v1/user/provider-keys/11111111-1111-4111-8111-111111111111",
       headers: {
         authorization: "Bearer mf_sess_test"
       }
@@ -202,7 +202,7 @@ describe("provider key routes", () => {
     expect(response.json()).toEqual({ ok: true });
     expect(disableUserProviderKey).toHaveBeenCalledWith(
       hashSessionToken("mf_sess_test"),
-      "11111111-1111-1111-1111-111111111111",
+      "11111111-1111-4111-8111-111111111111",
       new Date("2026-06-17T00:00:00.000Z")
     );
   });
@@ -270,7 +270,7 @@ describe("provider key routes", () => {
       async createDeveloperProviderKey(input) {
         captured = input;
         return {
-          id: "22222222-2222-2222-2222-222222222222",
+          id: "22222222-2222-4222-8222-222222222222",
           provider: input.provider,
           base_url: input.baseUrl,
           masked: input.maskedSecret,
@@ -320,7 +320,7 @@ describe("provider key routes", () => {
     expect(response.statusCode).toBe(201);
     expect(response.body).not.toContain(rawKey);
     expect(response.json()).toEqual({
-      id: "22222222-2222-2222-2222-222222222222",
+      id: "22222222-2222-4222-8222-222222222222",
       provider: "openrouter",
       base_url: "https://openrouter.ai/api/v1",
       masked: "sk-...abcd",
@@ -393,7 +393,7 @@ describe("provider key routes", () => {
         expect(publicAppId).toBe("app_pub_demo");
         return [
           {
-            id: "22222222-2222-2222-2222-222222222222",
+            id: "22222222-2222-4222-8222-222222222222",
             provider: "openai",
             masked: "sk-...abcd",
             status: "active",
@@ -427,7 +427,7 @@ describe("provider key routes", () => {
     expect(list.json()).toEqual({
       items: [
         {
-          id: "22222222-2222-2222-2222-222222222222",
+          id: "22222222-2222-4222-8222-222222222222",
           provider: "openai",
           masked: "sk-...abcd",
           status: "active",
@@ -441,7 +441,7 @@ describe("provider key routes", () => {
 
     const deleted = await server.inject({
       method: "DELETE",
-      url: "/v1/developer/provider-keys/22222222-2222-2222-2222-222222222222",
+      url: "/v1/developer/provider-keys/22222222-2222-4222-8222-222222222222",
       headers: {
         authorization: "Bearer mf_admin_dev"
       }
@@ -449,7 +449,7 @@ describe("provider key routes", () => {
     expect(deleted.statusCode).toBe(200);
     expect(deleted.json()).toEqual({ ok: true });
     expect(disableDeveloperProviderKey).toHaveBeenCalledWith(
-      "22222222-2222-2222-2222-222222222222"
+      "22222222-2222-4222-8222-222222222222"
     );
   });
 });

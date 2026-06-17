@@ -33,8 +33,8 @@ describe("payout routes", () => {
         });
         return [
           {
-            id: "11111111-1111-1111-1111-111111111111",
-            developer_id: "22222222-2222-2222-2222-222222222222",
+            id: "11111111-1111-4111-8111-111111111111",
+            developer_id: "22222222-2222-4222-8222-222222222222",
             amount_usd: "0.75000000",
             status: "pending",
             provider: "mock"
@@ -66,8 +66,8 @@ describe("payout routes", () => {
     expect(response.json()).toEqual({
       items: [
         {
-          id: "11111111-1111-1111-1111-111111111111",
-          developer_id: "22222222-2222-2222-2222-222222222222",
+          id: "11111111-1111-4111-8111-111111111111",
+          developer_id: "22222222-2222-4222-8222-222222222222",
           amount_usd: "0.75000000",
           status: "pending",
           provider: "mock"
@@ -80,12 +80,12 @@ describe("payout routes", () => {
   it("marks a mock payout paid in dev mode", async () => {
     const markPayoutPaid = vi.fn<PayoutRepository["markPayoutPaid"]>(async (input) => {
       expect(input).toEqual({
-        payoutId: "11111111-1111-1111-1111-111111111111",
+        payoutId: "11111111-1111-4111-8111-111111111111",
         now: new Date("2026-06-17T00:00:00.000Z")
       });
       return {
         id: input.payoutId,
-        developer_id: "22222222-2222-2222-2222-222222222222",
+        developer_id: "22222222-2222-4222-8222-222222222222",
         amount_usd: "0.75000000",
         status: "paid",
         provider: "mock",
@@ -103,7 +103,7 @@ describe("payout routes", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/v1/admin/payouts/11111111-1111-1111-1111-111111111111/mark-paid",
+      url: "/v1/admin/payouts/11111111-1111-4111-8111-111111111111/mark-paid",
       headers: {
         authorization: "Bearer mf_admin_test"
       }
@@ -111,8 +111,8 @@ describe("payout routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      id: "11111111-1111-1111-1111-111111111111",
-      developer_id: "22222222-2222-2222-2222-222222222222",
+      id: "11111111-1111-4111-8111-111111111111",
+      developer_id: "22222222-2222-4222-8222-222222222222",
       amount_usd: "0.75000000",
       status: "paid",
       provider: "mock",
