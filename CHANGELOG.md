@@ -10,6 +10,7 @@ All notable changes to ModelFaucet will be documented in this file.
 - CI docs-site build verification.
 - GitHub issue templates, pull request template, and Dependabot configuration.
 - Bilingual documentation site entry points and README links.
+- GitHub Actions workflow upgrades with automatic Pages enablement.
 
 ## 0.1.0 - 2026-06-17
 
