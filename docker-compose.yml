@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: modelfaucet-postgres
+    environment:
+      POSTGRES_USER: modelfaucet
+      POSTGRES_PASSWORD: modelfaucet
+      POSTGRES_DB: modelfaucet
+    ports:
+      - "5432:5432"
+    volumes:
+      - modelfaucet_pg:/var/lib/postgresql/data
+      - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/0001_schema.sql:ro
+      - ./infra/db/seed.sql:/docker-entrypoint-initdb.d/0002_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modelfaucet -d modelfaucet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: modelfaucet-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: modelfaucet-litellm
+    ports:
+      - "4000:4000"
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-master-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DATABASE_URL: postgresql://modelfaucet:modelfaucet@postgres:5432/modelfaucet
+    volumes:
+      - ./infra/docker/litellm.config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  modelfaucet_pg:

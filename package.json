@@ -1,0 +1,43 @@
+{
+  "name": "modelfaucet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "pnpm lint:ts && pnpm lint:go",
+    "lint:ts": "turbo run lint",
+    "lint:go": "test -z \"$(gofmt -l services/local-bridge)\"",
+    "typecheck": "pnpm typecheck:ts && pnpm typecheck:go",
+    "typecheck:ts": "turbo run typecheck",
+    "typecheck:go": "cd services/local-bridge && go test ./...",
+    "test": "pnpm test:ts && pnpm test:go",
+    "test:ts": "turbo run test",
+    "test:go": "cd services/local-bridge && go test ./...",
+    "verify:secrets": "node scripts/verify-no-real-secrets.mjs",
+    "db:migrate": "psql $DATABASE_URL -f infra/db/schema.sql",
+    "db:seed": "psql $DATABASE_URL -f infra/db/seed.sql"
+  },
+  "keywords": [
+    "llm",
+    "ai-gateway",
+    "byok",
+    "usage-based-billing",
+    "revenue-sharing",
+    "openai-compatible"
+  ],
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.22.4",
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}
