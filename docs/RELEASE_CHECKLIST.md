@@ -22,6 +22,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm compose:verify` validates default and hosted Compose configs on a Docker-capable machine.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
+- Developer access uses scoped `mf_dev_` API tokens for production workflows; `DEVELOPER_ADMIN_TOKEN` is reserved for bootstrap/operator-only contexts.
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
 - Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.

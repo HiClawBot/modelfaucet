@@ -17,6 +17,7 @@ export type DeveloperAppSummary = {
 };
 
 export type CreateDeveloperAppInput = {
+  developerId?: string;
   publicAppId: string;
   name: string;
   vertical?: string;
@@ -26,6 +27,7 @@ export type CreateDeveloperAppInput = {
 };
 
 export type UpdateDeveloperAppInput = {
+  developerId?: string;
   publicAppId: string;
   name?: string;
   vertical?: string;
@@ -46,6 +48,7 @@ export type DeveloperFeatureSummary = {
 };
 
 export type CreateDeveloperFeatureInput = {
+  developerId?: string;
   publicAppId: string;
   featureKey: string;
   displayName: string;
@@ -55,6 +58,7 @@ export type CreateDeveloperFeatureInput = {
 };
 
 export type UpdateDeveloperFeatureInput = {
+  developerId?: string;
   publicAppId: string;
   featureKey: string;
   displayName?: string;
@@ -117,15 +121,26 @@ export type DeveloperOperationsSummary = {
 };
 
 export type DeveloperConsoleRepository = {
-  listApps(): Promise<DeveloperAppSummary[]>;
+  listApps(developerId?: string): Promise<DeveloperAppSummary[]>;
   createApp(input: CreateDeveloperAppInput): Promise<DeveloperAppSummary>;
   updateApp(input: UpdateDeveloperAppInput): Promise<DeveloperAppSummary>;
-  archiveApp(publicAppId: string, now: Date): Promise<DeveloperAppSummary>;
-  listFeatures(publicAppId: string): Promise<DeveloperFeatureSummary[]>;
+  archiveApp(
+    publicAppId: string,
+    now: Date,
+    developerId?: string
+  ): Promise<DeveloperAppSummary>;
+  listFeatures(
+    publicAppId: string,
+    developerId?: string
+  ): Promise<DeveloperFeatureSummary[]>;
   createFeature(input: CreateDeveloperFeatureInput): Promise<DeveloperFeatureSummary>;
   updateFeature(input: UpdateDeveloperFeatureInput): Promise<DeveloperFeatureSummary>;
-  deleteFeature(publicAppId: string, featureKey: string): Promise<void>;
-  getOperations(): Promise<DeveloperOperationsSummary>;
+  deleteFeature(
+    publicAppId: string,
+    featureKey: string,
+    developerId?: string
+  ): Promise<void>;
+  getOperations(developerId?: string): Promise<DeveloperOperationsSummary>;
   close?(): Promise<void>;
 };
 
@@ -296,16 +311,30 @@ function toAuditLogSummary(row: AuditLogRow): DeveloperAuditLogSummary {
   };
 }
 
-async function getDefaultDeveloper(client: pg.PoolClient): Promise<DeveloperRow> {
-  const result = await client.query<DeveloperRow>(
-    `
-      select id, name, email
-      from developers
-      where status = 'active'
-      order by created_at asc
-      limit 1
-    `
-  );
+async function getDeveloper(
+  client: pg.PoolClient,
+  developerId: string | undefined
+): Promise<DeveloperRow> {
+  const result =
+    developerId === undefined
+      ? await client.query<DeveloperRow>(
+          `
+            select id, name, email
+            from developers
+            where status = 'active'
+            order by created_at asc
+            limit 1
+          `
+        )
+      : await client.query<DeveloperRow>(
+          `
+            select id, name, email
+            from developers
+            where id = $1 and status = 'active'
+            limit 1
+          `,
+          [developerId]
+        );
   const developer = result.rows[0];
   if (developer === undefined) {
     throw new ModelFaucetError({
@@ -320,16 +349,20 @@ async function getDefaultDeveloper(client: pg.PoolClient): Promise<DeveloperRow>
 
 async function getAppContext(
   client: pg.PoolClient,
-  publicAppId: string
+  publicAppId: string,
+  developerId?: string
 ): Promise<AppContextRow> {
   const result = await client.query<AppContextRow>(
     `
       select apps.id as app_id, apps.developer_id
       from apps
       join developers on developers.id = apps.developer_id
-      where apps.public_app_id = $1 and developers.status = 'active'
+      where
+        apps.public_app_id = $1
+        and developers.status = 'active'
+        and ($2::uuid is null or apps.developer_id = $2)
     `,
-    [publicAppId]
+    [publicAppId, developerId ?? null]
   );
   const app = result.rows[0];
   if (app === undefined) {
@@ -350,7 +383,7 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
     this.pool = new Pool(config);
   }
 
-  async listApps(): Promise<DeveloperAppSummary[]> {
+  async listApps(developerId?: string): Promise<DeveloperAppSummary[]> {
     const result = await this.pool.query<AppRow>(
       `
         select
@@ -366,8 +399,10 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           apps.updated_at
         from apps
         join developers on developers.id = apps.developer_id
+        where $1::uuid is null or apps.developer_id = $1
         order by apps.created_at desc
-      `
+      `,
+      [developerId ?? null]
     );
 
     return result.rows.map(toAppSummary);
@@ -378,7 +413,7 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
 
     try {
       await client.query("begin");
-      const developer = await getDefaultDeveloper(client);
+      const developer = await getDeveloper(client, input.developerId);
       await client.query(
         `
           insert into wallets (owner_scope, owner_id, balance_usd, created_at, updated_at)
@@ -480,8 +515,10 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
               vertical = case when $3 then $4 else vertical end,
               default_revenue_share_bps = coalesce($5, default_revenue_share_bps),
               status = coalesce($6, status),
-              updated_at = $7
-            where public_app_id = $1
+            updated_at = $7
+            where
+              public_app_id = $1
+              and ($8::uuid is null or developer_id = $8)
             returning *
           )
           select
@@ -505,7 +542,8 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           input.vertical ?? null,
           input.defaultRevenueShareBps ?? null,
           input.status ?? null,
-          input.now
+          input.now,
+          input.developerId ?? null
         ]
       );
       const app = updated.rows[0];
@@ -551,15 +589,23 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
     }
   }
 
-  async archiveApp(publicAppId: string, now: Date): Promise<DeveloperAppSummary> {
+  async archiveApp(
+    publicAppId: string,
+    now: Date,
+    developerId?: string
+  ): Promise<DeveloperAppSummary> {
     return this.updateApp({
+      developerId,
       publicAppId,
       status: "disabled",
       now
     });
   }
 
-  async listFeatures(publicAppId: string): Promise<DeveloperFeatureSummary[]> {
+  async listFeatures(
+    publicAppId: string,
+    developerId?: string
+  ): Promise<DeveloperFeatureSummary[]> {
     const result = await this.pool.query<FeatureRow>(
       `
         select
@@ -574,10 +620,13 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
         from app_features
         join apps on apps.id = app_features.app_id
         join developers on developers.id = apps.developer_id
-        where apps.public_app_id = $1 and developers.status = 'active'
+        where
+          apps.public_app_id = $1
+          and developers.status = 'active'
+          and ($2::uuid is null or apps.developer_id = $2)
         order by app_features.created_at desc
       `,
-      [publicAppId]
+      [publicAppId, developerId ?? null]
     );
 
     return result.rows.map(toFeatureSummary);
@@ -590,7 +639,7 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
 
     try {
       await client.query("begin");
-      const app = await getAppContext(client, input.publicAppId);
+      const app = await getAppContext(client, input.publicAppId, input.developerId);
       const inserted = await client.query<FeatureRow>(
         `
           insert into app_features (
@@ -671,7 +720,7 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
 
     try {
       await client.query("begin");
-      const app = await getAppContext(client, input.publicAppId);
+      const app = await getAppContext(client, input.publicAppId, input.developerId);
       const updated = await client.query<FeatureRow>(
         `
           update app_features
@@ -744,12 +793,16 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
     }
   }
 
-  async deleteFeature(publicAppId: string, featureKey: string): Promise<void> {
+  async deleteFeature(
+    publicAppId: string,
+    featureKey: string,
+    developerId?: string
+  ): Promise<void> {
     const client = await this.pool.connect();
 
     try {
       await client.query("begin");
-      const app = await getAppContext(client, publicAppId);
+      const app = await getAppContext(client, publicAppId, developerId);
       const deleted = await client.query<{ id: string }>(
         `
           delete from app_features
@@ -798,7 +851,7 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
     }
   }
 
-  async getOperations(): Promise<DeveloperOperationsSummary> {
+  async getOperations(developerId?: string): Promise<DeveloperOperationsSummary> {
     const [wallets, topups, payouts, auditLogs] = await Promise.all([
       this.pool.query<WalletRow>(
         `
@@ -812,9 +865,22 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           from wallets
           left join developers on wallets.owner_scope = 'developer'
             and developers.id = wallets.owner_id
+          where
+            $1::uuid is null
+            or (wallets.owner_scope = 'developer' and wallets.owner_id = $1)
+            or (
+              wallets.owner_scope = 'end_user'
+              and exists (
+                select 1
+                from end_users
+                join apps on apps.id = end_users.app_id
+                where end_users.id = wallets.owner_id and apps.developer_id = $1
+              )
+            )
           order by wallets.owner_scope asc, wallets.updated_at desc
           limit 100
-        `
+        `,
+        [developerId ?? null]
       ),
       this.pool.query<TopupRow>(
         `
@@ -832,9 +898,22 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
             wallet_topups.updated_at
           from wallet_topups
           join wallets on wallets.id = wallet_topups.wallet_id
+          where
+            $1::uuid is null
+            or (wallets.owner_scope = 'developer' and wallets.owner_id = $1)
+            or (
+              wallets.owner_scope = 'end_user'
+              and exists (
+                select 1
+                from end_users
+                join apps on apps.id = end_users.app_id
+                where end_users.id = wallets.owner_id and apps.developer_id = $1
+              )
+            )
           order by wallet_topups.created_at desc
           limit 50
-        `
+        `,
+        [developerId ?? null]
       ),
       this.pool.query<PayoutRow>(
         `
@@ -850,9 +929,11 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
             payouts.updated_at
           from payouts
           join developers on developers.id = payouts.developer_id
+          where $1::uuid is null or payouts.developer_id = $1
           order by payouts.created_at desc
           limit 50
-        `
+        `,
+        [developerId ?? null]
       ),
       this.pool.query<AuditLogRow>(
         `
@@ -866,9 +947,13 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
             metadata,
             created_at
           from audit_logs
+          where
+            $1::uuid is null
+            or (actor_scope = 'developer' and actor_id = $1)
           order by created_at desc
           limit 50
-        `
+        `,
+        [developerId ?? null]
       )
     ]);
 

@@ -150,13 +150,15 @@ export type DeveloperOperationsSummary = {
 export const DEFAULT_PUBLIC_APP_ID = "app_pub_demo";
 export const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_MODELFAUCET_API_BASE_URL ?? "http://localhost:3001";
-export const DEFAULT_DEVELOPER_ADMIN_TOKEN =
+export const DEFAULT_DEVELOPER_TOKEN =
+  import.meta.env.VITE_MODELFAUCET_DEVELOPER_TOKEN ??
   import.meta.env.VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN ?? "";
+export const DEFAULT_DEVELOPER_ADMIN_TOKEN = DEFAULT_DEVELOPER_TOKEN;
 
 function requireDeveloperAdminToken(developerAdminToken: string): string {
   const trimmed = developerAdminToken.trim();
   if (trimmed.length === 0) {
-    throw new Error("Developer admin token is required.");
+    throw new Error("Developer token is required.");
   }
 
   return trimmed;

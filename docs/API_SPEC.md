@@ -1,6 +1,6 @@
 # ModelFaucet API Specification
 
-Version: v0.8 Source Beta
+Version: v1.1 Source GA Auth Hardening
 Date: 2026-06-18
 
 ---
@@ -18,7 +18,8 @@ Local Bridge: http://127.0.0.1:8787
 Auth:
 
 ```txt
-Developer/admin endpoints: Bearer mf_admin_xxx
+Developer bootstrap/admin endpoints: Bearer mf_admin_xxx
+Developer scoped endpoints: Bearer mf_dev_xxx
 End-user/session endpoints: Bearer mf_sess_xxx
 Gateway endpoints: Bearer mf_sess_xxx
 ```
@@ -58,6 +59,7 @@ Common error codes:
 invalid_request
 invalid_session
 expired_session
+forbidden
 invalid_app
 feature_not_found
 no_available_route
@@ -425,12 +427,100 @@ Request:
 
 ## 7. Developer Console API
 
-All developer-console routes require `Authorization: Bearer <DEVELOPER_ADMIN_TOKEN>`.
+Developer-console routes accept either the bootstrap `DEVELOPER_ADMIN_TOKEN` or
+a scoped `mf_dev_...` developer API token. Production developer access should
+use scoped developer API tokens. The bootstrap admin token is for operator-only
+setup and compatibility.
+
 Provider API keys are managed only through explicit provider-key endpoints; app,
 feature, operations, wallet, payout, and audit responses never include raw
 provider secrets.
 
+### POST /v1/developer/tokens
+
+Creates a scoped developer API token. The raw `token` is returned only once.
+The database stores only a token hash and token prefix.
+
+Required scope: `developer:tokens:write`.
+
+Request:
+
+```json
+{
+  "developer_email": "dev@example.com",
+  "name": "production console",
+  "scopes": [
+    "developer:apps:read",
+    "developer:apps:write",
+    "developer:features:read",
+    "developer:features:write",
+    "developer:operations:read",
+    "developer:provider_keys:read",
+    "developer:provider_keys:write"
+  ],
+  "expires_at": "2026-12-31T00:00:00.000Z"
+}
+```
+
+Response:
+
+```json
+{
+  "token": "mf_dev_example",
+  "item": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "developer_id": "22222222-2222-4222-8222-222222222222",
+    "developer_name": "Demo Developer",
+    "developer_email": "dev@example.com",
+    "name": "production console",
+    "token_prefix": "mf_dev_example",
+    "scopes": ["developer:apps:read"],
+    "status": "active",
+    "created_at": "2026-06-18T00:00:00.000Z",
+    "updated_at": "2026-06-18T00:00:00.000Z"
+  }
+}
+```
+
+### GET /v1/developer/tokens
+
+Lists token metadata. It never returns raw tokens or token hashes.
+
+Required scope: `developer:tokens:read`.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "production console",
+      "token_prefix": "mf_dev_abcd1234",
+      "scopes": ["developer:apps:read"],
+      "status": "active"
+    }
+  ]
+}
+```
+
+### DELETE /v1/developer/tokens/:tokenId
+
+Revokes a developer API token.
+
+Required scope: `developer:tokens:write`.
+
+Response:
+
+```json
+{
+  "ok": true
+}
+```
+
 ### GET /v1/developer/apps
+
+Required scope: `developer:apps:read`.
 
 Response:
 
@@ -455,6 +545,8 @@ Response:
 
 ### POST /v1/developer/apps
 
+Required scope: `developer:apps:write`.
+
 Request:
 
 ```json
@@ -470,6 +562,8 @@ Request:
 Response: app summary.
 
 ### PATCH /v1/developer/apps/:publicAppId
+
+Required scope: `developer:apps:write`.
 
 Request:
 
@@ -487,9 +581,13 @@ Response: app summary.
 
 Archives an app by setting `status = disabled`.
 
+Required scope: `developer:apps:write`.
+
 Response: app summary.
 
 ### GET /v1/developer/apps/:publicAppId/features
+
+Required scope: `developer:features:read`.
 
 Response:
 
@@ -518,6 +616,8 @@ Response:
 
 ### POST /v1/developer/apps/:publicAppId/features
 
+Required scope: `developer:features:write`.
+
 Request:
 
 ```json
@@ -541,6 +641,8 @@ Response: feature summary.
 
 ### PATCH /v1/developer/apps/:publicAppId/features/:featureKey
 
+Required scope: `developer:features:write`.
+
 Request:
 
 ```json
@@ -558,6 +660,8 @@ Response: feature summary.
 
 ### DELETE /v1/developer/apps/:publicAppId/features/:featureKey
 
+Required scope: `developer:features:write`.
+
 Response:
 
 ```json
@@ -567,6 +671,8 @@ Response:
 ```
 
 ### GET /v1/developer/operations
+
+Required scope: `developer:operations:read`.
 
 Response:
 
@@ -585,6 +691,74 @@ Response:
   "topups": [],
   "payouts": [],
   "audit_logs": []
+}
+```
+
+### POST /v1/developer/provider-keys
+
+Stores an encrypted developer-owned provider key for an owned app. Raw provider
+keys are accepted only in this server endpoint, encrypted before storage, and
+never returned.
+
+Required scope: `developer:provider_keys:write`.
+
+Request:
+
+```json
+{
+  "public_app_id": "app_pub_demo",
+  "provider": "openai",
+  "api_key": "sk-placeholder",
+  "base_url": "https://api.openai.com/v1",
+  "models_allowed": ["gpt-4.1-mini"],
+  "priority": 1,
+  "fallback_to_platform": false
+}
+```
+
+Response: masked provider-key summary.
+
+### GET /v1/developer/provider-keys
+
+Lists masked developer provider keys for an owned app.
+
+Required scope: `developer:provider_keys:read`.
+
+Query:
+
+```txt
+public_app_id=app_pub_demo
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "provider": "openai",
+      "masked": "sk-...abcd",
+      "status": "active",
+      "models_allowed": ["gpt-4.1-mini"],
+      "priority": 1,
+      "fallback_to_platform": false
+    }
+  ]
+}
+```
+
+### DELETE /v1/developer/provider-keys/:id
+
+Disables a developer provider key owned by the authenticated developer.
+
+Required scope: `developer:provider_keys:write`.
+
+Response:
+
+```json
+{
+  "ok": true
 }
 ```
 

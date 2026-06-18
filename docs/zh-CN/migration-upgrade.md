@@ -31,7 +31,7 @@ pnpm hosted:smoke-readiness
 
 - 确认 `API_CORS_ORIGINS` 和 `GATEWAY_CORS_ORIGINS` 是显式 origin。
 - 确认 provider key 只存在于服务端 env 或 secret manager。
-- 确认 Dashboard bundle 没有使用 developer admin token 构建。
+- 确认 Dashboard bundle 没有使用 developer token 或 developer admin token 构建。
 - 确认目标环境的 database backup 和 restore 已测试。
 - 确认 incident contacts 仍然有效。
 

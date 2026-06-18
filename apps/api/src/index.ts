@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadApiEnv } from "./env";
 import { PostgresDashboardRepository } from "./repositories/dashboardRepository";
+import { PostgresDeveloperAuthRepository } from "./repositories/developerAuthRepository";
 import { PostgresDeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
 import { PostgresPaymentRepository } from "./repositories/paymentRepository";
 import { PostgresPayoutRepository } from "./repositories/payoutRepository";
@@ -15,6 +16,7 @@ import { StripeRestCheckoutClient } from "./stripe";
 export * from "./crypto";
 export * from "./env";
 export * from "./repositories/dashboardRepository";
+export * from "./repositories/developerAuthRepository";
 export * from "./repositories/developerConsoleRepository";
 export * from "./repositories/paymentRepository";
 export * from "./repositories/payoutRepository";
@@ -33,6 +35,9 @@ export async function startApiServer(): Promise<void> {
     connectionString: env.databaseUrl
   });
   const dashboardRepository = new PostgresDashboardRepository({
+    connectionString: env.databaseUrl
+  });
+  const developerAuthRepository = new PostgresDeveloperAuthRepository({
     connectionString: env.databaseUrl
   });
   const developerConsoleRepository = new PostgresDeveloperConsoleRepository({
@@ -60,6 +65,7 @@ export async function startApiServer(): Promise<void> {
   const server = buildApiServer({
     sessionRepository,
     dashboardRepository,
+    developerAuthRepository,
     developerConsoleRepository,
     providerKeyRepository,
     walletRepository,

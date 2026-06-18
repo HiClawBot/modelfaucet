@@ -29,6 +29,7 @@ export type CreateUserProviderKeyInput = {
 };
 
 export type CreateDeveloperProviderKeyInput = {
+  developerId?: string;
   publicAppId: string;
   provider: string;
   baseUrl?: string;
@@ -50,8 +51,11 @@ export type ProviderKeyRepository = {
     now: Date
   ): Promise<void>;
   createDeveloperProviderKey(input: CreateDeveloperProviderKeyInput): Promise<ProviderKeySummary>;
-  listDeveloperProviderKeys(publicAppId: string): Promise<ProviderKeySummary[]>;
-  disableDeveloperProviderKey(credentialId: string): Promise<void>;
+  listDeveloperProviderKeys(
+    publicAppId: string,
+    developerId?: string
+  ): Promise<ProviderKeySummary[]>;
+  disableDeveloperProviderKey(credentialId: string, developerId?: string): Promise<void>;
   close?(): Promise<void>;
 };
 
@@ -122,16 +126,21 @@ async function getSessionContext(
 
 async function getDeveloperContext(
   client: pg.PoolClient,
-  publicAppId: string
+  publicAppId: string,
+  developerId?: string
 ): Promise<DeveloperContext> {
   const result = await client.query<DeveloperContext>(
     `
       select apps.id as app_id, apps.developer_id
       from apps
       join developers on developers.id = apps.developer_id
-      where apps.public_app_id = $1 and apps.status = 'active' and developers.status = 'active'
+      where
+        apps.public_app_id = $1
+        and apps.status = 'active'
+        and developers.status = 'active'
+        and ($2::uuid is null or apps.developer_id = $2)
     `,
-    [publicAppId]
+    [publicAppId, developerId ?? null]
   );
   const developer = result.rows[0];
   if (developer === undefined) {
@@ -367,7 +376,11 @@ export class PostgresProviderKeyRepository implements ProviderKeyRepository {
 
     try {
       await client.query("begin");
-      const developer = await getDeveloperContext(client, input.publicAppId);
+      const developer = await getDeveloperContext(
+        client,
+        input.publicAppId,
+        input.developerId
+      );
 
       const inserted = await client.query<ProviderKeyRow>(
         `
@@ -466,11 +479,14 @@ export class PostgresProviderKeyRepository implements ProviderKeyRepository {
     }
   }
 
-  async listDeveloperProviderKeys(publicAppId: string): Promise<ProviderKeySummary[]> {
+  async listDeveloperProviderKeys(
+    publicAppId: string,
+    developerId?: string
+  ): Promise<ProviderKeySummary[]> {
     const client = await this.pool.connect();
 
     try {
-      const developer = await getDeveloperContext(client, publicAppId);
+      const developer = await getDeveloperContext(client, publicAppId, developerId);
       const result = await client.query<ProviderKeyRow>(
         `
           select
@@ -496,7 +512,10 @@ export class PostgresProviderKeyRepository implements ProviderKeyRepository {
     }
   }
 
-  async disableDeveloperProviderKey(credentialId: string): Promise<void> {
+  async disableDeveloperProviderKey(
+    credentialId: string,
+    developerId?: string
+  ): Promise<void> {
     const client = await this.pool.connect();
 
     try {
@@ -505,10 +524,13 @@ export class PostgresProviderKeyRepository implements ProviderKeyRepository {
         `
           update provider_credentials
           set status = 'disabled', updated_at = now()
-          where id = $1 and owner_scope = 'developer'
+          where
+            id = $1
+            and owner_scope = 'developer'
+            and ($2::uuid is null or owner_id = $2)
           returning id, owner_id
         `,
-        [credentialId]
+        [credentialId, developerId ?? null]
       );
       const credential = updated.rows[0];
       if (credential === undefined) {

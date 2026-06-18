@@ -8,7 +8,7 @@
 
 ## 当前基线
 
-ModelFaucet `1.0.1` 已达到 source GA hardening patch 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、GA stability policies、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `1.1.0` 已达到 source GA auth hardening release 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、scoped developer API tokens、tenant-isolated developer repository calls、GA stability policies、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
 部署侧生产阻塞项：
 
@@ -33,6 +33,8 @@ ModelFaucet `1.0.1` 已达到 source GA hardening patch 状态。当前包含 Co
 | `0.8.0` | 安全加固 | Threat model、abuse control、secret handling、private-network 防护完成加固。 |
 | `0.9.0` | Hosted beta | 可安全接入真实 pilot developers 的托管环境。 |
 | `1.0.0` | GA | API 稳定、迁移策略、支持路径和生产运维手册齐备。 |
+| `1.1.0` | Auth hardening | Scoped developer API tokens 和租户隔离的 developer operations。 |
+| `1.2.0` | Deployment release | 发布容器、分布式限流和版本化迁移。 |
 
 ## `0.1.x` 稳定性轨道
 
@@ -97,8 +99,9 @@ ModelFaucet `1.0.1` 已达到 source GA hardening patch 状态。当前包含 Co
 目标：把 Dashboard 从 MVP viewer 变成可用的开发者控制台。
 
 状态：源码已实现。Dashboard 现在包含 Apps、Features、Operations、Usage、
-Revenue 和 Provider Keys 页面，并由 developer admin token 保护的
-developer-console API 支撑。
+Revenue 和 Provider Keys 页面，并由 developer-console API 支撑。`1.1.0`
+已增加 scoped developer API tokens，同时保留 developer admin token 作为
+bootstrap/operator 路径。
 
 范围：
 
@@ -238,6 +241,26 @@ governance/support policy；publishing strategy；以及自动 GA readiness veri
 - Package、container 和 hosted production 的部署侧检查在晋级前文档化。
 - API、SDK、database migration 和 security policies 文档齐备。
 - 生产事故可以通过日志、指标、runbooks 和 rollback path 处理。
+
+## `1.1.0` Auth Hardening
+
+目标：用 scoped developer API token 和 API 级租户控制替代共享式 developer access。
+
+状态：源码已实现。Developer API token 现在只以 hash 形式保存，只在创建时返回一次，可配置 scope、过期时间、撤销，并写入 audit log。Developer console 和 developer provider-key 路由会把认证得到的 developer context 传入 repository 调用，因此 token 认证请求会被限制在 token 所属 developer。
+
+范围：
+
+- 增加 `developer_api_tokens` 表，只保存 token hash。
+- 增加 developer token 创建、列表和撤销 API。
+- 为 app、feature、operations、token 和 developer provider-key 路由增加 scoped authorization。
+- 保留 `DEVELOPER_ADMIN_TOKEN` 作为 bootstrap/operator 兼容路径。
+- 增加 API 级回归测试，覆盖 scope 拒绝、token lifecycle 和 provider-key tenant filtering。
+
+验收标准：
+
+- Developer token 创建后不再暴露 raw token material。
+- 使用 developer token 的请求不能管理其他 developer 的 apps、features、operations、provider keys 或 tokens。
+- Provider API key 仍只保存在服务端，cloud service URL 仍拒绝私有网络目标。
 
 ## 每个版本的固定规则
 

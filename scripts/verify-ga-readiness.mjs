@@ -29,7 +29,7 @@ function assertIncludes(path, markers) {
 const packageJson = readJson("package.json");
 
 try {
-  assert(packageJson.version === "1.0.1", "package.json version must be 1.0.1.");
+  assert(packageJson.version === "1.1.0", "package.json version must be 1.1.0.");
   assert(packageJson.scripts["ga:verify"] === "node scripts/verify-ga-readiness.mjs", "ga:verify script must be registered.");
   assert(packageJson.scripts["compose:verify"] === "node scripts/verify-compose-config.mjs", "compose:verify script must be registered.");
   assert(packageJson.scripts["deps:review"] === "pnpm outdated -r", "deps:review script must be registered.");
@@ -37,20 +37,22 @@ try {
   assert(packageJson.scripts["hosted:check-isolation"] !== undefined, "hosted isolation checker must remain registered.");
   assert(packageJson.scripts["hosted:smoke-readiness"] !== undefined, "hosted readiness smoke must remain registered.");
 
-  assertIncludes("README.md", ["Status: `1.0.1` source GA hardening patch", "stable public contracts"]);
-  assertIncludes("README.zh-CN.md", ["状态：`1.0.1` source GA hardening patch", "稳定公共契约"]);
-  assertIncludes("CHANGELOG.md", ["## 1.0.1 - 2026-06-18", "Hardening patch"]);
+  assertIncludes("README.md", ["Status: `1.1.0` source GA auth hardening release", "scoped developer API tokens"]);
+  assertIncludes("README.zh-CN.md", ["状态：`1.1.0` source GA auth hardening release", "scoped developer API tokens"]);
+  assertIncludes("CHANGELOG.md", ["## 1.1.0 - 2026-06-18", "Scoped developer API token lifecycle"]);
 
   const requiredDocs = [
     "docs/stability-policy.md",
     "docs/migration-upgrade.md",
     "docs/production-architecture.md",
+    "docs/developer-auth.md",
     "docs/governance-support.md",
     "docs/publishing-strategy.md",
     "docs/deployment-validation.md",
     "docs/zh-CN/stability-policy.md",
     "docs/zh-CN/migration-upgrade.md",
     "docs/zh-CN/production-architecture.md",
+    "docs/zh-CN/developer-auth.md",
     "docs/zh-CN/governance-support.md",
     "docs/zh-CN/publishing-strategy.md",
     "docs/zh-CN/deployment-validation.md"
@@ -67,6 +69,11 @@ try {
   ]);
   assertIncludes("docs/migration-upgrade.md", ["Upgrade From `0.9.0` To `1.0.0`", "Rollback"]);
   assertIncludes("docs/production-architecture.md", ["Secret Manager", "Private-Network Guard", "Incident Response"]);
+  assertIncludes("docs/developer-auth.md", [
+    "Developer API tokens are generated server-side",
+    "Provider API keys remain server-side only",
+    "Tenant Isolation"
+  ]);
   assertIncludes("docs/governance-support.md", ["Support Policy", "Release Cadence"]);
   assertIncludes("docs/publishing-strategy.md", ["Package Publishing", "Container Image Publishing"]);
   assertIncludes("docs/deployment-validation.md", ["Docker/Compose Validation", "Secret Manager", "CORS"]);
@@ -75,12 +82,14 @@ try {
     "/stability-policy",
     "/migration-upgrade",
     "/production-architecture",
+    "/developer-auth",
     "/governance-support",
     "/publishing-strategy",
     "/deployment-validation",
     "/zh-CN/stability-policy",
     "/zh-CN/migration-upgrade",
     "/zh-CN/production-architecture",
+    "/zh-CN/developer-auth",
     "/zh-CN/governance-support",
     "/zh-CN/publishing-strategy",
     "/zh-CN/deployment-validation"
@@ -90,6 +99,10 @@ try {
   assert(
     !hostedCompose.includes("VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN"),
     "Hosted dashboard must not receive VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN."
+  );
+  assert(
+    !hostedCompose.includes("VITE_MODELFAUCET_DEVELOPER_TOKEN"),
+    "Hosted dashboard must not receive VITE_MODELFAUCET_DEVELOPER_TOKEN."
   );
 
   console.log("GA readiness verification passed.");

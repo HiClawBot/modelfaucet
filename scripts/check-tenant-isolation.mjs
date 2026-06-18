@@ -46,6 +46,15 @@ const checks = [
     `
   },
   {
+    name: "developer API tokens must have a developer owner",
+    query: `
+      select count(*)
+      from developer_api_tokens dat
+      left join developers d on d.id = dat.developer_id
+      where d.id is null
+    `
+  },
+  {
     name: "end-user provider credentials must have an end-user owner",
     query: `
       select count(*)

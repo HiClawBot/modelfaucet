@@ -8,7 +8,7 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `1.0.1` is a source GA hardening patch. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.1.0` is a source GA auth hardening release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
 Deployment-specific production blockers:
 
@@ -33,6 +33,8 @@ Deployment-specific production blockers:
 | `0.8.0` | Security hardening | Threat model, abuse controls, secret handling, and private-network protections are hardened. |
 | `0.9.0` | Hosted beta | A hosted environment can onboard real pilot developers safely. |
 | `1.0.0` | General availability | Stable APIs, migration policy, support paths, and production operating playbooks. |
+| `1.1.0` | Auth hardening | Scoped developer API tokens and tenant-isolated developer operations. |
+| `1.2.0` | Deployment release | Published containers, distributed limits, and versioned migrations. |
 
 ## `0.1.x` Stability Track
 
@@ -98,7 +100,8 @@ Goal: turn the dashboard from an MVP viewer into a usable developer console.
 
 Status: implemented in source. The dashboard now includes Apps, Features,
 Operations, Usage, Revenue, and Provider Keys pages backed by developer-console
-APIs protected by the developer admin token.
+APIs. `1.1.0` adds scoped developer API tokens while keeping the developer admin
+token as a bootstrap/operator path.
 
 Scope:
 
@@ -252,6 +255,26 @@ Exit criteria:
 - Deployment-specific package, container, and hosted production checks are documented before promotion.
 - API, SDK, database migration, and security policies are documented.
 - Production incidents can be triaged with available logs, metrics, runbooks, and rollback paths.
+
+## `1.1.0` Auth Hardening
+
+Goal: replace shared developer access with scoped developer API tokens and API-level tenant controls.
+
+Status: implemented in source. Developer API tokens are hashed at rest, returned only once, scoped, expirable, revocable, and audited. Developer console and developer provider-key routes now pass authenticated developer context into repository calls so token-authenticated requests are constrained to the owning developer.
+
+Scope:
+
+- Add `developer_api_tokens` storage with hash-only persistence.
+- Add developer token lifecycle APIs for create, list, and revoke.
+- Add scoped authorization for app, feature, operations, token, and developer provider-key routes.
+- Keep `DEVELOPER_ADMIN_TOKEN` as a bootstrap/operator compatibility path.
+- Add API-level regression tests for scope denial, token lifecycle, and provider-key tenant filtering.
+
+Exit criteria:
+
+- Developer tokens never expose raw token material after creation.
+- Token-authenticated developer requests cannot manage another developer's apps, features, operations, provider keys, or tokens.
+- Provider API keys remain server-side only and cloud service URLs still reject private network targets.
 
 ## Operating Rules For Every Release
 

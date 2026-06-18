@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildApiServer,
   decryptSecret,
+  hashDeveloperApiToken,
   hashSessionToken,
   validateBasicProviderKey
 } from "../src/index";
@@ -9,6 +10,7 @@ import type {
   CreateDeveloperProviderKeyInput,
   CreateUserProviderKeyInput,
   CreateVirtualSessionResult,
+  DeveloperAuthRepository,
   ProviderKeyRepository,
   SessionRepository
 } from "../src/index";
@@ -449,7 +451,103 @@ describe("provider key routes", () => {
     expect(deleted.statusCode).toBe(200);
     expect(deleted.json()).toEqual({ ok: true });
     expect(disableDeveloperProviderKey).toHaveBeenCalledWith(
-      "22222222-2222-4222-8222-222222222222"
+      "22222222-2222-4222-8222-222222222222",
+      undefined
+    );
+  });
+
+  it("scopes developer provider keys to the authenticated developer", async () => {
+    const developerAuthRepository: DeveloperAuthRepository = {
+      async authenticateToken(tokenHash, authenticatedAt) {
+        expect(tokenHash).toBe(hashDeveloperApiToken("mf_dev_provider"));
+        expect(authenticatedAt).toEqual(new Date("2026-06-17T00:00:00.000Z"));
+        return {
+          authMethod: "developer_token",
+          developerId: "33333333-3333-4333-8333-333333333333",
+          developerEmail: "tenant@example.com",
+          scopes: ["developer:provider_keys:read", "developer:provider_keys:write"]
+        };
+      },
+      async createToken() {
+        throw new Error("not used");
+      },
+      async listTokens() {
+        return [];
+      },
+      async revokeToken() {
+        throw new Error("not used");
+      }
+    };
+    const disableDeveloperProviderKey = vi.fn<
+      ProviderKeyRepository["disableDeveloperProviderKey"]
+    >();
+    const providerKeyRepository: ProviderKeyRepository = {
+      async createUserProviderKey() {
+        throw new Error("not used");
+      },
+      async listUserProviderKeys() {
+        return [];
+      },
+      async disableUserProviderKey() {
+        throw new Error("not used");
+      },
+      async createDeveloperProviderKey() {
+        throw new Error("not used");
+      },
+      async listDeveloperProviderKeys(publicAppId, developerId) {
+        expect(publicAppId).toBe("app_pub_demo");
+        expect(developerId).toBe("33333333-3333-4333-8333-333333333333");
+        return [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            provider: "openai",
+            masked: "sk-...abcd",
+            status: "active",
+            models_allowed: ["gpt-4.1-mini"],
+            priority: 1,
+            fallback_to_platform: false
+          }
+        ];
+      },
+      disableDeveloperProviderKey
+    };
+    const server = buildApiServer({
+      sessionRepository: unusedSessionRepository,
+      developerAuthRepository,
+      providerKeyRepository,
+      secretEncryptionKey,
+      gatewayBaseUrl: "http://localhost:3002/v1",
+      sessionTokenTtlSeconds: 3600,
+      now: () => new Date("2026-06-17T00:00:00.000Z")
+    });
+
+    const list = await server.inject({
+      method: "GET",
+      url: "/v1/developer/provider-keys?public_app_id=app_pub_demo",
+      headers: {
+        authorization: "Bearer mf_dev_provider"
+      }
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json()).toMatchObject({
+      items: [
+        {
+          id: "22222222-2222-4222-8222-222222222222"
+        }
+      ]
+    });
+
+    const deleted = await server.inject({
+      method: "DELETE",
+      url: "/v1/developer/provider-keys/22222222-2222-4222-8222-222222222222",
+      headers: {
+        authorization: "Bearer mf_dev_provider"
+      }
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(disableDeveloperProviderKey).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
     );
   });
 });

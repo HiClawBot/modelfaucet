@@ -70,7 +70,7 @@ docker compose -f infra/hosted/docker-compose.hosted.yml config
 docker compose -f infra/hosted/docker-compose.hosted.yml up -d
 ```
 
-Dashboard 构建只接收 `VITE_MODELFAUCET_API_BASE_URL`。不要用 `VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN` 构建公开 Dashboard bundle。
+Dashboard 构建只接收 `VITE_MODELFAUCET_API_BASE_URL`。不要用 `VITE_MODELFAUCET_DEVELOPER_TOKEN` 或 `VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN` 构建公开 Dashboard bundle。
 
 ## 数据库和隔离检查
 

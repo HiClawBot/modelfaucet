@@ -1,6 +1,6 @@
 # ModelFaucet Security Architecture
 
-Version: v0.8 Source Beta
+Version: v1.1 Source GA Auth Hardening
 Date: 2026-06-18
 
 ---
@@ -113,7 +113,24 @@ storage: hash only
 scope: app_id + end_user_id + optional feature_key
 ```
 
-### 3.2 Token claims
+### 3.2 Developer API tokens
+
+Production developer access should use scoped developer API tokens instead of
+shared bootstrap admin tokens.
+
+```txt
+token prefix: mf_dev_
+storage: hash only
+visibility: raw token returned once on creation
+scope: explicit developer:* scopes
+lifecycle: optional expiry + revoke endpoint
+tenant boundary: developer_id filter at API and repository layers
+```
+
+`DEVELOPER_ADMIN_TOKEN` is reserved for operator-only bootstrap and compatibility
+paths. Do not build developer tokens or admin tokens into public browser bundles.
+
+### 3.3 Token claims
 
 Internal session claims:
 

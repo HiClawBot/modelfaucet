@@ -31,7 +31,7 @@ Set `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic and `REQUIRE_HOSTED
 
 - Confirm `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS` are explicit origins.
 - Confirm provider keys exist only in server-side env or secret manager configuration.
-- Confirm Dashboard bundles are not built with developer admin tokens.
+- Confirm Dashboard bundles are not built with developer tokens or developer admin tokens.
 - Confirm database backup and restore have been tested for the deployment target.
 - Confirm incident contacts are current.
 

@@ -14,8 +14,20 @@ import {
 import { z } from "zod";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createSessionToken, hashExternalUserId, hashSessionToken } from "./crypto";
+import {
+  createDeveloperApiToken,
+  createSessionToken,
+  hashDeveloperApiToken,
+  hashExternalUserId,
+  hashSessionToken
+} from "./crypto";
 import type { DashboardRepository } from "./repositories/dashboardRepository";
+import type {
+  DeveloperAuthContext,
+  DeveloperAuthRepository,
+  DeveloperScope
+} from "./repositories/developerAuthRepository";
+import { developerScopes } from "./repositories/developerAuthRepository";
 import type { DeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
 import type { PaymentRepository } from "./repositories/paymentRepository";
 import type { PayoutRepository } from "./repositories/payoutRepository";
@@ -34,6 +46,7 @@ import {
 export type BuildApiServerOptions = {
   sessionRepository: SessionRepository;
   dashboardRepository?: DashboardRepository;
+  developerAuthRepository?: DeveloperAuthRepository;
   developerConsoleRepository?: DeveloperConsoleRepository;
   providerKeyRepository?: ProviderKeyRepository;
   walletRepository?: WalletRepository;
@@ -53,6 +66,7 @@ export type BuildApiServerOptions = {
   gatewayBaseUrl: string;
   sessionTokenTtlSeconds: number;
   tokenFactory?: () => `mf_sess_${string}`;
+  developerTokenFactory?: () => `mf_dev_${string}`;
   now?: () => Date;
   logger?: boolean;
 };
@@ -173,6 +187,20 @@ function requireDeveloperConsoleSupport(
   return options.developerConsoleRepository;
 }
 
+function requireDeveloperAuthSupport(
+  options: BuildApiServerOptions
+): DeveloperAuthRepository {
+  if (options.developerAuthRepository === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_request",
+      message: "Developer API token storage is not configured.",
+      statusCode: 500
+    });
+  }
+
+  return options.developerAuthRepository;
+}
+
 function requireSessionToken(request: { headers: { authorization?: string } }): string {
   const sessionToken = extractBearerToken(request.headers.authorization);
   if (sessionToken === undefined) {
@@ -188,6 +216,27 @@ function requireSessionToken(request: { headers: { authorization?: string } }): 
 
 const AddDeveloperProviderKeyRequestSchema = AddProviderKeyRequestSchema.extend({
   public_app_id: PublicAppIdSchema
+});
+
+const DeveloperScopeSchema = z.enum(developerScopes);
+
+const CreateDeveloperTokenRequestSchema = z
+  .object({
+    developer_id: z.string().uuid().optional(),
+    developer_email: z.string().email().optional(),
+    name: z.string().min(1).max(128),
+    scopes: z
+      .array(DeveloperScopeSchema)
+      .min(1)
+      .max(developerScopes.length)
+      .optional()
+      .default([...developerScopes]),
+    expires_at: z.string().datetime({ offset: true }).optional()
+  })
+  .strict();
+
+const DeveloperTokenParamsSchema = z.object({
+  tokenId: z.string().uuid()
 });
 
 const DeveloperAppStatusSchema = z.enum(["active", "disabled"]);
@@ -239,20 +288,6 @@ const DeveloperFeatureParamsSchema = z.object({
   featureKey: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_:-]+$/)
 });
 
-function requireDeveloperAdminToken(
-  request: { headers: { authorization?: string } },
-  expectedToken: string | undefined
-): void {
-  const token = extractBearerToken(request.headers.authorization);
-  if (token === undefined || expectedToken === undefined || token !== expectedToken) {
-    throw new ModelFaucetError({
-      code: "invalid_session",
-      message: "Missing or invalid developer admin token.",
-      statusCode: 401
-    });
-  }
-}
-
 function requireAdminToken(
   request: { headers: { authorization?: string } },
   expectedToken: string | undefined
@@ -265,6 +300,72 @@ function requireAdminToken(
       statusCode: 401
     });
   }
+}
+
+async function requireDeveloperAuth(
+  request: { headers: { authorization?: string } },
+  options: BuildApiServerOptions,
+  requiredScopes: DeveloperScope[],
+  currentTime: Date
+): Promise<DeveloperAuthContext> {
+  const token = extractBearerToken(request.headers.authorization);
+  if (
+    token !== undefined &&
+    options.developerAdminToken !== undefined &&
+    token === options.developerAdminToken
+  ) {
+    return {
+      authMethod: "developer_admin",
+      scopes: [...developerScopes]
+    };
+  }
+
+  if (token === undefined || options.developerAuthRepository === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_session",
+      message: "Missing or invalid developer token.",
+      statusCode: 401
+    });
+  }
+
+  const auth = await options.developerAuthRepository.authenticateToken(
+    hashDeveloperApiToken(token),
+    currentTime
+  );
+  if (auth === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_session",
+      message: "Missing or invalid developer token.",
+      statusCode: 401
+    });
+  }
+
+  const missingScope = requiredScopes.find((scope) => !auth.scopes.includes(scope));
+  if (missingScope !== undefined) {
+    throw new ModelFaucetError({
+      code: "forbidden",
+      message: `Developer token is missing required scope: ${missingScope}.`,
+      statusCode: 403
+    });
+  }
+
+  return auth;
+}
+
+function developerIdFilter(auth: DeveloperAuthContext): string | undefined {
+  if (auth.authMethod === "developer_admin") {
+    return undefined;
+  }
+
+  if (auth.developerId === undefined) {
+    throw new ModelFaucetError({
+      code: "invalid_session",
+      message: "Developer token is not bound to a developer.",
+      statusCode: 401
+    });
+  }
+
+  return auth.developerId;
 }
 
 const CreditTestBalanceRequestSchema = z
@@ -392,6 +493,7 @@ function injectRequestId(payload: unknown, requestId: string): unknown {
 export function buildApiServer(options: BuildApiServerOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const tokenFactory = options.tokenFactory ?? createSessionToken;
+  const developerTokenFactory = options.developerTokenFactory ?? createDeveloperApiToken;
   const now = options.now ?? (() => new Date());
   const metrics = options.metrics ?? new InMemoryMetrics();
   const requestIdFactory =
@@ -940,11 +1042,126 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     }
   });
 
+  app.post("/v1/developer/tokens", async (request, reply) => {
+    try {
+      const repository = requireDeveloperAuthSupport(options);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:tokens:write"],
+        now()
+      );
+      const parsed = CreateDeveloperTokenRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid developer token request.",
+          statusCode: 400,
+          details: parsed.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const scopedDeveloperId = developerIdFilter(auth);
+      if (
+        scopedDeveloperId !== undefined &&
+        ((parsed.data.developer_id !== undefined &&
+          parsed.data.developer_id !== scopedDeveloperId) ||
+          (parsed.data.developer_email !== undefined &&
+            parsed.data.developer_email !== auth.developerEmail))
+      ) {
+        const error = new ModelFaucetError({
+          code: "forbidden",
+          message: "Developer token cannot manage another developer.",
+          statusCode: 403
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      const token = developerTokenFactory();
+      const item = await repository.createToken({
+        developerId: scopedDeveloperId ?? parsed.data.developer_id,
+        developerEmail:
+          scopedDeveloperId === undefined ? parsed.data.developer_email : undefined,
+        name: parsed.data.name,
+        tokenHash: hashDeveloperApiToken(token),
+        tokenPrefix: token.slice(0, "mf_dev_".length + 8),
+        scopes: [...new Set(parsed.data.scopes)],
+        expiresAt:
+          parsed.data.expires_at === undefined
+            ? undefined
+            : new Date(parsed.data.expires_at),
+        now: now()
+      });
+
+      return reply.code(201).send({ token, item });
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.get("/v1/developer/tokens", async (request, reply) => {
+    try {
+      const repository = requireDeveloperAuthSupport(options);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:tokens:read"],
+        now()
+      );
+      const items = await repository.listTokens(developerIdFilter(auth));
+      return { items };
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
+  app.delete("/v1/developer/tokens/:tokenId", async (request, reply) => {
+    try {
+      const repository = requireDeveloperAuthSupport(options);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:tokens:write"],
+        now()
+      );
+      const params = DeveloperTokenParamsSchema.safeParse(request.params);
+      if (!params.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Missing or invalid developer token id.",
+          statusCode: 400,
+          details: params.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+
+      await repository.revokeToken(params.data.tokenId, now(), developerIdFilter(auth));
+      return { ok: true };
+    } catch (error) {
+      const modelFaucetError = toModelFaucetError(error);
+      return reply
+        .code(modelFaucetError.statusCode)
+        .send(createErrorResponse(modelFaucetError));
+    }
+  });
+
   app.get("/v1/developer/apps", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
-      const items = await repository.listApps();
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:apps:read"],
+        now()
+      );
+      const items = await repository.listApps(developerIdFilter(auth));
       return { items };
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
@@ -957,7 +1174,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.post("/v1/developer/apps", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:apps:write"],
+        now()
+      );
       const parsed = CreateDeveloperAppRequestSchema.safeParse(request.body);
       if (!parsed.success) {
         const error = new ModelFaucetError({
@@ -970,6 +1192,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       }
 
       const app = await repository.createApp({
+        developerId: developerIdFilter(auth),
         publicAppId: parsed.data.public_app_id,
         name: parsed.data.name,
         vertical: parsed.data.vertical,
@@ -989,7 +1212,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.patch("/v1/developer/apps/:publicAppId", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:apps:write"],
+        now()
+      );
       const params = DeveloperAppParamsSchema.safeParse(request.params);
       if (!params.success) {
         const error = new ModelFaucetError({
@@ -1013,6 +1241,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       }
 
       return await repository.updateApp({
+        developerId: developerIdFilter(auth),
         publicAppId: params.data.publicAppId,
         name: parsed.data.name,
         vertical: parsed.data.vertical,
@@ -1031,7 +1260,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.delete("/v1/developer/apps/:publicAppId", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:apps:write"],
+        now()
+      );
       const params = DeveloperAppParamsSchema.safeParse(request.params);
       if (!params.success) {
         const error = new ModelFaucetError({
@@ -1043,7 +1277,11 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         return reply.code(error.statusCode).send(createErrorResponse(error));
       }
 
-      return await repository.archiveApp(params.data.publicAppId, now());
+      return await repository.archiveApp(
+        params.data.publicAppId,
+        now(),
+        developerIdFilter(auth)
+      );
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
       return reply
@@ -1055,7 +1293,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.get("/v1/developer/apps/:publicAppId/features", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:features:read"],
+        now()
+      );
       const params = DeveloperAppParamsSchema.safeParse(request.params);
       if (!params.success) {
         const error = new ModelFaucetError({
@@ -1067,7 +1310,10 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         return reply.code(error.statusCode).send(createErrorResponse(error));
       }
 
-      const items = await repository.listFeatures(params.data.publicAppId);
+      const items = await repository.listFeatures(
+        params.data.publicAppId,
+        developerIdFilter(auth)
+      );
       return { items };
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
@@ -1080,7 +1326,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.post("/v1/developer/apps/:publicAppId/features", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:features:write"],
+        now()
+      );
       const params = DeveloperAppParamsSchema.safeParse(request.params);
       if (!params.success) {
         const error = new ModelFaucetError({
@@ -1104,6 +1355,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       }
 
       const feature = await repository.createFeature({
+        developerId: developerIdFilter(auth),
         publicAppId: params.data.publicAppId,
         featureKey: parsed.data.feature_key,
         displayName: parsed.data.display_name,
@@ -1125,7 +1377,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     async (request, reply) => {
       try {
         const repository = requireDeveloperConsoleSupport(options);
-        requireDeveloperAdminToken(request, options.developerAdminToken);
+        const auth = await requireDeveloperAuth(
+          request,
+          options,
+          ["developer:features:write"],
+          now()
+        );
         const params = DeveloperFeatureParamsSchema.safeParse(request.params);
         if (!params.success) {
           const error = new ModelFaucetError({
@@ -1149,6 +1406,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         }
 
         return await repository.updateFeature({
+          developerId: developerIdFilter(auth),
           publicAppId: params.data.publicAppId,
           featureKey: params.data.featureKey,
           displayName: parsed.data.display_name,
@@ -1170,7 +1428,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     async (request, reply) => {
       try {
         const repository = requireDeveloperConsoleSupport(options);
-        requireDeveloperAdminToken(request, options.developerAdminToken);
+        const auth = await requireDeveloperAuth(
+          request,
+          options,
+          ["developer:features:write"],
+          now()
+        );
         const params = DeveloperFeatureParamsSchema.safeParse(request.params);
         if (!params.success) {
           const error = new ModelFaucetError({
@@ -1182,7 +1445,11 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
           return reply.code(error.statusCode).send(createErrorResponse(error));
         }
 
-        await repository.deleteFeature(params.data.publicAppId, params.data.featureKey);
+        await repository.deleteFeature(
+          params.data.publicAppId,
+          params.data.featureKey,
+          developerIdFilter(auth)
+        );
         return { ok: true };
       } catch (error) {
         const modelFaucetError = toModelFaucetError(error);
@@ -1196,8 +1463,13 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.get("/v1/developer/operations", async (request, reply) => {
     try {
       const repository = requireDeveloperConsoleSupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
-      return await repository.getOperations();
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:operations:read"],
+        now()
+      );
+      return await repository.getOperations(developerIdFilter(auth));
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
       return reply
@@ -1298,7 +1570,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.post("/v1/developer/provider-keys", async (request, reply) => {
     try {
       const support = requireProviderKeySupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:provider_keys:write"],
+        now()
+      );
       const parsed = AddDeveloperProviderKeyRequestSchema.safeParse(request.body);
       if (!parsed.success) {
         const error = new ModelFaucetError({
@@ -1313,6 +1590,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       validateBasicProviderKey(parsed.data.provider, parsed.data.api_key);
 
       const created = await support.providerKeyRepository.createDeveloperProviderKey({
+        developerId: developerIdFilter(auth),
         publicAppId: parsed.data.public_app_id,
         provider: parsed.data.provider,
         baseUrl: parsed.data.base_url,
@@ -1340,7 +1618,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.get("/v1/developer/provider-keys", async (request, reply) => {
     try {
       const support = requireProviderKeySupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:provider_keys:read"],
+        now()
+      );
       const query = z
         .object({ public_app_id: PublicAppIdSchema })
         .safeParse(request.query);
@@ -1355,7 +1638,8 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       }
 
       const items = await support.providerKeyRepository.listDeveloperProviderKeys(
-        query.data.public_app_id
+        query.data.public_app_id,
+        developerIdFilter(auth)
       );
       return { items };
     } catch (error) {
@@ -1369,7 +1653,12 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   app.delete("/v1/developer/provider-keys/:credentialId", async (request, reply) => {
     try {
       const support = requireProviderKeySupport(options);
-      requireDeveloperAdminToken(request, options.developerAdminToken);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:provider_keys:write"],
+        now()
+      );
       const params = request.params as { credentialId?: string };
       if (params.credentialId === undefined || params.credentialId.length === 0) {
         const error = new ModelFaucetError({
@@ -1380,7 +1669,10 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         return reply.code(error.statusCode).send(createErrorResponse(error));
       }
 
-      await support.providerKeyRepository.disableDeveloperProviderKey(params.credentialId);
+      await support.providerKeyRepository.disableDeveloperProviderKey(
+        params.credentialId,
+        developerIdFilter(auth)
+      );
       return { ok: true };
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);

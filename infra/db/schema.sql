@@ -25,6 +25,26 @@ create table if not exists apps (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists developer_api_tokens (
+  id uuid primary key default uuid_generate_v4(),
+  developer_id uuid not null references developers(id),
+  name text not null,
+  token_hash text unique not null,
+  token_prefix text not null,
+  scopes text[] not null default '{}',
+  status text not null default 'active' check (status in ('active', 'revoked')),
+  last_used_at timestamptz,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_developer_api_tokens_developer
+  on developer_api_tokens(developer_id, status);
+create index if not exists idx_developer_api_tokens_hash
+  on developer_api_tokens(token_hash);
+
 create table if not exists app_features (
   id uuid primary key default uuid_generate_v4(),
   app_id uuid not null references apps(id),

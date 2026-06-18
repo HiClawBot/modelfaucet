@@ -8,6 +8,7 @@ export const ERROR_CODES = [
   "invalid_request",
   "invalid_session",
   "expired_session",
+  "forbidden",
   "invalid_app",
   "feature_not_found",
   "no_available_route",
@@ -106,4 +107,3 @@ export type ModelPrice = {
   output_price_per_1m_tokens_usd: MoneyString;
   cached_price_per_1m_tokens_usd?: MoneyString;
 };
-

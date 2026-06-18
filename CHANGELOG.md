@@ -4,6 +4,21 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.1.0 - 2026-06-18
+
+### Added
+
+- Scoped developer API token lifecycle APIs for create, list, and revoke.
+- `developer_api_tokens` database table with hash-only token storage, token prefixes, scopes, expiry, revocation, and audit logging.
+- API-level tests for developer token scope denial, tenant-filtered app listing, one-time raw token return, and developer provider-key ownership.
+- English and Simplified Chinese developer auth and tenant-control guides.
+
+### Changed
+
+- Developer console and developer provider-key routes now accept scoped developer API tokens in addition to the bootstrap developer admin token.
+- PostgreSQL developer console and developer provider-key repositories now accept a developer filter and constrain token-authenticated operations to the owning developer.
+- README, docs homepage, roadmap, and GA readiness verification now reflect the `1.1.0` auth hardening release.
+
 ## 1.0.1 - 2026-06-18
 
 ### Added

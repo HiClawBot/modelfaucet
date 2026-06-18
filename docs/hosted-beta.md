@@ -70,7 +70,7 @@ docker compose -f infra/hosted/docker-compose.hosted.yml config
 docker compose -f infra/hosted/docker-compose.hosted.yml up -d
 ```
 
-The dashboard build intentionally receives only `VITE_MODELFAUCET_API_BASE_URL`. Do not build a public dashboard bundle with `VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN`.
+The dashboard build intentionally receives only `VITE_MODELFAUCET_API_BASE_URL`. Do not build a public dashboard bundle with `VITE_MODELFAUCET_DEVELOPER_TOKEN` or `VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN`.
 
 ## Database And Isolation Checks
 
