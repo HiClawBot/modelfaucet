@@ -64,6 +64,7 @@ jobs:
           HOSTED_ENVIRONMENT: ci
           HOSTED_SECRET_MANAGER: ci-secret-manager
           DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet
+          REDIS_URL: redis://redis.modelfaucet.invalid:6379
           SECRET_ENCRYPTION_KEY: mf_ci_secret_encryption_key_32_bytes_minimum
           ADMIN_TOKEN: mf_ci_admin_token_for_hosted_env_check
           DEVELOPER_ADMIN_TOKEN: mf_ci_developer_admin_token_check
@@ -87,6 +88,7 @@ jobs:
         run: |
           pnpm db:migrate
           pnpm db:seed
+          pnpm db:verify-migrations
 
       - name: Hosted tenant isolation check
         run: pnpm hosted:check-isolation
@@ -108,6 +110,9 @@ jobs:
 
       - name: Validate Docker Compose configs
         run: pnpm compose:verify
+
+      - name: Verify container publishing config
+        run: pnpm container:verify
 
       - name: Build dashboard
         run: pnpm --filter @modelfaucet/dashboard build

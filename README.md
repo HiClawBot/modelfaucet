@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/modelfaucet-logo.png" alt="ModelFaucet logo" width="220" />
+  <img src="assets/modelfaucet-logo.svg" alt="ModelFaucet logo" width="220" />
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `1.2.0` source GA website and scenario demo release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
+> Status: `1.3.0` deployment release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, versioned database migration metadata, hosted deployment checks, Compose validation, container publishing checks, Redis-backed distributed rate limits, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
 
 ---
 
@@ -244,6 +244,16 @@ pnpm pages:build
 The Pages workflow publishes a merged artifact from `.pages-dist` on pushes to `main`. The website owns the root page and scenario routes, while the documentation keeps stable paths such as `/quickstart`, `/roadmap`, and `/zh-CN/`.
 
 The website scenario model is static and does not collect provider keys. Platform-route examples model explicit markup, BYOK examples model only visible gateway/product fees, and local examples model visible local software fees.
+
+For deployment release checks:
+
+```bash
+pnpm db:verify-migrations
+pnpm compose:verify
+pnpm container:verify
+```
+
+Hosted API and Gateway deployments use `REDIS_URL` for distributed fixed-window rate limits across multiple instances. Without `REDIS_URL`, local development falls back to the in-memory limiter.
 
 See the [local smoke test guide](docs/local-smoke.md) for Docker Compose and
 non-Docker verification.

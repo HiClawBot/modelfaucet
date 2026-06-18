@@ -20,7 +20,7 @@ export default defineConfig({
     ["meta", { property: "og:type", content: "website" }]
   ],
   themeConfig: {
-    logo: "/assets/modelfaucet-logo.png",
+    logo: "/assets/modelfaucet-mark.svg",
     siteTitle: "ModelFaucet",
     search: {
       provider: "local"

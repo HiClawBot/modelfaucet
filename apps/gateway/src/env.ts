@@ -11,6 +11,7 @@ export type GatewayEnv = {
   providerTimeoutMs: number;
   providerMaxRetries: number;
   providerRetryDelayMs: number;
+  redisUrl?: string;
   rateLimitMaxRequests: number;
   rateLimitWindowMs: number;
 };
@@ -116,6 +117,10 @@ export function loadGatewayEnv(source: NodeJS.ProcessEnv = process.env): Gateway
     providerTimeoutMs: parseInteger(source.PROVIDER_TIMEOUT_MS, 30_000),
     providerMaxRetries: parseInteger(source.PROVIDER_MAX_RETRIES, 1),
     providerRetryDelayMs: parseInteger(source.PROVIDER_RETRY_DELAY_MS, 250),
+    redisUrl:
+      source.REDIS_URL !== undefined && source.REDIS_URL.trim() !== ""
+        ? source.REDIS_URL
+        : undefined,
     rateLimitMaxRequests: parseNonNegativeInteger(
       source.GATEWAY_RATE_LIMIT_MAX_REQUESTS,
       1200

@@ -4,7 +4,7 @@ import {
   createErrorResponse,
   createRequestId,
   InMemoryMetrics,
-  InMemoryRateLimiter
+  type RateLimiter
 } from "@modelfaucet/shared";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -15,7 +15,7 @@ export type BuildGatewayServerOptions = {
   mockCompletionRepository: MockCompletionRepository;
   corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
-  rateLimiter?: InMemoryRateLimiter;
+  rateLimiter?: RateLimiter;
   requestIdFactory?: () => string;
   now?: () => Date;
   logger?: boolean;
@@ -105,7 +105,7 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     reply.header("x-request-id", requestId);
 
     if (options.rateLimiter !== undefined && !shouldSkipRateLimit(route)) {
-      const rateLimit = options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
+      const rateLimit = await options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
       reply.header("x-ratelimit-remaining", String(rateLimit.remaining));
       reply.header("x-ratelimit-reset", String(Math.ceil(rateLimit.resetAtMs / 1000)));
       if (!rateLimit.allowed) {
@@ -144,9 +144,13 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     });
   });
 
-  if (options.mockCompletionRepository.close !== undefined) {
+  if (
+    options.mockCompletionRepository.close !== undefined ||
+    options.rateLimiter?.close !== undefined
+  ) {
     app.addHook("onClose", async () => {
       await options.mockCompletionRepository.close?.();
+      await options.rateLimiter?.close?.();
     });
   }
 

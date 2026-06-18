@@ -17,6 +17,11 @@ export type RateLimitResult = {
   resetAtMs: number;
 };
 
+export type RateLimiter = {
+  check(key: string, nowMs: number): RateLimitResult | Promise<RateLimitResult>;
+  close?: () => void | Promise<void>;
+};
+
 type RateLimitBucket = {
   count: number;
   resetAtMs: number;
@@ -107,7 +112,7 @@ export class InMemoryMetrics {
   }
 }
 
-export class InMemoryRateLimiter {
+export class InMemoryRateLimiter implements RateLimiter {
   private readonly buckets = new Map<string, RateLimitBucket>();
 
   constructor(

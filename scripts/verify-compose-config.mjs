@@ -6,6 +6,7 @@ const hostedEnv = {
   DATABASE_URL:
     process.env.DATABASE_URL ??
     "postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet",
+  REDIS_URL: process.env.REDIS_URL ?? "redis://redis.modelfaucet.invalid:6379",
   SECRET_ENCRYPTION_KEY:
     process.env.SECRET_ENCRYPTION_KEY ?? "mf_ci_secret_encryption_key_32_bytes_minimum",
   ADMIN_TOKEN: process.env.ADMIN_TOKEN ?? "mf_ci_admin_token_for_hosted_env_check",

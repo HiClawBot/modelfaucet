@@ -33,6 +33,7 @@ const requiredVariables = [
   "SECRET_ENCRYPTION_KEY",
   "ADMIN_TOKEN",
   "DEVELOPER_ADMIN_TOKEN",
+  "REDIS_URL",
   "LITELLM_BASE_URL",
   "LITELLM_MASTER_KEY",
   "API_CORS_ORIGINS",
@@ -186,6 +187,23 @@ function assertHttpUrl(value, key, options = {}) {
   return url;
 }
 
+function assertRedisUrl(value, key) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${key} must be a valid URL.`);
+  }
+
+  if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
+    throw new Error(`${key} must use redis or rediss.`);
+  }
+
+  if (url.hostname.trim() === "") {
+    throw new Error(`${key} must include a hostname.`);
+  }
+}
+
 function assertOriginList(value, key) {
   if (value.trim() === "*") {
     throw new Error(`${key} must not be '*'.`);
@@ -257,6 +275,7 @@ function main(source = process.env) {
   assertSecretShape(source, "DEVELOPER_ADMIN_TOKEN", 24);
   assertSecretShape(source, "LITELLM_MASTER_KEY", 24);
 
+  assertRedisUrl(readRequired(source, "REDIS_URL"), "REDIS_URL");
   assertHttpUrl(readRequired(source, "LITELLM_BASE_URL"), "LITELLM_BASE_URL", {
     requireCloudSafe: true
   });

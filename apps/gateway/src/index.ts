@@ -1,13 +1,14 @@
 import { pathToFileURL } from "node:url";
-import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadGatewayEnv } from "./env";
 import { LiteLlmClient } from "./litellm";
+import { createGatewayRateLimiter } from "./rateLimit";
 import { PostgresMockCompletionRepository } from "./repositories/mockCompletionRepository";
 import { buildGatewayServer } from "./server";
 
 export * from "./crypto";
 export * from "./env";
 export * from "./litellm";
+export * from "./rateLimit";
 export * from "./repositories/mockCompletionRepository";
 export * from "./secretEncryption";
 export * from "./server";
@@ -30,13 +31,15 @@ export async function startGatewayServer(): Promise<void> {
       secretEncryptionKey: env.secretEncryptionKey
     }
   );
+  const rateLimiter = await createGatewayRateLimiter({
+    redisUrl: env.redisUrl,
+    maxRequests: env.rateLimitMaxRequests,
+    windowMs: env.rateLimitWindowMs
+  });
   const server = buildGatewayServer({
     mockCompletionRepository,
     corsOrigins: env.corsOrigins,
-    rateLimiter: new InMemoryRateLimiter(
-      env.rateLimitMaxRequests,
-      env.rateLimitWindowMs
-    ),
+    rateLimiter,
     logger: env.nodeEnv !== "test"
   });
 

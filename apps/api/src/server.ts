@@ -8,7 +8,7 @@ import {
   createErrorResponse,
   createRequestId,
   InMemoryMetrics,
-  InMemoryRateLimiter,
+  type RateLimiter,
   parseMoneyToUnits
 } from "@modelfaucet/shared";
 import { z } from "zod";
@@ -61,7 +61,7 @@ export type BuildApiServerOptions = {
   adminToken?: string;
   corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
-  rateLimiter?: InMemoryRateLimiter;
+  rateLimiter?: RateLimiter;
   requestIdFactory?: () => string;
   gatewayBaseUrl: string;
   sessionTokenTtlSeconds: number;
@@ -517,7 +517,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     reply.header("x-request-id", requestId);
 
     if (options.rateLimiter !== undefined && !shouldSkipRateLimit(route)) {
-      const rateLimit = options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
+      const rateLimit = await options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
       reply.header("x-ratelimit-remaining", String(rateLimit.remaining));
       reply.header("x-ratelimit-reset", String(Math.ceil(rateLimit.resetAtMs / 1000)));
       if (!rateLimit.allowed) {
@@ -564,7 +564,8 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     options.walletRepository?.close !== undefined ||
     options.paymentRepository?.close !== undefined ||
     options.payoutRepository?.close !== undefined ||
-    options.settlementRepository?.close !== undefined
+    options.settlementRepository?.close !== undefined ||
+    options.rateLimiter?.close !== undefined
   ) {
     app.addHook("onClose", async () => {
       await options.sessionRepository.close?.();
@@ -575,6 +576,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       await options.paymentRepository?.close?.();
       await options.payoutRepository?.close?.();
       await options.settlementRepository?.close?.();
+      await options.rateLimiter?.close?.();
     });
   }
 

@@ -8,7 +8,7 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `1.2.0` is a source GA website and scenario demo release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, an independent GitHub Pages website, a static application-scenario economics model, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.3.0` is a deployment release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, container publishing checks, Redis-backed distributed rate limits, versioned database migration metadata, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, an independent GitHub Pages website, a static application-scenario economics model, docs site, CI, and major dependency compatibility upgrades.
 
 Deployment-specific production blockers:
 
@@ -297,6 +297,27 @@ Exit criteria:
 - The Pages artifact contains the website root, `/demo/`, `/use-cases/`, and existing docs paths.
 - The website copy preserves the security boundaries: server-side provider keys, no hidden BYOK markup, and no cloud access to private-network URLs.
 - Custom-domain instructions do not hard-code an unverified AiFund subdomain into the repository.
+
+## `1.3.0` Deployment Release
+
+Goal: make source deployments easier to promote by adding container publishing automation, distributed rate limits, and migration-version verification.
+
+Status: implemented in source. API and Gateway can use Redis-backed fixed-window rate limits through server-side `REDIS_URL`; database schema application records `0001_initial_schema` in `schema_migrations`; CI verifies migration metadata and container publishing configuration; release tags build API, Gateway, and Dashboard images for GHCR.
+
+Scope:
+
+- Add GHCR container image workflow for API, Gateway, and Dashboard.
+- Add service-specific Docker build args so the same Node Dockerfile can build service images.
+- Add Redis-backed API/Gateway rate limits while preserving local in-memory fallback.
+- Add migration metadata and `pnpm db:verify-migrations`.
+- Update hosted Compose and hosted env verification for `REDIS_URL`.
+
+Exit criteria:
+
+- `pnpm container:verify`, `pnpm db:verify-migrations`, lint, typecheck, tests, and release builds pass.
+- Hosted Compose references GHCR images and does not pass developer tokens into Dashboard Vite env.
+- Redis URL remains server-side only and provider API keys remain server-side only.
+- Cloud provider URLs still reject localhost and private LAN targets.
 
 ## Operating Rules For Every Release
 

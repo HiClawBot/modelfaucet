@@ -11,6 +11,7 @@ export type ApiEnv = {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   payoutThresholdUsd: string;
+  redisUrl?: string;
   rateLimitMaxRequests: number;
   rateLimitWindowMs: number;
 };
@@ -116,6 +117,10 @@ export function loadApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
         ? source.STRIPE_WEBHOOK_SECRET
         : undefined,
     payoutThresholdUsd: source.PAYOUT_THRESHOLD_USD ?? "1.00000000",
+    redisUrl:
+      source.REDIS_URL !== undefined && source.REDIS_URL.trim() !== ""
+        ? source.REDIS_URL
+        : undefined,
     rateLimitMaxRequests: parseNonNegativeInteger(
       source.API_RATE_LIMIT_MAX_REQUESTS,
       1200

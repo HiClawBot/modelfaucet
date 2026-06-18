@@ -35,19 +35,18 @@ services:
       retries: 20
 
   api:
+    image: ghcr.io/hiclawbot/modelfaucet-api:${MODELFAUCET_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_PACKAGE: "@modelfaucet/api"
     restart: unless-stopped
-    command:
-      [
-        "sh",
-        "-lc",
-        "pnpm --filter @modelfaucet/api build && pnpm --filter @modelfaucet/api start"
-      ]
+    command: ["pnpm", "--filter", "@modelfaucet/api", "start"]
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
       DEVELOPER_ADMIN_TOKEN: ${DEVELOPER_ADMIN_TOKEN:?DEVELOPER_ADMIN_TOKEN is required}
@@ -70,19 +69,18 @@ services:
       retries: 20
 
   gateway:
+    image: ghcr.io/hiclawbot/modelfaucet-gateway:${MODELFAUCET_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_PACKAGE: "@modelfaucet/gateway"
     restart: unless-stopped
-    command:
-      [
-        "sh",
-        "-lc",
-        "pnpm --filter @modelfaucet/gateway build && pnpm --filter @modelfaucet/gateway start"
-      ]
+    command: ["pnpm", "--filter", "@modelfaucet/gateway", "start"]
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
       LITELLM_BASE_URL: http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
@@ -93,6 +91,8 @@ services:
       GATEWAY_RATE_LIMIT_MAX_REQUESTS: ${GATEWAY_RATE_LIMIT_MAX_REQUESTS:-1200}
       GATEWAY_RATE_LIMIT_WINDOW_MS: ${GATEWAY_RATE_LIMIT_WINDOW_MS:-60000}
     depends_on:
+      redis:
+        condition: service_healthy
       litellm:
         condition: service_healthy
     ports:
@@ -104,16 +104,14 @@ services:
       retries: 20
 
   dashboard:
+    image: ghcr.io/hiclawbot/modelfaucet-dashboard:${MODELFAUCET_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_PACKAGE: "@modelfaucet/dashboard"
     restart: unless-stopped
-    command:
-      [
-        "sh",
-        "-lc",
-        "pnpm --filter @modelfaucet/dashboard build && pnpm --filter @modelfaucet/dashboard start"
-      ]
+    command: ["pnpm", "--filter", "@modelfaucet/dashboard", "start"]
     environment:
       VITE_MODELFAUCET_API_BASE_URL: ${API_PUBLIC_BASE_URL:?API_PUBLIC_BASE_URL is required}
     depends_on:

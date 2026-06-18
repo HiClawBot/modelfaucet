@@ -1,12 +1,12 @@
 # 发布策略
 
-ModelFaucet `1.0.0` 作为 source GA release 发布到 GitHub。Package 和 container publishing 应在 registry ownership 和 automation credentials 配好后按以下策略执行。
+ModelFaucet `1.3.0` 作为 deployment release 发布到 GitHub。Source tag 仍是权威发布边界，container image publishing 会在 release tag 上自动执行。
 
 ## Source Publishing
 
-`1.0.0` 的权威 artifact 是 source release：
+`1.x` 的权威 artifact 是 source release：
 
-- Git tag：`v1.0.0`
+- Git tag：`v1.3.0`
 - GitHub Release notes 使用英文和简体中文。
 - Release commit 上 CI 和 docs workflows 绿色。
 - 不提交 generated build artifacts 或 local env files。
@@ -29,19 +29,21 @@ Provider API keys 绝不能作为 client package defaults 出现。
 
 ## Container Image Publishing
 
-计划中的 container registry：
+Container registry：
 
 - `ghcr.io/hiclawbot/modelfaucet-api`
 - `ghcr.io/hiclawbot/modelfaucet-gateway`
 - `ghcr.io/hiclawbot/modelfaucet-dashboard`
 
+`.github/workflows/container-images.yml` 会在 pull request 上构建三个服务镜像，并且只在 `v*.*.*` tag build 时推送到 GHCR。
+
 推荐 tags：
 
-- `1.0.0`
-- `1.0`
+- `v1.3.0`
+- commit SHA tags，用于追踪
 - `latest` 只在 release validation 后移动。
 
-Container publishing 必须包含 image scanning、可用时的 build provenance，以及针对 disposable database 的 smoke test。
+Tag 前运行 `pnpm container:verify`。Container publishing 必须把 provider API key、Redis URL、developer token 和 developer admin token 都保留在服务端部署配置中。
 
 ## Hosted Deployment Publishing
 

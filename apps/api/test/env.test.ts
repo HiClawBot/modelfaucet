@@ -46,4 +46,13 @@ describe("api env security defaults", () => {
       })
     ).toThrow("API_CORS_ORIGINS contains an invalid origin");
   });
+
+  it("parses REDIS_URL for distributed hosted rate limits", () => {
+    expect(
+      loadApiEnv({
+        ...baseEnv,
+        REDIS_URL: "redis://redis:6379"
+      }).redisUrl
+    ).toBe("redis://redis:6379");
+  });
 });

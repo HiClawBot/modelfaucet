@@ -1,6 +1,6 @@
 # Operations and Observability
 
-ModelFaucet `0.6.0` adds lightweight source-beta operations hooks for local and pilot deployments.
+ModelFaucet includes lightweight operations hooks for local, hosted, and deployment-release workflows.
 
 ## Request IDs
 
@@ -51,10 +51,11 @@ them into Prometheus, OpenTelemetry Collector, or the platform's metrics backend
 
 ## Rate Limits
 
-The API and Gateway include an in-memory IP+route rate limiter. Defaults are
+The API and Gateway include an IP+route fixed-window rate limiter. Defaults are
 wide enough for local smoke tests:
 
 ```bash
+REDIS_URL=redis://redis:6379
 API_RATE_LIMIT_MAX_REQUESTS=1200
 API_RATE_LIMIT_WINDOW_MS=60000
 GATEWAY_RATE_LIMIT_MAX_REQUESTS=1200
@@ -62,12 +63,20 @@ GATEWAY_RATE_LIMIT_WINDOW_MS=60000
 ```
 
 Set `*_MAX_REQUESTS=0` to disable the limiter in a trusted local environment.
-Hosted deployments should replace this with Redis or an edge/service-mesh rate
-limiter for multi-instance consistency.
+When `REDIS_URL` is set, API and Gateway use Redis counters so limits are
+consistent across multiple service instances. Without `REDIS_URL`, local
+development falls back to the in-memory limiter.
 
 ## Migration Rollback
 
-The current source tree uses idempotent SQL in `infra/db/schema.sql`.
+The current source tree uses idempotent SQL in `infra/db/schema.sql` plus a
+`schema_migrations` metadata table. Run the migration verifier after applying
+schema changes:
+
+```bash
+pnpm db:migrate
+pnpm db:verify-migrations
+```
 
 Rollback procedure for a failed migration attempt:
 
@@ -101,4 +110,3 @@ DATABASE_URL=postgresql://localhost/modelfaucet_restore pnpm smoke:local
 Production deployments should use managed automated backups, point-in-time
 recovery, encrypted snapshots, restore drills, and retention settings that match
 the deployment's compliance requirements.
-

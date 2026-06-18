@@ -35,6 +35,26 @@ Set `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic and `REQUIRE_HOSTED
 - Confirm database backup and restore have been tested for the deployment target.
 - Confirm incident contacts are current.
 
+## Upgrade To `1.3.0`
+
+`1.3.0` adds deployment-release checks, Redis-backed distributed rate limits, container publishing automation, and `schema_migrations` metadata.
+
+Before promotion:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:migrate
+pnpm db:verify-migrations
+pnpm hosted:verify-env
+pnpm compose:verify
+pnpm container:verify
+pnpm smoke:local
+```
+
+For hosted API and Gateway instances, set `REDIS_URL` to a server-side Redis or Redis-compatible endpoint. Do not expose `REDIS_URL`, provider API keys, developer tokens, or developer admin tokens through browser-visible Vite environment variables.
+
+Container images are built by `.github/workflows/container-images.yml` for `v*.*.*` tags and are published to GHCR only on tag builds.
+
 ## Rollback
 
 If a `1.0.0` rollout fails before database writes occur, roll back the application containers to the previous image or commit.

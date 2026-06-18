@@ -40,7 +40,7 @@ function copyIndexToRoute(route) {
 
 rmSync(outputDir, { force: true, recursive: true });
 
-run("pnpm", ["docs:build"]);
+run(process.execPath, ["./node_modules/vitepress/bin/vitepress.js", "build", "docs"]);
 run("pnpm", ["--filter", "@modelfaucet/website", "build"], {
   ...process.env,
   WEBSITE_BASE: process.env.WEBSITE_BASE ?? "/modelfaucet/"
@@ -50,6 +50,9 @@ copyDir(docsDist, outputDir);
 copyDir(websiteDist, outputDir);
 copyIndexToRoute("demo");
 copyIndexToRoute("use-cases");
+copyIndexToRoute("zh");
+copyIndexToRoute("zh/demo");
+copyIndexToRoute("zh/use-cases");
 
 mkdirSync(dirname(join(outputDir, ".nojekyll")), { recursive: true });
 writeFileSync(join(outputDir, ".nojekyll"), "");

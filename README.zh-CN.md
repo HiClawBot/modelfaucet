@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/modelfaucet-logo.png" alt="ModelFaucet logo" width="220" />
+  <img src="assets/modelfaucet-logo.svg" alt="ModelFaucet logo" width="220" />
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`1.2.0` source GA website and scenario demo release。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
+> 状态：`1.3.0` deployment release。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、版本化数据库迁移元数据、hosted deployment checks、Compose validation、container publishing checks、Redis-backed 分布式 rate limits、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
 
 ---
 
@@ -241,6 +241,16 @@ pnpm pages:build
 Pages workflow 会在推送到 `main` 后发布 `.pages-dist` 合并产物。官网占根路径和场景路由，文档站继续保留 `/quickstart`、`/roadmap` 和 `/zh-CN/` 等稳定路径。
 
 官网里的场景模型是纯静态计算，不收集 provider key。Platform route 只建模显式 markup，BYOK 只建模可见 gateway/product fee，本地模式只建模可见 local software fee。
+
+部署发布校验：
+
+```bash
+pnpm db:verify-migrations
+pnpm compose:verify
+pnpm container:verify
+```
+
+托管 API 和 Gateway 使用 `REDIS_URL` 实现跨多实例的分布式 fixed-window rate limit。没有 `REDIS_URL` 时，本地开发会回退到内存 limiter。
 
 SDK、React usage display、Local Bridge diagnostics 和离线本地 usage reporting 见 [SDK 和 Local Bridge guide](docs/zh-CN/sdk-local-bridge.md)。
 

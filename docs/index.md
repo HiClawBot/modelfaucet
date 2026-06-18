@@ -6,7 +6,7 @@ hero:
   text: Turn every app into an AI last-mile channel.
   tagline: Open-source LLM distribution gateway, embeddable SDK, BYOK, Local Bridge, usage ledger, and revenue sharing.
   image:
-    src: /assets/modelfaucet-logo.png
+    src: /assets/modelfaucet-logo.svg
     alt: ModelFaucet logo
   actions:
     - theme: brand
@@ -27,7 +27,7 @@ features:
 
 ## Current status
 
-ModelFaucet is at `1.2.0` source-GA website and scenario demo status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
+ModelFaucet is at `1.3.0` deployment release status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, versioned database migration metadata, hosted deployment checks, Compose validation, container publishing checks, Redis-backed distributed rate limits, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
 
 For the public website and scenario model, use the GitHub Pages root. For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). For GA contracts, see the [stability policy](./stability-policy.md), [migration and upgrade guide](./migration-upgrade.md), [production reference architecture](./production-architecture.md), [deployment validation guide](./deployment-validation.md), [governance and support policy](./governance-support.md), and [publishing strategy](./publishing-strategy.md).
 

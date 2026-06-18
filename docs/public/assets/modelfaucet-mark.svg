@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ModelFaucet mark</title>
+  <desc id="desc">Circular ModelFaucet connector mark in deep navy and flow blue.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M111 28A104 104 0 1 0 145 28" stroke="#0B1D3A" stroke-width="14"/>
+    <path d="M128 42v38" stroke="#0B1D3A" stroke-width="14"/>
+    <path d="M106 82h44" stroke="#0B1D3A" stroke-width="14"/>
+    <path d="M111 82v20" stroke="#0B1D3A" stroke-width="14"/>
+    <path d="M145 82v20" stroke="#0B1D3A" stroke-width="14"/>
+    <path d="M111 102c0 20-17 25-28 36-8 8-11 16-11 28" stroke="#0B1D3A" stroke-width="8"/>
+    <path d="M145 102c0 20 17 25 28 36 8 8 11 16 11 28" stroke="#0B1D3A" stroke-width="8"/>
+    <path d="M128 82v92" stroke="#2563FF" stroke-width="8"/>
+  </g>
+  <rect x="116" y="16" width="24" height="24" fill="#2563FF"/>
+  <circle cx="72" cy="168" r="11" fill="#0B1D3A"/>
+  <circle cx="184" cy="168" r="11" fill="#0B1D3A"/>
+  <circle cx="128" cy="180" r="11" fill="#2563FF"/>
+</svg>

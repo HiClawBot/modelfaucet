@@ -9,6 +9,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
 - `pnpm ga:verify` passes for a source GA release.
 - `pnpm hosted:verify-env` passes with the target hosted environment variables or with CI-safe placeholders for source validation.
+- `pnpm container:verify` passes for container publishing configuration.
 - `pnpm security:audit` reports no high-severity production dependency advisories.
 - `pnpm lint` passes.
 - `pnpm typecheck` passes.
@@ -20,7 +21,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm website:build` passes.
 - `pnpm docs:build` passes.
 - `pnpm pages:build` passes and preserves the website root plus existing docs paths.
-- `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
+- `pnpm db:migrate`, `pnpm db:seed`, and `pnpm db:verify-migrations` have been run against a fresh PostgreSQL database.
 - `pnpm compose:verify` validates default and hosted Compose configs on a Docker-capable machine.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
@@ -29,6 +30,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
 - Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
+- Hosted API and Gateway deployments set server-side `REDIS_URL` for distributed rate limits.
 
 ## Source GA release
 
@@ -37,6 +39,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - Production reference architecture is published.
 - Governance, maintainership, support policy, release cadence, and security intake are published.
 - Package and container publishing strategy is decided and documented.
+- Container image workflow builds API, Gateway, and Dashboard images, and only pushes on release tags.
 - Hosted production blockers are explicitly documented instead of treated as completed source checks.
 
 ## Hosted production release
@@ -52,6 +55,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - Production `SECRET_ENCRYPTION_KEY`, JWT secret, admin tokens, and provider secrets are provisioned through KMS, Vault, or a cloud secret manager.
 - Database backups, migrations, retention, and restore procedures have been documented for the deployment target.
 - Rate limits, request body limits, and gateway timeout values have been reviewed for the deployment target.
+- Redis-backed rate limits have been verified for multi-instance API and Gateway deployments.
 - Payout workflow has been reviewed before enabling any real-money settlement.
 - GitHub, npm, container registry, domain, and trademark namespace checks are complete.
 - Public support, abuse, security, and maintainer contact paths are published.

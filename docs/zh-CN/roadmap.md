@@ -8,7 +8,7 @@
 
 ## 当前基线
 
-ModelFaucet `1.2.0` 已达到 source GA website and scenario demo release 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、scoped developer API tokens、tenant-isolated developer repository calls、GA stability policies、双语 README、独立 GitHub Pages 官网、静态应用场景收益模型、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `1.3.0` 已达到 deployment release 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、container publishing checks、Redis-backed 分布式 rate limits、版本化数据库迁移元数据、scoped developer API tokens、tenant-isolated developer repository calls、GA stability policies、双语 README、独立 GitHub Pages 官网、静态应用场景收益模型、文档站、CI，以及依赖大版本兼容升级。
 
 部署侧生产阻塞项：
 
@@ -283,6 +283,27 @@ governance/support policy；publishing strategy；以及自动 GA readiness veri
 - Pages artifact 包含官网根路径、`/demo/`、`/use-cases/` 和既有文档路径。
 - 官网文案保持三条安全边界：provider key 服务端保存、BYOK 无隐藏 markup、云端不访问私有网络 URL。
 - 自定义域名说明不在仓库里提前写死未验证的 AiFund 二级域名。
+
+## `1.3.0` Deployment Release
+
+目标：通过 container publishing automation、分布式 rate limits 和 migration-version verification，让源码部署更容易晋级。
+
+状态：源码已实现。API 和 Gateway 可通过服务端 `REDIS_URL` 使用 Redis-backed fixed-window rate limits；数据库 schema 应用后会在 `schema_migrations` 记录 `0001_initial_schema`；CI 会校验 migration metadata 和 container publishing config；release tag 会为 API、Gateway 和 Dashboard 构建 GHCR 镜像。
+
+范围：
+
+- 增加 API、Gateway 和 Dashboard 的 GHCR container image workflow。
+- 增加 service-specific Docker build args，让同一个 Node Dockerfile 可构建不同服务镜像。
+- 增加 Redis-backed API/Gateway rate limits，同时保留本地内存 fallback。
+- 增加 migration metadata 和 `pnpm db:verify-migrations`。
+- 更新 hosted Compose 和 hosted env verification，要求 `REDIS_URL`。
+
+验收标准：
+
+- `pnpm container:verify`、`pnpm db:verify-migrations`、lint、typecheck、tests 和 release builds 通过。
+- Hosted Compose 引用 GHCR images，并且不把 developer token 传入 Dashboard Vite env。
+- Redis URL 只保存在服务端，provider API key 仍只保存在服务端。
+- Cloud provider URL 仍拒绝 localhost 和私有 LAN 目标。
 
 ## 每个版本的固定规则
 

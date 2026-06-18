@@ -4,6 +4,22 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.3.0 - 2026-06-18
+
+### Added
+
+- Redis-backed fixed-window rate limiter support for API and Gateway when `REDIS_URL` is configured.
+- `schema_migrations` metadata table and `pnpm db:verify-migrations` release check.
+- Container image publishing workflow for API, Gateway, and Dashboard GHCR images on `v*.*.*` tags.
+- `pnpm container:verify` to validate Dockerfile, hosted Compose image wiring, and container workflow safety.
+
+### Changed
+
+- Hosted and local Compose now pass `REDIS_URL` to API and Gateway for distributed rate limits.
+- Hosted Compose now includes GHCR image names and service-specific build args for API, Gateway, and Dashboard.
+- CI now verifies migration metadata and container publishing configuration.
+- README, docs homepage, operations, migration, publishing strategy, roadmap, release checklist, and GA readiness verification now reflect the `1.3.0` deployment release.
+
 ## 1.2.0 - 2026-06-18
 
 ### Added

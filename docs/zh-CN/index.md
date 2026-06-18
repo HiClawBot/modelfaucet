@@ -4,7 +4,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-当前状态：`1.2.0` source GA website and scenario demo release，包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
+当前状态：`1.3.0` deployment release，包含 Control API、Gateway、SDK、React package、Local Bridge、版本化数据库迁移元数据、hosted deployment checks、Compose validation、container publishing checks、Redis-backed 分布式 rate limits、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
 
 ## 它包含什么
 

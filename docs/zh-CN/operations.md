@@ -1,6 +1,6 @@
 # 运维和可观测性
 
-ModelFaucet `0.6.0` 为本地和 pilot 部署加入轻量级 source-beta 运维能力。
+ModelFaucet 包含面向本地、托管和部署发布流程的轻量级运维能力。
 
 ## Request IDs
 
@@ -47,20 +47,26 @@ modelfaucet_rate_limited_total{service="@modelfaucet/gateway",route="/v1/chat/co
 
 ## Rate Limits
 
-API 和 Gateway 包含基于 IP+route 的内存 rate limiter。默认值足够宽松，不会影响本地 smoke test：
+API 和 Gateway 包含基于 IP+route 的 fixed-window rate limiter。默认值足够宽松，不会影响本地 smoke test：
 
 ```bash
+REDIS_URL=redis://redis:6379
 API_RATE_LIMIT_MAX_REQUESTS=1200
 API_RATE_LIMIT_WINDOW_MS=60000
 GATEWAY_RATE_LIMIT_MAX_REQUESTS=1200
 GATEWAY_RATE_LIMIT_WINDOW_MS=60000
 ```
 
-在可信本地环境中，可以设置 `*_MAX_REQUESTS=0` 禁用。托管部署应替换为 Redis、edge 或 service-mesh rate limiter，以支持多实例一致性。
+在可信本地环境中，可以设置 `*_MAX_REQUESTS=0` 禁用。设置 `REDIS_URL` 后，API 和 Gateway 会使用 Redis 计数器，以支持多实例一致性；没有 `REDIS_URL` 时，本地开发会回退到内存 limiter。
 
 ## Migration Rollback
 
-当前源码树使用 `infra/db/schema.sql` 中的幂等 SQL。
+当前源码树使用 `infra/db/schema.sql` 中的幂等 SQL，并通过 `schema_migrations` 表记录迁移元数据。应用 schema 变更后运行：
+
+```bash
+pnpm db:migrate
+pnpm db:verify-migrations
+```
 
 迁移失败时的 rollback 流程：
 
@@ -91,4 +97,3 @@ DATABASE_URL=postgresql://localhost/modelfaucet_restore pnpm smoke:local
 ```
 
 生产部署应使用托管自动备份、point-in-time recovery、加密快照、恢复演练，以及符合部署合规要求的保留策略。
-

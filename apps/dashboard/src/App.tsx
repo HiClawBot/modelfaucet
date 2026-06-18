@@ -1213,9 +1213,12 @@ export function App({
   return (
     <main className="dashboard-shell">
       <aside className="sidebar">
-        <div>
-          <p className="eyebrow">ModelFaucet</p>
-          <h1>Developer dashboard</h1>
+        <div className="dashboard-brand">
+          <img src="/assets/modelfaucet-mark.svg" alt="ModelFaucet mark" />
+          <div>
+            <p className="eyebrow">ModelFaucet</p>
+            <h1>Developer dashboard</h1>
+          </div>
         </div>
         <nav aria-label="Dashboard navigation">
           {navItems.map((item) => (

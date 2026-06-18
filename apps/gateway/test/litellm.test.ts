@@ -348,4 +348,15 @@ describe("LiteLlmClient", () => {
       }).corsOrigins
     ).toEqual(["https://app.example", "https://admin.example"]);
   });
+
+  it("parses REDIS_URL for distributed hosted rate limits", () => {
+    expect(
+      loadGatewayEnv({
+        DATABASE_URL: "postgresql://example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        REDIS_URL: "redis://redis:6379"
+      }).redisUrl
+    ).toBe("redis://redis:6379");
+  });
 });
