@@ -27,8 +27,8 @@ features:
 
 ## Current status
 
-ModelFaucet is at `0.9.0` hosted source-beta status. The repository includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, operations hooks, security hardening checks, hosted deployment checks, and a hosted beta reference Compose stack.
+ModelFaucet is at `1.0.0` source-GA status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, and production operating expectations.
 
-For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md) and complete the [release checklist](./RELEASE_CHECKLIST.md), including Docker smoke tests, a real LiteLLM test route, Stripe webhook delivery, deployment secrets, and namespace/trademark checks.
+For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For GA contracts, see the [stability policy](./stability-policy.md), [migration and upgrade guide](./migration-upgrade.md), [production reference architecture](./production-architecture.md), [governance and support policy](./governance-support.md), and [publishing strategy](./publishing-strategy.md).
 
 See the [roadmap](./roadmap.md) for the planned path from source MVP to hosted beta and general availability.

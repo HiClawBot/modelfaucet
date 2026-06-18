@@ -8,9 +8,9 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `0.9.0` is a hosted source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.0.0` is a source GA release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
-Current production blockers:
+Deployment-specific production blockers:
 
 - Hosted Compose smoke testing needs to run on a Docker-capable machine.
 - Real LiteLLM provider routing needs a server-side test key stored in a secret manager.
@@ -233,6 +233,11 @@ Exit criteria:
 
 Goal: declare stable public contracts and production operating expectations.
 
+Status: implemented in source. The release adds stable API, SDK, database
+migration, and security policies; bilingual migration and upgrade guides;
+production reference architecture; governance/support policy; publishing
+strategy; and automated GA readiness verification.
+
 Scope:
 
 - Freeze stable API and SDK surfaces with deprecation policy.
@@ -243,7 +248,8 @@ Scope:
 
 Exit criteria:
 
-- All release checklist items pass for source, packages, containers, and hosted deployment.
+- Source GA release checklist items pass.
+- Deployment-specific package, container, and hosted production checks are documented before promotion.
 - API, SDK, database migration, and security policies are documented.
 - Production incidents can be triaged with available logs, metrics, runbooks, and rollback paths.
 

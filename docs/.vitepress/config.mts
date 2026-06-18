@@ -46,6 +46,11 @@ export default defineConfig({
           { text: "Billing and Settlement", link: "/billing-settlement" },
           { text: "Threat and Abuse Model", link: "/threat-abuse-model" },
           { text: "Hosted Beta", link: "/hosted-beta" },
+          { text: "Stability Policy", link: "/stability-policy" },
+          { text: "Migration and Upgrade", link: "/migration-upgrade" },
+          { text: "Production Architecture", link: "/production-architecture" },
+          { text: "Governance and Support", link: "/governance-support" },
+          { text: "Publishing Strategy", link: "/publishing-strategy" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -61,6 +66,11 @@ export default defineConfig({
           { text: "Billing 和 Settlement", link: "/zh-CN/billing-settlement" },
           { text: "Threat 和 Abuse Model", link: "/zh-CN/threat-abuse-model" },
           { text: "Hosted Beta", link: "/zh-CN/hosted-beta" },
+          { text: "稳定性政策", link: "/zh-CN/stability-policy" },
+          { text: "迁移和升级", link: "/zh-CN/migration-upgrade" },
+          { text: "生产参考架构", link: "/zh-CN/production-architecture" },
+          { text: "治理和支持", link: "/zh-CN/governance-support" },
+          { text: "发布策略", link: "/zh-CN/publishing-strategy" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

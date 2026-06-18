@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`0.9.0` hosted 源码 beta。当前仓库包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、operations hooks、security hardening checks、hosted deployment checks 和 hosted beta 参考 Compose 栈。
+> 状态：`1.0.0` source GA。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks 和生产运维预期的稳定公共契约。
 
 ---
 
@@ -247,6 +247,8 @@ Stripe webhook replay、ledger reconciliation、wallet adjustment、payout revie
 
 托管环境校验、tenant isolation check、readiness smoke、pilot onboarding、acceptable use 和 incident-response contacts 见 [Hosted Beta guide](docs/zh-CN/hosted-beta.md)。
 
+`1.0.0` GA 契约见 [稳定性政策](docs/zh-CN/stability-policy.md)、[迁移和升级指南](docs/zh-CN/migration-upgrade.md)、[生产参考架构](docs/zh-CN/production-architecture.md)、[治理和支持政策](docs/zh-CN/governance-support.md) 和 [发布策略](docs/zh-CN/publishing-strategy.md)。
+
 ---
 
 ## API 兼容性
@@ -445,6 +447,21 @@ docs/RELEASE_CHECKLIST.md
 
 docs/hosted-beta.md
   Hosted beta 环境契约、参考 Compose、AUP 和 incident response。
+
+docs/stability-policy.md
+  稳定 API、SDK、数据库迁移和安全政策。
+
+docs/migration-upgrade.md
+  `1.x` 的升级、rollback 和 fresh-install 指南。
+
+docs/production-architecture.md
+  生产参考架构和运维预期。
+
+docs/governance-support.md
+  Maintainership、support policy、release cadence 和 security intake。
+
+docs/publishing-strategy.md
+  Source、npm package、container 和 hosted deployment publishing strategy。
 ```
 
 ---

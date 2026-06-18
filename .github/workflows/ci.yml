@@ -55,6 +55,9 @@ jobs:
       - name: Verify secrets
         run: pnpm verify:secrets
 
+      - name: Verify GA readiness
+        run: pnpm ga:verify
+
       - name: Verify hosted environment contract
         env:
           NODE_ENV: production

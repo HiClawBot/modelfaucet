@@ -6,6 +6,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 
 - `pnpm install --frozen-lockfile` completes.
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
+- `pnpm ga:verify` passes for a source GA release.
 - `pnpm hosted:verify-env` passes with the target hosted environment variables or with CI-safe placeholders for source validation.
 - `pnpm security:audit` reports no high-severity production dependency advisories.
 - `pnpm lint` passes.
@@ -23,6 +24,15 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
 - Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
+
+## Source GA release
+
+- Stable API, SDK, database migration, and security policies are published.
+- Migration and upgrade guides are published in English and Simplified Chinese.
+- Production reference architecture is published.
+- Governance, maintainership, support policy, release cadence, and security intake are published.
+- Package and container publishing strategy is decided and documented.
+- Hosted production blockers are explicitly documented instead of treated as completed source checks.
 
 ## Hosted production release
 

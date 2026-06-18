@@ -4,6 +4,22 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.0.0 - 2026-06-18
+
+### Added
+
+- General availability stability policy for API, SDK, database migration, and security contracts.
+- Migration and upgrade guides in English and Simplified Chinese.
+- Production reference architecture docs in English and Simplified Chinese.
+- Governance, maintainership, support policy, release cadence, and security intake docs.
+- Package and container publishing strategy docs.
+- `pnpm ga:verify` GA readiness verifier.
+
+### Changed
+
+- CI now runs GA readiness verification.
+- README, docs homepage, release checklist, and roadmap now reflect the `1.0.0` source GA status.
+
 ## 0.9.0 - 2026-06-18
 
 ### Added

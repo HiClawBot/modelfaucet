@@ -8,9 +8,9 @@
 
 ## 当前基线
 
-ModelFaucet `0.9.0` 已达到 hosted 源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `1.0.0` 已达到 source GA 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、GA stability policies、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
-当前生产发布阻塞项：
+部署侧生产阻塞项：
 
 - 需要在有 Docker 的机器上跑完整 hosted Compose smoke test。
 - 需要使用 secret manager 中的服务端测试 provider key 验证真实 LiteLLM 路由。
@@ -220,6 +220,10 @@ hosted beta 文档、acceptable-use policy 和 incident-response contacts templa
 
 目标：声明稳定公共契约和生产运维预期。
 
+状态：源码已实现。本版本新增稳定 API、SDK、database migration 和 security
+policies；双语 migration/upgrade guides；production reference architecture；
+governance/support policy；publishing strategy；以及自动 GA readiness verification。
+
 范围：
 
 - 冻结稳定 API 和 SDK surface，并给出 deprecation policy。
@@ -230,7 +234,8 @@ hosted beta 文档、acceptable-use policy 和 incident-response contacts templa
 
 验收标准：
 
-- 源码、packages、containers 和 hosted deployment 的 release checklist 都通过。
+- Source GA release checklist 通过。
+- Package、container 和 hosted production 的部署侧检查在晋级前文档化。
 - API、SDK、database migration 和 security policies 文档齐备。
 - 生产事故可以通过日志、指标、runbooks 和 rollback path 处理。
 

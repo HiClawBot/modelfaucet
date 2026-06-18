@@ -1,7 +1,7 @@
 {
   "name": "modelfaucet",
   "private": true,
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Open-source LLM distribution gateway and embeddable SDK for turning every app into an AI last-mile channel.",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
@@ -17,6 +17,7 @@
     "test:ts": "turbo run test",
     "test:go": "cd services/local-bridge && go test ./...",
     "verify:secrets": "node scripts/verify-no-real-secrets.mjs",
+    "ga:verify": "node scripts/verify-ga-readiness.mjs",
     "hosted:verify-env": "node scripts/verify-hosted-env.mjs",
     "hosted:check-isolation": "node scripts/check-tenant-isolation.mjs",
     "hosted:smoke-readiness": "node scripts/smoke-hosted-readiness.mjs",

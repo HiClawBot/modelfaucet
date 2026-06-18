@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `0.9.0` hosted source beta. The repository includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, operations hooks, security hardening checks, hosted deployment checks, and a hosted beta reference Compose stack.
+> Status: `1.0.0` source GA. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, and production operating expectations.
 
 ---
 
@@ -263,6 +263,8 @@ See the [hosted beta guide](docs/hosted-beta.md) for environment verification,
 tenant isolation checks, readiness smoke, pilot onboarding, acceptable use, and
 incident-response contacts.
 
+See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the `1.0.0` GA contracts.
+
 ---
 
 ## API compatibility
@@ -461,6 +463,21 @@ docs/RELEASE_CHECKLIST.md
 
 docs/hosted-beta.md
   Hosted beta environment contract, reference Compose, AUP, and incident response.
+
+docs/stability-policy.md
+  Stable API, SDK, database migration, and security policies.
+
+docs/migration-upgrade.md
+  Upgrade, rollback, and fresh-install guidance for `1.x`.
+
+docs/production-architecture.md
+  Production reference architecture and operating expectations.
+
+docs/governance-support.md
+  Maintainership, support policy, release cadence, and security intake.
+
+docs/publishing-strategy.md
+  Source, npm package, container, and hosted deployment publishing strategy.
 ```
 
 ---
