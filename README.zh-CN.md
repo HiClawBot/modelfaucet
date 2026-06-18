@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`1.0.0` source GA。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks 和生产运维预期的稳定公共契约。
+> 状态：`1.0.1` source GA hardening patch。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation 和生产运维预期的稳定公共契约。
 
 ---
 
@@ -247,7 +247,7 @@ Stripe webhook replay、ledger reconciliation、wallet adjustment、payout revie
 
 托管环境校验、tenant isolation check、readiness smoke、pilot onboarding、acceptable use 和 incident-response contacts 见 [Hosted Beta guide](docs/zh-CN/hosted-beta.md)。
 
-`1.0.0` GA 契约见 [稳定性政策](docs/zh-CN/stability-policy.md)、[迁移和升级指南](docs/zh-CN/migration-upgrade.md)、[生产参考架构](docs/zh-CN/production-architecture.md)、[治理和支持政策](docs/zh-CN/governance-support.md) 和 [发布策略](docs/zh-CN/publishing-strategy.md)。
+`1.x` GA 契约见 [稳定性政策](docs/zh-CN/stability-policy.md)、[迁移和升级指南](docs/zh-CN/migration-upgrade.md)、[生产参考架构](docs/zh-CN/production-architecture.md)、[部署验证](docs/zh-CN/deployment-validation.md)、[治理和支持政策](docs/zh-CN/governance-support.md) 和 [发布策略](docs/zh-CN/publishing-strategy.md)。
 
 ---
 
@@ -456,6 +456,9 @@ docs/migration-upgrade.md
 
 docs/production-architecture.md
   生产参考架构和运维预期。
+
+docs/deployment-validation.md
+  Docker/Compose、secret manager、CORS、readiness 和 database validation。
 
 docs/governance-support.md
   Maintainership、support policy、release cadence 和 security intake。

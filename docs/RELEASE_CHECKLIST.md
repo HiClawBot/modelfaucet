@@ -5,6 +5,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 ## Source prerelease or private beta
 
 - `pnpm install --frozen-lockfile` completes.
+- `pnpm deps:review` has been reviewed before release.
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
 - `pnpm ga:verify` passes for a source GA release.
 - `pnpm hosted:verify-env` passes with the target hosted environment variables or with CI-safe placeholders for source validation.
@@ -18,7 +19,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm --filter crm-demo build` passes.
 - `pnpm docs:build` passes.
 - `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
-- `docker compose -f infra/hosted/docker-compose.hosted.yml config` validates with secret values injected from environment variables.
+- `pnpm compose:verify` validates default and hosted Compose configs on a Docker-capable machine.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.

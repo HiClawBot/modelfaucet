@@ -106,20 +106,8 @@ jobs:
           LITELLM_MASTER_KEY: sk-test-litellm-master-key
         run: pnpm smoke:local
 
-      - name: Validate Docker Compose
-        run: docker compose config
-
-      - name: Validate hosted Docker Compose
-        env:
-          DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet
-          SECRET_ENCRYPTION_KEY: mf_ci_secret_encryption_key_32_bytes_minimum
-          ADMIN_TOKEN: mf_ci_admin_token_for_hosted_env_check
-          DEVELOPER_ADMIN_TOKEN: mf_ci_developer_admin_token_check
-          LITELLM_MASTER_KEY: mf_ci_litellm_master_key_for_hosted_check
-          API_CORS_ORIGINS: https://dashboard.modelfaucet.invalid
-          GATEWAY_CORS_ORIGINS: https://crm-demo.modelfaucet.invalid
-          API_PUBLIC_BASE_URL: https://api.modelfaucet.invalid
-        run: docker compose -f infra/hosted/docker-compose.hosted.yml config
+      - name: Validate Docker Compose configs
+        run: pnpm compose:verify
 
       - name: Build dashboard
         run: pnpm --filter @modelfaucet/dashboard build

@@ -4,6 +4,20 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.0.1 - 2026-06-18
+
+### Added
+
+- Hardening patch with reusable `pnpm compose:verify` for default and hosted Docker Compose config validation.
+- `pnpm deps:review` dependency review command for release preparation.
+- English and Simplified Chinese deployment validation guides covering Docker/Compose, secret manager, CORS, readiness, and database checks.
+
+### Changed
+
+- CI now uses `pnpm compose:verify` for Compose validation.
+- GA readiness verification now checks deployment validation docs and the Compose/dependency review scripts.
+- README and docs homepage now reflect the `1.0.1` source GA hardening patch.
+
 ## 1.0.0 - 2026-06-18
 
 ### Added

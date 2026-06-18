@@ -49,6 +49,7 @@ export default defineConfig({
           { text: "Stability Policy", link: "/stability-policy" },
           { text: "Migration and Upgrade", link: "/migration-upgrade" },
           { text: "Production Architecture", link: "/production-architecture" },
+          { text: "Deployment Validation", link: "/deployment-validation" },
           { text: "Governance and Support", link: "/governance-support" },
           { text: "Publishing Strategy", link: "/publishing-strategy" },
           { text: "Roadmap", link: "/roadmap" },
@@ -69,6 +70,7 @@ export default defineConfig({
           { text: "稳定性政策", link: "/zh-CN/stability-policy" },
           { text: "迁移和升级", link: "/zh-CN/migration-upgrade" },
           { text: "生产参考架构", link: "/zh-CN/production-architecture" },
+          { text: "部署验证", link: "/zh-CN/deployment-validation" },
           { text: "治理和支持", link: "/zh-CN/governance-support" },
           { text: "发布策略", link: "/zh-CN/publishing-strategy" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }

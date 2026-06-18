@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `1.0.0` source GA. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, and production operating expectations.
+> Status: `1.0.1` source GA hardening patch. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, and production operating expectations.
 
 ---
 
@@ -263,7 +263,7 @@ See the [hosted beta guide](docs/hosted-beta.md) for environment verification,
 tenant isolation checks, readiness smoke, pilot onboarding, acceptable use, and
 incident-response contacts.
 
-See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the `1.0.0` GA contracts.
+See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [deployment validation guide](docs/deployment-validation.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the `1.x` GA contracts.
 
 ---
 
@@ -472,6 +472,9 @@ docs/migration-upgrade.md
 
 docs/production-architecture.md
   Production reference architecture and operating expectations.
+
+docs/deployment-validation.md
+  Docker/Compose, secret manager, CORS, readiness, and database validation.
 
 docs/governance-support.md
   Maintainership, support policy, release cadence, and security intake.

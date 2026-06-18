@@ -8,11 +8,11 @@
 
 ## 当前基线
 
-ModelFaucet `1.0.0` 已达到 source GA 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、GA stability policies、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `1.0.1` 已达到 source GA hardening patch 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、GA stability policies、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
 部署侧生产阻塞项：
 
-- 需要在有 Docker 的机器上跑完整 hosted Compose smoke test。
+- 需要在有 Docker 的机器上跑完整 hosted Compose smoke test 和 `pnpm compose:verify`，才能作为 release evidence。
 - 需要使用 secret manager 中的服务端测试 provider key 验证真实 LiteLLM 路由。
 - 需要验证 Stripe Checkout 和 webhook 投递。
 - 生产密钥需要接入目标环境的 KMS、Vault 或云 secret manager。

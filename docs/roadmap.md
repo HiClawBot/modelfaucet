@@ -8,11 +8,11 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `1.0.0` is a source GA release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.0.1` is a source GA hardening patch. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
 Deployment-specific production blockers:
 
-- Hosted Compose smoke testing needs to run on a Docker-capable machine.
+- Hosted Compose smoke testing and `pnpm compose:verify` need to run on a Docker-capable machine for release evidence.
 - Real LiteLLM provider routing needs a server-side test key stored in a secret manager.
 - Stripe Checkout and webhook delivery need hosted or Stripe CLI verification.
 - Deployment secrets need target-specific KMS, Vault, or cloud secret-manager wiring.
