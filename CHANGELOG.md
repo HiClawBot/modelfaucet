@@ -4,6 +4,22 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.2.0 - 2026-06-18
+
+### Added
+
+- Independent bilingual React website under `apps/website` for the GitHub Pages root experience.
+- Static scenario model for platform credits, BYOK gateway fees, and Local Bridge software fees without collecting provider keys.
+- Website use-case sections for SaaS, browser extension, desktop, commerce, and internal knowledge workflows.
+- `pnpm website:build` and `pnpm pages:build` scripts for website and merged GitHub Pages artifact builds.
+- Pages build script that preserves VitePress docs paths while publishing website root, `/demo/`, and `/use-cases/`.
+
+### Changed
+
+- Pages workflow now publishes a merged `.pages-dist` artifact instead of only `docs/.vitepress/dist`.
+- CI now verifies website and merged Pages artifact builds.
+- README, docs homepage, roadmap, release checklist, and GA readiness verification now reflect the `1.2.0` website and scenario demo release.
+
 ## 1.1.0 - 2026-06-18
 
 ### Added

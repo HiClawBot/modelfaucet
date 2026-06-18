@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `1.1.0` source GA auth hardening release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, and production operating expectations.
+> Status: `1.2.0` source GA website and scenario demo release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
 
 ---
 
@@ -138,6 +138,7 @@ apps/
   api/                 Control plane API: apps, users, keys, wallets, usage.
   gateway/             OpenAI-compatible request proxy and route selector.
   dashboard/           Developer console and admin dashboard.
+  website/             Independent bilingual GitHub Pages website and scenario model.
 
 packages/
   sdk-js/              Browser/server TypeScript SDK.
@@ -228,17 +229,21 @@ Expected behavior:
 
 ---
 
-## Documentation site
+## Website and documentation
 
-The repository includes a VitePress docs site for GitHub Pages.
+The repository includes an independent bilingual website plus the VitePress docs site for GitHub Pages.
 
 ```bash
+pnpm website:build
 pnpm docs:dev
 pnpm docs:build
 pnpm docs:preview
+pnpm pages:build
 ```
 
-The Pages workflow publishes the docs from `docs/.vitepress/dist` on pushes to `main`.
+The Pages workflow publishes a merged artifact from `.pages-dist` on pushes to `main`. The website owns the root page and scenario routes, while the documentation keeps stable paths such as `/quickstart`, `/roadmap`, and `/zh-CN/`.
+
+The website scenario model is static and does not collect provider keys. Platform-route examples model explicit markup, BYOK examples model only visible gateway/product fees, and local examples model visible local software fees.
 
 See the [local smoke test guide](docs/local-smoke.md) for Docker Compose and
 non-Docker verification.
@@ -427,7 +432,7 @@ Phase 5 - Payments and payouts
   Credits, wallet, Stripe test mode, payout workflow.
 
 Phase 6 - Public open-source launch
-  Docker Compose, docs site, example plugins, contribution guide.
+  Docker Compose, docs site, independent website, scenario demo, contribution guide.
 ```
 
 ---
@@ -515,6 +520,7 @@ A preliminary web search did not identify a major LLM infrastructure project wit
 [x] Add CONTRIBUTING.md
 [x] Add SECURITY.md
 [x] Add docs site config
+[x] Add independent website and scenario demo
 [x] Add pnpm workspace
 [x] Add apps/api
 [x] Add apps/gateway

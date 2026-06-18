@@ -5,7 +5,9 @@ on:
     branches: ["main"]
     paths:
       - "docs/**"
+      - "apps/website/**"
       - "assets/**"
+      - "scripts/build-pages-site.mjs"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/pages.yml"
@@ -40,8 +42,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build docs
-        run: pnpm docs:build
+      - name: Build website and docs
+        run: pnpm pages:build
 
       - name: Configure Pages
         uses: actions/configure-pages@v6.0.0
@@ -51,7 +53,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5.0.0
         with:
-          path: docs/.vitepress/dist
+          path: .pages-dist
 
   deploy:
     environment:

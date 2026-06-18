@@ -8,7 +8,7 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `1.1.0` is a source GA auth hardening release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.2.0` is a source GA website and scenario demo release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, an independent GitHub Pages website, a static application-scenario economics model, docs site, CI, and major dependency compatibility upgrades.
 
 Deployment-specific production blockers:
 
@@ -34,7 +34,8 @@ Deployment-specific production blockers:
 | `0.9.0` | Hosted beta | A hosted environment can onboard real pilot developers safely. |
 | `1.0.0` | General availability | Stable APIs, migration policy, support paths, and production operating playbooks. |
 | `1.1.0` | Auth hardening | Scoped developer API tokens and tenant-isolated developer operations. |
-| `1.2.0` | Deployment release | Published containers, distributed limits, and versioned migrations. |
+| `1.2.0` | Website and scenario demo | Independent bilingual website, scenario cards, economics model, and merged Pages artifact. |
+| `1.3.0` | Deployment release | Published containers, distributed limits, and versioned migrations. |
 
 ## `0.1.x` Stability Track
 
@@ -275,6 +276,27 @@ Exit criteria:
 - Developer tokens never expose raw token material after creation.
 - Token-authenticated developer requests cannot manage another developer's apps, features, operations, provider keys, or tokens.
 - Provider API keys remain server-side only and cloud service URLs still reject private network targets.
+
+## `1.2.0` Website And Scenario Demo
+
+Goal: give the open-source project a standalone public website that explains the product, shows credible application scenarios, and lets visitors model platform, BYOK, and local-route economics without collecting secrets.
+
+Status: implemented in source. The release adds a bilingual static React website under `apps/website`, a route and revenue scenario model, GitHub Pages artifact assembly that keeps the website at the root while preserving VitePress docs routes, and CI coverage for website and Pages builds.
+
+Scope:
+
+- Add an independent website for GitHub Pages instead of using only the docs homepage.
+- Add scenario cards for SaaS, browser extension, desktop, commerce, and internal knowledge workflows.
+- Add an interactive economics model for platform credits, visible BYOK gateway fees, and visible local software fees.
+- Keep the website fully static and avoid any provider-key or BYOK form markup.
+- Prepare custom-domain deployment by keeping the build compatible with GitHub Pages; add `CNAME` only after DNS for the selected domain is ready.
+
+Exit criteria:
+
+- `pnpm website:build` and `pnpm pages:build` pass locally and in CI.
+- The Pages artifact contains the website root, `/demo/`, `/use-cases/`, and existing docs paths.
+- The website copy preserves the security boundaries: server-side provider keys, no hidden BYOK markup, and no cloud access to private-network URLs.
+- Custom-domain instructions do not hard-code an unverified AiFund subdomain into the repository.
 
 ## Operating Rules For Every Release
 

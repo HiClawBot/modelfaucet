@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`1.1.0` source GA auth hardening release。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens 和生产运维预期的稳定公共契约。
+> 状态：`1.2.0` source GA website and scenario demo release。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
 
 ---
 
@@ -138,6 +138,7 @@ apps/
   api/                 控制面 API：apps、users、keys、wallets、usage。
   gateway/             OpenAI-compatible request proxy 和路由选择。
   dashboard/           开发者控制台和管理后台。
+  website/             独立双语 GitHub Pages 官网和场景模型。
 
 packages/
   sdk-js/              浏览器/服务端 TypeScript SDK。
@@ -225,17 +226,21 @@ const result = await faucet.chat({
 
 ---
 
-## 文档站
+## 官网和文档站
 
-仓库包含用于 GitHub Pages 的 VitePress 文档站配置。
+仓库包含用于 GitHub Pages 的独立双语官网和 VitePress 文档站配置。
 
 ```bash
+pnpm website:build
 pnpm docs:dev
 pnpm docs:build
 pnpm docs:preview
+pnpm pages:build
 ```
 
-Pages workflow 会在推送到 `main` 后，从 `docs/.vitepress/dist` 发布文档站。
+Pages workflow 会在推送到 `main` 后发布 `.pages-dist` 合并产物。官网占根路径和场景路由，文档站继续保留 `/quickstart`、`/roadmap` 和 `/zh-CN/` 等稳定路径。
+
+官网里的场景模型是纯静态计算，不收集 provider key。Platform route 只建模显式 markup，BYOK 只建模可见 gateway/product fee，本地模式只建模可见 local software fee。
 
 SDK、React usage display、Local Bridge diagnostics 和离线本地 usage reporting 见 [SDK 和 Local Bridge guide](docs/zh-CN/sdk-local-bridge.md)。
 
@@ -411,7 +416,7 @@ Phase 5 - Payments and payouts
   Credits、wallet、Stripe test mode、payout workflow。
 
 Phase 6 - Public open-source launch
-  Docker Compose、docs site、example plugins、contribution guide。
+  Docker Compose、docs site、独立官网、场景 demo、contribution guide。
 ```
 
 ---
@@ -499,6 +504,7 @@ Apache-2.0。详见 `LICENSE`。
 [x] Add CONTRIBUTING.md
 [x] Add SECURITY.md
 [x] Add docs site config
+[x] Add independent website and scenario demo
 [x] Add pnpm workspace
 [x] Add apps/api
 [x] Add apps/gateway

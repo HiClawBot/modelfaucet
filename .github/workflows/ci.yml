@@ -115,5 +115,11 @@ jobs:
       - name: Build CRM demo
         run: pnpm --filter crm-demo build
 
+      - name: Build website
+        run: pnpm website:build
+
       - name: Build docs site
         run: pnpm docs:build
+
+      - name: Build Pages artifact
+        run: pnpm pages:build

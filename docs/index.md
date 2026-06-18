@@ -27,8 +27,8 @@ features:
 
 ## Current status
 
-ModelFaucet is at `1.1.0` source-GA auth hardening status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, and production operating expectations.
+ModelFaucet is at `1.2.0` source-GA website and scenario demo status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
 
-For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). For GA contracts, see the [stability policy](./stability-policy.md), [migration and upgrade guide](./migration-upgrade.md), [production reference architecture](./production-architecture.md), [deployment validation guide](./deployment-validation.md), [governance and support policy](./governance-support.md), and [publishing strategy](./publishing-strategy.md).
+For the public website and scenario model, use the GitHub Pages root. For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). For GA contracts, see the [stability policy](./stability-policy.md), [migration and upgrade guide](./migration-upgrade.md), [production reference architecture](./production-architecture.md), [deployment validation guide](./deployment-validation.md), [governance and support policy](./governance-support.md), and [publishing strategy](./publishing-strategy.md).
 
 See the [roadmap](./roadmap.md) for the planned path from source MVP to hosted beta and general availability.

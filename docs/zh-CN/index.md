@@ -4,7 +4,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-当前状态：`1.1.0` source GA auth hardening release，包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens 和生产运维预期的稳定公共契约。
+当前状态：`1.2.0` source GA website and scenario demo release，包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
 
 ## 它包含什么
 
@@ -44,7 +44,7 @@ OPENAI_API_KEY=<your-test-key>
 
 完整中文 README 见 [README.zh-CN.md](https://github.com/HiClawBot/modelfaucet/blob/main/README.zh-CN.md)。
 
-本地全链路验证见 [本地 Smoke Test](./local-smoke.md)。
+公开官网和场景模型位于 GitHub Pages 根路径。本地全链路验证见 [本地 Smoke Test](./local-smoke.md)。
 
 Billing 和 settlement 操作见 [Billing 和 Settlement](./billing-settlement.md)。
 

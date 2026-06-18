@@ -17,12 +17,15 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm hosted:check-isolation` passes against a freshly migrated and seeded PostgreSQL database.
 - `pnpm --filter @modelfaucet/dashboard build` passes.
 - `pnpm --filter crm-demo build` passes.
+- `pnpm website:build` passes.
 - `pnpm docs:build` passes.
+- `pnpm pages:build` passes and preserves the website root plus existing docs paths.
 - `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
 - `pnpm compose:verify` validates default and hosted Compose configs on a Docker-capable machine.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
 - Developer access uses scoped `mf_dev_` API tokens for production workflows; `DEVELOPER_ADMIN_TOKEN` is reserved for bootstrap/operator-only contexts.
+- The public website and scenario demo remain static and do not collect or render provider API key inputs.
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
 - Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
