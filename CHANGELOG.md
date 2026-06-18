@@ -4,6 +4,22 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 0.9.0 - 2026-06-18
+
+### Added
+
+- Hosted beta environment verifier for production env, public URLs, CORS allowlists, secret shape, contact paths, optional provider-key enforcement, and optional Stripe enforcement.
+- Hosted tenant/app isolation SQL checks for usage events, sessions, provider credentials, and wallets.
+- Hosted readiness smoke script for public API/Gateway readiness, metrics, and provider health endpoints.
+- Hosted reference Docker Compose stack with external PostgreSQL, Redis, LiteLLM, API, Gateway, and Dashboard services.
+- `.env.hosted.example` secret inventory template.
+- English and Simplified Chinese hosted beta guides with pilot onboarding gates, acceptable-use policy, and incident-response contact template.
+
+### Changed
+
+- CI now validates the hosted environment contract, hosted tenant isolation check, and hosted Docker Compose configuration.
+- README, docs homepage, release checklist, and roadmap now reflect the `0.9.0` hosted source-beta status.
+
 ## 0.8.0 - 2026-06-18
 
 ### Added

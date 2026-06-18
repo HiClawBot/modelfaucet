@@ -1,0 +1,131 @@
+services:
+  redis:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      - ../docker/litellm.config.yaml:/app/config.yaml:ro
+    expose:
+      - "4000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=3)\nPY"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node-service.Dockerfile
+    restart: unless-stopped
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm --filter @modelfaucet/api build && pnpm --filter @modelfaucet/api start"
+      ]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      DEVELOPER_ADMIN_TOKEN: ${DEVELOPER_ADMIN_TOKEN:?DEVELOPER_ADMIN_TOKEN is required}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:?API_CORS_ORIGINS is required}
+      GATEWAY_BASE_URL: http://gateway:3002/v1
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      PAYOUT_THRESHOLD_USD: ${PAYOUT_THRESHOLD_USD:-25.00000000}
+      API_RATE_LIMIT_MAX_REQUESTS: ${API_RATE_LIMIT_MAX_REQUESTS:-1200}
+      API_RATE_LIMIT_WINDOW_MS: ${API_RATE_LIMIT_WINDOW_MS:-60000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${HOSTED_API_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node-service.Dockerfile
+    restart: unless-stopped
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm --filter @modelfaucet/gateway build && pnpm --filter @modelfaucet/gateway start"
+      ]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
+      GATEWAY_CORS_ORIGINS: ${GATEWAY_CORS_ORIGINS:?GATEWAY_CORS_ORIGINS is required}
+      PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-30000}
+      PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-1}
+      PROVIDER_RETRY_DELAY_MS: ${PROVIDER_RETRY_DELAY_MS:-250}
+      GATEWAY_RATE_LIMIT_MAX_REQUESTS: ${GATEWAY_RATE_LIMIT_MAX_REQUESTS:-1200}
+      GATEWAY_RATE_LIMIT_WINDOW_MS: ${GATEWAY_RATE_LIMIT_WINDOW_MS:-60000}
+    depends_on:
+      litellm:
+        condition: service_healthy
+    ports:
+      - "${HOSTED_GATEWAY_PORT:-3002}:3002"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node-service.Dockerfile
+    restart: unless-stopped
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm --filter @modelfaucet/dashboard build && pnpm --filter @modelfaucet/dashboard start"
+      ]
+    environment:
+      VITE_MODELFAUCET_API_BASE_URL: ${API_PUBLIC_BASE_URL:?API_PUBLIC_BASE_URL is required}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HOSTED_DASHBOARD_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  redis-data:

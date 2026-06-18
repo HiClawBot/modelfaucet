@@ -8,15 +8,15 @@
 
 ## 当前基线
 
-ModelFaucet `0.8.0` 已达到源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、双语 README、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `0.9.0` 已达到 hosted 源码 beta 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、双语 README、文档站、CI，以及依赖大版本兼容升级。
 
 当前生产发布阻塞项：
 
-- 需要在有 Docker 的机器上跑完整 Docker smoke test。
-- 需要使用服务端测试 provider key 验证真实 LiteLLM 路由。
+- 需要在有 Docker 的机器上跑完整 hosted Compose smoke test。
+- 需要使用 secret manager 中的服务端测试 provider key 验证真实 LiteLLM 路由。
 - 需要验证 Stripe Checkout 和 webhook 投递。
-- 生产密钥需要接入 KMS、Vault 或云 secret manager。
-- 需要按部署目标补齐数据库备份、恢复、保留和迁移流程。
+- 生产密钥需要接入目标环境的 KMS、Vault 或云 secret manager。
+- 需要按部署目标验证数据库备份、恢复、保留和迁移流程。
 - Rate limit、abuse control 和 payout policy 需要生产级审查。
 
 ## 版本节奏
@@ -198,9 +198,13 @@ developer-console API 支撑。
 
 目标：安全接入少量真实 pilot developers。
 
+状态：源码已实现。本版本新增 hosted environment validation、hosted 参考
+Compose 栈、tenant/app isolation checks、hosted readiness smoke tooling、双语
+hosted beta 文档、acceptable-use policy 和 incident-response contacts template。
+
 范围：
 
-- 将 API、Gateway、Dashboard、workers、PostgreSQL、Redis 和 LiteLLM 部署到托管环境。
+- 将 API、Gateway、Dashboard、PostgreSQL、Redis 和 LiteLLM 部署到托管环境。
 - 所有敏感值使用真实 secret manager。
 - 增加 tenant 和 app isolation 检查。
 - 增加运营告警和 incident-response 联系方式。

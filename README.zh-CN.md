@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`0.8.0` 源码 beta。当前本地栈包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、operations hooks 和 security hardening checks。
+> 状态：`0.9.0` hosted 源码 beta。当前仓库包含 Control API、Gateway、Developer Console、SDK、React 包、CRM demo、Local Bridge、钱包余额、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、operations hooks、security hardening checks、hosted deployment checks 和 hosted beta 参考 Compose 栈。
 
 ---
 
@@ -245,6 +245,8 @@ Stripe webhook replay、ledger reconciliation、wallet adjustment、payout revie
 
 安全不变量、SSRF controls、abuse cases 和 release regression gates 见 [Threat 和 Abuse Model](docs/zh-CN/threat-abuse-model.md)。
 
+托管环境校验、tenant isolation check、readiness smoke、pilot onboarding、acceptable use 和 incident-response contacts 见 [Hosted Beta guide](docs/zh-CN/hosted-beta.md)。
+
 ---
 
 ## API 兼容性
@@ -440,6 +442,9 @@ docs/CODEX_TASKS.md
 
 docs/RELEASE_CHECKLIST.md
   Prerelease 和 hosted production verification checklist。
+
+docs/hosted-beta.md
+  Hosted beta 环境契约、参考 Compose、AUP 和 incident response。
 ```
 
 ---

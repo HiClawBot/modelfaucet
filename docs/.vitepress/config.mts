@@ -45,6 +45,7 @@ export default defineConfig({
           { text: "Operations", link: "/operations" },
           { text: "Billing and Settlement", link: "/billing-settlement" },
           { text: "Threat and Abuse Model", link: "/threat-abuse-model" },
+          { text: "Hosted Beta", link: "/hosted-beta" },
           { text: "Roadmap", link: "/roadmap" },
           { text: "Chinese Overview", link: "/zh-CN/" }
         ]
@@ -59,6 +60,7 @@ export default defineConfig({
           { text: "运维和可观测性", link: "/zh-CN/operations" },
           { text: "Billing 和 Settlement", link: "/zh-CN/billing-settlement" },
           { text: "Threat 和 Abuse Model", link: "/zh-CN/threat-abuse-model" },
+          { text: "Hosted Beta", link: "/zh-CN/hosted-beta" },
           { text: "版本路线图", link: "/zh-CN/roadmap" }
         ]
       },

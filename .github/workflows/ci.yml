@@ -55,6 +55,28 @@ jobs:
       - name: Verify secrets
         run: pnpm verify:secrets
 
+      - name: Verify hosted environment contract
+        env:
+          NODE_ENV: production
+          HOSTED_ENVIRONMENT: ci
+          HOSTED_SECRET_MANAGER: ci-secret-manager
+          DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet
+          SECRET_ENCRYPTION_KEY: mf_ci_secret_encryption_key_32_bytes_minimum
+          ADMIN_TOKEN: mf_ci_admin_token_for_hosted_env_check
+          DEVELOPER_ADMIN_TOKEN: mf_ci_developer_admin_token_check
+          LITELLM_BASE_URL: https://litellm.modelfaucet.invalid
+          LITELLM_MASTER_KEY: mf_ci_litellm_master_key_for_hosted_check
+          API_CORS_ORIGINS: https://dashboard.modelfaucet.invalid
+          GATEWAY_CORS_ORIGINS: https://crm-demo.modelfaucet.invalid
+          API_PUBLIC_BASE_URL: https://api.modelfaucet.invalid
+          GATEWAY_PUBLIC_BASE_URL: https://gateway.modelfaucet.invalid/v1
+          DASHBOARD_PUBLIC_BASE_URL: https://dashboard.modelfaucet.invalid
+          PUBLIC_SUPPORT_URL: https://support.modelfaucet.invalid
+          SECURITY_CONTACT_EMAIL: security@modelfaucet.invalid
+          ABUSE_CONTACT_EMAIL: abuse@modelfaucet.invalid
+          INCIDENT_CONTACT_EMAIL: incident@modelfaucet.invalid
+        run: pnpm hosted:verify-env
+
       - name: Dependency audit
         run: pnpm security:audit
 
@@ -62,6 +84,9 @@ jobs:
         run: |
           pnpm db:migrate
           pnpm db:seed
+
+      - name: Hosted tenant isolation check
+        run: pnpm hosted:check-isolation
 
       - name: Lint
         run: pnpm lint
@@ -80,6 +105,18 @@ jobs:
 
       - name: Validate Docker Compose
         run: docker compose config
+
+      - name: Validate hosted Docker Compose
+        env:
+          DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet
+          SECRET_ENCRYPTION_KEY: mf_ci_secret_encryption_key_32_bytes_minimum
+          ADMIN_TOKEN: mf_ci_admin_token_for_hosted_env_check
+          DEVELOPER_ADMIN_TOKEN: mf_ci_developer_admin_token_check
+          LITELLM_MASTER_KEY: mf_ci_litellm_master_key_for_hosted_check
+          API_CORS_ORIGINS: https://dashboard.modelfaucet.invalid
+          GATEWAY_CORS_ORIGINS: https://crm-demo.modelfaucet.invalid
+          API_PUBLIC_BASE_URL: https://api.modelfaucet.invalid
+        run: docker compose -f infra/hosted/docker-compose.hosted.yml config
 
       - name: Build dashboard
         run: pnpm --filter @modelfaucet/dashboard build

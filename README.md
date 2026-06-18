@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `0.8.0` source beta. The local stack includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, operations hooks, and security hardening checks.
+> Status: `0.9.0` hosted source beta. The repository includes the Control API, Gateway, Developer Console, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, operations hooks, security hardening checks, hosted deployment checks, and a hosted beta reference Compose stack.
 
 ---
 
@@ -259,6 +259,10 @@ CSV exports.
 See the [threat and abuse model](docs/threat-abuse-model.md) for the current
 security invariants, SSRF controls, abuse cases, and release regression gates.
 
+See the [hosted beta guide](docs/hosted-beta.md) for environment verification,
+tenant isolation checks, readiness smoke, pilot onboarding, acceptable use, and
+incident-response contacts.
+
 ---
 
 ## API compatibility
@@ -454,6 +458,9 @@ docs/CODEX_TASKS.md
 
 docs/RELEASE_CHECKLIST.md
   Prerelease and hosted production verification checklist.
+
+docs/hosted-beta.md
+  Hosted beta environment contract, reference Compose, AUP, and incident response.
 ```
 
 ---

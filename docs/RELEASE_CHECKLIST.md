@@ -6,15 +6,18 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 
 - `pnpm install --frozen-lockfile` completes.
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
+- `pnpm hosted:verify-env` passes with the target hosted environment variables or with CI-safe placeholders for source validation.
 - `pnpm security:audit` reports no high-severity production dependency advisories.
 - `pnpm lint` passes.
 - `pnpm typecheck` passes.
 - `pnpm test` passes.
 - `pnpm smoke:local` passes against a seeded local PostgreSQL database.
+- `pnpm hosted:check-isolation` passes against a freshly migrated and seeded PostgreSQL database.
 - `pnpm --filter @modelfaucet/dashboard build` passes.
 - `pnpm --filter crm-demo build` passes.
 - `pnpm docs:build` passes.
 - `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
+- `docker compose -f infra/hosted/docker-compose.hosted.yml config` validates with secret values injected from environment variables.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
@@ -24,6 +27,10 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 ## Hosted production release
 
 - Docker Compose smoke test has been run on a machine with Docker available.
+- `pnpm hosted:verify-env` passes with `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic.
+- `pnpm hosted:verify-env` passes with `REQUIRE_HOSTED_STRIPE=1` before hosted Stripe top-ups.
+- `pnpm hosted:smoke-readiness` passes against the hosted API and Gateway public URLs.
+- `pnpm hosted:check-isolation` passes against the hosted beta database after migration.
 - A real LiteLLM test route has been verified with a test provider key stored only in server-side environment or secret manager configuration.
 - Stripe Checkout has been verified in test mode with a real test card.
 - Stripe webhook delivery has been verified with Stripe CLI or hosted webhook delivery.

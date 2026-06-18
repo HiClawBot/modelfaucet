@@ -8,15 +8,15 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `0.8.0` is a source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, bilingual README, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `0.9.0` is a hosted source beta. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, bilingual README, docs site, CI, and major dependency compatibility upgrades.
 
 Current production blockers:
 
-- Docker smoke testing needs to run on a Docker-capable machine.
-- Real LiteLLM provider routing needs a server-side test key.
+- Hosted Compose smoke testing needs to run on a Docker-capable machine.
+- Real LiteLLM provider routing needs a server-side test key stored in a secret manager.
 - Stripe Checkout and webhook delivery need hosted or Stripe CLI verification.
-- Deployment secrets need KMS, Vault, or cloud secret-manager wiring.
-- Database backup, restore, retention, and migration procedures need deployment-specific documentation.
+- Deployment secrets need target-specific KMS, Vault, or cloud secret-manager wiring.
+- Database backup, restore, retention, and migration procedures need target-specific verification.
 - Rate limits, abuse controls, and payout policy need production review.
 
 ## Release Train
@@ -210,9 +210,14 @@ Exit criteria:
 
 Goal: onboard a small number of pilot developers safely.
 
+Status: implemented in source. The release adds hosted environment validation,
+a reference hosted Compose stack, tenant/app isolation checks, hosted readiness
+smoke tooling, bilingual hosted beta documentation, acceptable-use policy, and
+incident-response contacts template.
+
 Scope:
 
-- Deploy API, Gateway, Dashboard, workers, PostgreSQL, Redis, and LiteLLM to a managed environment.
+- Deploy API, Gateway, Dashboard, PostgreSQL, Redis, and LiteLLM to a managed environment.
 - Use a real secret manager for all sensitive values.
 - Add tenant and app isolation checks.
 - Add operational alerting and incident-response contacts.
