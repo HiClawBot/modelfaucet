@@ -15,7 +15,7 @@
     "@fastify/cors": "^11.2.0",
     "@modelfaucet/shared": "workspace:^",
     "fastify": "^5.8.5",
-    "pg": "^8.21.0",
+    "pg": "^8.22.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
