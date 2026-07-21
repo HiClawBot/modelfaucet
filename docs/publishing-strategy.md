@@ -1,12 +1,12 @@
 # Publishing Strategy
 
-ModelFaucet `1.3.0-beta.1` is a construction candidate, not a published deployment release. Source tags remain the authoritative release boundary, and container image publishing is automated for release tags.
+ModelFaucet `1.3.0-beta.1` is a published source and container prerelease, not a completed hosted deployment release. Source tags remain the authoritative release boundary, while each hosted environment is promoted separately after its managed-infrastructure gates pass.
 
 ## Source Publishing
 
 The source release is the authoritative artifact for `1.x`:
 
-- Git tag: `v1.3.0`
+- Git tag: `v1.3.0-beta.1`
 - GitHub Release notes in English and Simplified Chinese.
 - CI and docs workflows green on the release commit.
 - No generated build artifacts or local env files committed.
@@ -42,7 +42,7 @@ smoke by digest, and retain one exact digest-reference artifact per service.
 
 Discovery tags:
 
-- `v1.3.0`
+- `v1.3.0-beta.1`
 - commit SHA tags for traceability
 - `latest` only after release validation.
 
