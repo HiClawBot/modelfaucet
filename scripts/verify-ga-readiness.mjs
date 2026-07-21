@@ -315,8 +315,9 @@ try {
   ]);
   assertIncludes(".github/workflows/ci.yml", [
     "prom/prometheus:v3.13.1",
-    "promtool check rules",
-    "promtool test rules"
+    "--entrypoint /bin/promtool",
+    "check rules prometheus-alerts.yml",
+    "test rules prometheus-alerts.test.yml"
   ]);
   assertIncludes(".github/workflows/ci.yml", [
     "Verify database backup and restore drill",

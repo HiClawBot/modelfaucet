@@ -186,15 +186,17 @@ jobs:
       - name: Validate and unit-test Prometheus alerts
         run: |
           docker run --rm \
+            --entrypoint /bin/promtool \
             -v "$PWD/infra/monitoring:/work:ro" \
             -w /work \
             prom/prometheus:v3.13.1 \
-            promtool check rules prometheus-alerts.yml
+            check rules prometheus-alerts.yml
           docker run --rm \
+            --entrypoint /bin/promtool \
             -v "$PWD/infra/monitoring:/work:ro" \
             -w /work \
             prom/prometheus:v3.13.1 \
-            promtool test rules prometheus-alerts.test.yml
+            test rules prometheus-alerts.test.yml
 
       - name: Verify container publishing config
         run: pnpm container:verify
