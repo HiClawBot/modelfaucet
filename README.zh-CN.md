@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`v1.3.0-beta.1` 施工候选。生产入口、迁移/恢复、并发安全结算、租户隔离 usage、app/session 控制、功能开关和依赖 readiness 已通过本地验证。真实 hosted 流量仍受 Docker CI 证据，以及托管 DB/Redis/TLS、真实 provider、告警、soak 和回滚演练阻塞。准确的“已实现 / 已验证 / Beta 启用”范围见 [能力矩阵](docs/capability-matrix.md)。
+> 状态：`v1.3.0-beta.1` 施工候选。生产入口、迁移/恢复、并发安全结算、租户隔离 usage、app/session 控制、功能开关、依赖 readiness 和三个生产镜像已通过本地与 Docker CI 验证。真实 hosted 流量仍受 tag 后 GHCR digest/provenance 发布回拉证据，以及托管 DB/Redis/TLS、真实 provider、告警路由、soak 和回滚演练阻塞。准确的“已实现 / 已验证 / Beta 启用”范围见 [能力矩阵](docs/capability-matrix.md)。
 
 ---
 

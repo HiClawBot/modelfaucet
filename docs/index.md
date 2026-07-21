@@ -27,7 +27,7 @@ features:
 
 ## Current status
 
-ModelFaucet is a `v1.3.0-beta.1` construction candidate. Production entrypoints, ordered migrations, concurrency-safe billing, protected usage, and enforced feature flags pass local verification; hosted Beta traffic remains blocked on Docker CI digest evidence and managed real-provider staging, alert, soak, restore, and rollback drills. The [capability matrix](./capability-matrix.md) is the source of truth for implemented, verified, disabled, and Beta-enabled capabilities.
+ModelFaucet is a `v1.3.0-beta.1` construction candidate. Production entrypoints, ordered migrations, concurrency-safe billing, protected usage, enforced feature flags, and three production images pass local plus Docker CI verification; hosted Beta traffic remains blocked on tagged GHCR digest/provenance evidence and managed real-provider staging, routed alerts, soak, restore, and rollback drills. The [capability matrix](./capability-matrix.md) is the source of truth for implemented, verified, disabled, and Beta-enabled capabilities.
 
 For the public website and scenario model, use the GitHub Pages root. For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). The [stability policy](./stability-policy.md) describes intended compatibility; hosted GA has not been declared.
 

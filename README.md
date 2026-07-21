@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `v1.3.0-beta.1` construction candidate. Production entrypoints, migrations/restore, concurrency-safe settlement, owner-scoped usage, app/session controls, feature flags, and dependency readiness pass local verification. Real hosted traffic remains blocked on Docker-capable CI evidence plus managed DB/Redis/TLS, real-provider, alert, soak, and rollback drills. See the [capability matrix](docs/capability-matrix.md) for the exact implemented, verified, and Beta-enabled surface.
+> Status: `v1.3.0-beta.1` construction candidate. Production entrypoints, migrations/restore, concurrency-safe settlement, owner-scoped usage, app/session controls, feature flags, dependency readiness, and three production images pass local plus Docker CI verification. Real hosted traffic remains blocked on tagged GHCR digest/provenance pull evidence plus managed DB/Redis/TLS, real-provider, alert-routing, soak, and rollback drills. See the [capability matrix](docs/capability-matrix.md) for the exact implemented, verified, and Beta-enabled surface.
 
 ---
 

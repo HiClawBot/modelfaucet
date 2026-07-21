@@ -5,15 +5,16 @@
 ## 施工状态（2026-07-21 收口）
 
 - **W0–W4 已完成并本地验证**：能力边界、production runtime、迁移/bootstrap、并发安全的预留/幂等/结算、usage 权限、origin/spend、Redis 限流和生产功能开关已落地。
-- **W5 本地可实现部分已完成**：依赖型 readiness、metrics auth、backup/restore drill、运营不变量、告警规则和 rollback/runbook 已落地；真实 managed staging 演练仍是外部门禁。
-- **当前决策：允许进入 managed staging，不允许接真实外部用户。** W6 的 registry digest/provenance/pull-run、真实 provider canary 与 60 分钟 soak 已具备自动化入口，但仍需要 Docker-capable CI 和真实 managed DB/Redis/TLS/secret manager 环境执行；告警触发、账单抽样、rollback 和 pilot canary 也必须形成外部证据。
+- **W5 仓库与 Docker CI 部分已完成**：依赖型 readiness、metrics auth、backup/restore drill、运营不变量、告警规则/单测、rollback/runbook 和三服务 Docker runtime smoke 已落地；真实 managed staging 演练仍是外部门禁。
+- **当前决策：允许进入 managed staging，不允许接真实外部用户。** W6 的 tag-only registry digest/provenance/pull-run、真实 provider canary 与 60 分钟 soak 已具备自动化入口，但仍需要批准 tag 和真实 managed DB/Redis/TLS/secret manager 环境执行；告警路由、账单抽样、rollback 和 pilot canary 也必须形成外部证据。
+- **候选证据**：PR #19 的提交 `24fa03d` 已通过 [三服务 Docker build/runtime smoke](https://github.com/HiClawBot/modelfaucet/actions/runs/29835932151) 和 [全量 CI](https://github.com/HiClawBot/modelfaucet/actions/runs/29835932191)。
 - 精确产品范围以 `docs/capability-matrix.md` 为准；本文件保留施工范围、验收证据要求和 Go/No-Go 契约，实际执行结果以候选提交的 CI/Actions 记录为准。
 
 ## 执行结论
 
 ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短期 session、OpenAI-compatible Chat Completions、LiteLLM provider 路由、定点计价与复式分录、开发者 token、Dashboard/CRM demo、CI、容器与运维文档都已经存在；源码级 build/lint/typecheck/test/docs/security gates 当前全部通过。
 
-但它尚不能安全接收真实 Beta 流量。决定性差距不是 UI，也不是缺少更多 API，而是四个生产闭环尚未成立：
+施工前审计识别了以下四个生产闭环缺口；W0–W5 已在源码、本地和 Docker CI 范围内关闭，真实 managed staging 仍须按本计划取得外部证据：
 
 1. 编译后的 API/Gateway 不能被当前 `start` 命令直接启动，现有容器预计启动即失败。
 2. provider 调用、余额检查、预算和账本写入的事务边界无法保证真实成本与余额一致。
@@ -47,18 +48,18 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 
 ## 当前证据矩阵
 
-| 维度 | 状态 | 已有证据 | Beta 缺口 |
-| --- | --- | --- | --- |
-| 源码质量 | 可用 | 10 个 TS workspace 与 Go 包的 build/lint/typecheck/test 通过；135 个 TS 测试 | 本轮 Turbo 结果为缓存命中，发布前需 clean-room 重跑 |
-| 文档与视觉 | 基本可用 | 官网桌面/移动、Dashboard、CRM 已做真实浏览器检查；22 页白皮书全部渲染验收 | 官网/README/白皮书存在 GA、streaming、Responses/Embeddings 等过度承诺 |
-| 生产启动 | 阻塞 | 已直接复现 `node apps/api/dist/src/index.js` 的 ESM import 失败 | 修复 API/Gateway production start，并让 CI 真正启动镜像 |
-| Hosted Dashboard | 阻塞 | 浏览器和 dist 均确认 API URL 内联为 `localhost:3201` | 构建期配置、认证、app 选择和 production static serving |
-| 资金一致性 | 阻塞 | 有 8 位定点计价、usage、ledger、reconciliation 基础 | provider 调用在长事务内；先调用后验余额；并发可负余额；无客户端幂等；价格硬编码 |
-| 权限与成本控制 | 阻塞 | 有 scope/expiry/revoke 的 `mf_dev` token，session token 只存 hash | usage 公开；客户端 metadata 可选 developer key；模型/预算/policy 未强制；测试充值端点可部署 |
-| 数据演进 | 阻塞 | fresh schema 可建立，已有 migration metadata | 无真实版本迁移；生产重跑 seed 会重置余额并破坏 ledger 对账 |
-| 外部集成 | 未验证 | CI 有 PostgreSQL + mock provider stack smoke | 无真实 provider、Stripe、registry pull/run、DNS/TLS 证据 |
-| 运维韧性 | 未验证 | 有 health/metrics 文本与运维文档 | readiness 假阳性；无 scrape/alerts；无自动备份恢复演练；无部署/回滚工作流 |
-| 发布可追溯性 | 未就绪 | v1.3 bundle/checksum/script 语法有效 | bundle 不含当前工作树；远端仍是 v1.2.0；工作树不干净；无 v1.3 tag/image/release |
+| 维度             | 状态     | 已有证据                                                                     | Beta 缺口                                                                                   |
+| ---------------- | -------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 源码质量         | 可用     | 10 个 TS workspace 与 Go 包的 build/lint/typecheck/test 通过；135 个 TS 测试 | 本轮 Turbo 结果为缓存命中，发布前需 clean-room 重跑                                         |
+| 文档与视觉       | 基本可用 | 官网桌面/移动、Dashboard、CRM 已做真实浏览器检查；22 页白皮书全部渲染验收    | 官网/README/白皮书存在 GA、streaming、Responses/Embeddings 等过度承诺                       |
+| 生产启动         | 阻塞     | 已直接复现 `node apps/api/dist/src/index.js` 的 ESM import 失败              | 修复 API/Gateway production start，并让 CI 真正启动镜像                                     |
+| Hosted Dashboard | 阻塞     | 浏览器和 dist 均确认 API URL 内联为 `localhost:3201`                         | 构建期配置、认证、app 选择和 production static serving                                      |
+| 资金一致性       | 阻塞     | 有 8 位定点计价、usage、ledger、reconciliation 基础                          | provider 调用在长事务内；先调用后验余额；并发可负余额；无客户端幂等；价格硬编码             |
+| 权限与成本控制   | 阻塞     | 有 scope/expiry/revoke 的 `mf_dev` token，session token 只存 hash            | usage 公开；客户端 metadata 可选 developer key；模型/预算/policy 未强制；测试充值端点可部署 |
+| 数据演进         | 阻塞     | fresh schema 可建立，已有 migration metadata                                 | 无真实版本迁移；生产重跑 seed 会重置余额并破坏 ledger 对账                                  |
+| 外部集成         | 未验证   | CI 有 PostgreSQL + mock provider stack smoke                                 | 无真实 provider、Stripe、registry pull/run、DNS/TLS 证据                                    |
+| 运维韧性         | 未验证   | 有 health/metrics 文本与运维文档                                             | readiness 假阳性；无 scrape/alerts；无自动备份恢复演练；无部署/回滚工作流                   |
+| 发布可追溯性     | 未就绪   | v1.3 bundle/checksum/script 语法有效                                         | bundle 不含当前工作树；远端仍是 v1.2.0；工作树不干净；无 v1.3 tag/image/release             |
 
 ## 依赖顺序与施工包
 
@@ -183,7 +184,7 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 
 以下项目必须全部为绿，才能接入任何真实外部用户：
 
-- [ ] API/Gateway production build + start + container health 在 clean CI 中真实执行。
+- [x] API/Gateway production build + start + container health 在 clean CI 中真实执行。
 - [ ] registry digest pull/run 与候选提交一致；hosted 不使用浮动 tag。
 - [x] Dashboard/CRM 不请求 localhost，无公开 usage 数据，无 admin secret 注入浏览器。
 - [ ] staging 只运行 migration/bootstrap，不运行 demo seed；wallet/ledger reconciliation 为零。
@@ -194,7 +195,7 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 - [x] payment、payout、BYOK、developer key、Local Bridge 等非 Beta 能力在 production 不可达。
 - [ ] readiness、日志、metrics、告警、备份 restore、rollback 和 kill switch 均实际演练。
 - [x] README、官网、API spec、白皮书、release notes 与 capability matrix 一致。
-- [ ] 候选提交干净；build/lint/typecheck/test/docs/secrets/security audit 全部从零执行。
+- [x] 候选提交干净；build/lint/typecheck/test/docs/secrets/security audit 全部从零执行。
 
 ## 人员与时间盒
 
