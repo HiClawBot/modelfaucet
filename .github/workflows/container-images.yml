@@ -132,20 +132,51 @@ jobs:
           set -euo pipefail
           image="${PUBLISHED_IMAGE_REF:-$(printf '%s\n' "$IMAGE_TAGS" | head -n 1)}"
           container="modelfaucet-${SERVICE}-smoke"
+          network=""
+          redis_container=""
           cleanup() {
             docker logs "$container" 2>/dev/null || true
             docker rm -f "$container" >/dev/null 2>&1 || true
+            if [[ -n "$redis_container" ]]; then
+              docker rm -f "$redis_container" >/dev/null 2>&1 || true
+            fi
+            if [[ -n "$network" ]]; then
+              docker network rm "$network" >/dev/null 2>&1 || true
+            fi
           }
           trap cleanup EXIT
+
+          network_args=()
+          redis_url=""
+          if [[ "$SERVICE" == "api" || "$SERVICE" == "gateway" ]]; then
+            network="${container}-network"
+            redis_container="${container}-redis"
+            docker network create "$network" >/dev/null
+            docker run -d --name "$redis_container" --network "$network" \
+              redis:7.4.9-bookworm >/dev/null
+            for attempt in {1..30}; do
+              if docker exec "$redis_container" redis-cli ping | grep -q PONG; then
+                break
+              fi
+              if [[ "$attempt" == "30" ]]; then
+                echo "$SERVICE Redis sidecar did not become healthy" >&2
+                exit 1
+              fi
+              sleep 1
+            done
+            network_args=(--network "$network")
+            redis_url="redis://${redis_container}:6379"
+          fi
 
           case "$SERVICE" in
             api)
               port=3201
               path=/health
-              docker run -d --name "$container" \
+              docker run -d --name "$container" "${network_args[@]}" \
                 -e NODE_ENV=production \
                 -e PORT_API="$port" \
                 -e DATABASE_URL=postgresql://smoke:smoke@db.invalid/modelfaucet \
+                -e REDIS_URL="$redis_url" \
                 -e SECRET_ENCRYPTION_KEY=mf_container_smoke_secret_key_32_bytes \
                 -e ADMIN_TOKEN=mf_container_smoke_admin_token \
                 -e DEVELOPER_ADMIN_TOKEN=mf_container_smoke_developer_token \
@@ -163,10 +194,11 @@ jobs:
             gateway)
               port=3202
               path=/health
-              docker run -d --name "$container" \
+              docker run -d --name "$container" "${network_args[@]}" \
                 -e NODE_ENV=production \
                 -e PORT_GATEWAY="$port" \
                 -e DATABASE_URL=postgresql://smoke:smoke@db.invalid/modelfaucet \
+                -e REDIS_URL="$redis_url" \
                 -e LITELLM_BASE_URL=https://litellm.modelfaucet.invalid \
                 -e LITELLM_MASTER_KEY=mf_container_smoke_litellm_key \
                 -e SECRET_ENCRYPTION_KEY=mf_container_smoke_secret_key_32_bytes \

@@ -51,6 +51,17 @@ try {
     "Smoke production image",
     "Config.User"
   ]);
+  const containerWorkflow = readText(".github/workflows/container-images.yml");
+  assert(
+    (containerWorkflow.match(/-e REDIS_URL="\$redis_url"/g) ?? []).length === 2,
+    "API and Gateway production image smokes must both receive the required REDIS_URL."
+  );
+  assertIncludes(".github/workflows/container-images.yml", [
+    "redis:7.4.9-bookworm",
+    "docker network create",
+    "redis-cli ping",
+    "Redis sidecar did not become healthy"
+  ]);
 
   assertIncludes("infra/hosted/docker-compose.hosted.yml", [
     "${MODELFAUCET_API_IMAGE:?MODELFAUCET_API_IMAGE digest reference is required}",
