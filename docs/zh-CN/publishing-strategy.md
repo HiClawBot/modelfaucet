@@ -1,12 +1,12 @@
 # 发布策略
 
-ModelFaucet `1.3.0-beta.1` 是施工候选，并非已经发布的 deployment release。Source tag 仍是权威发布边界，container image publishing 会在 release tag 上自动执行。
+ModelFaucet `1.3.0-beta.1` 已发布源码和容器 prerelease，但尚不是完成托管验证的 deployment release。Source tag 仍是权威发布边界，每个 hosted environment 必须在自己的托管基础设施门禁通过后单独晋级。
 
 ## Source Publishing
 
 `1.x` 的权威 artifact 是 source release：
 
-- Git tag：`v1.3.0`
+- Git tag：`v1.3.0-beta.1`
 - GitHub Release notes 使用英文和简体中文。
 - Release commit 上 CI 和 docs workflows 绿色。
 - 不提交 generated build artifacts 或 local env files。
@@ -41,7 +41,7 @@ registry digest、按 digest 重跑镜像 smoke，并为每个服务保留精确
 
 用于定位版本的 tags：
 
-- `v1.3.0`
+- `v1.3.0-beta.1`
 - commit SHA tags，用于追踪
 - `latest` 只在 release validation 后移动。
 

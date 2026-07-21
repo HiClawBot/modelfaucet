@@ -1,13 +1,13 @@
 # ModelFaucet 真实可用 Beta 施工计划
 
-> 审阅基线：2026-07-21｜本地 HEAD `caa6921`｜远端最新公开版本 `v1.2.0`｜目标候选 `v1.3.0-beta.1`
+> 发布证据更新：2026-07-21｜`main` `10483b4`｜已发布 prerelease `v1.3.0-beta.1`
 
 ## 施工状态（2026-07-21 收口）
 
 - **W0–W4 已完成并本地验证**：能力边界、production runtime、迁移/bootstrap、并发安全的预留/幂等/结算、usage 权限、origin/spend、Redis 限流和生产功能开关已落地。
-- **W5 仓库与 Docker CI 部分已完成**：依赖型 readiness、metrics auth、backup/restore drill、运营不变量、告警规则/单测、rollback/runbook 和三服务 Docker runtime smoke 已落地；真实 managed staging 演练仍是外部门禁。
-- **当前决策：允许进入 managed staging，不允许接真实外部用户。** W6 的 tag-only registry digest/provenance/pull-run、真实 provider canary 与 60 分钟 soak 已具备自动化入口，但仍需要批准 tag 和真实 managed DB/Redis/TLS/secret manager 环境执行；告警路由、账单抽样、rollback 和 pilot canary 也必须形成外部证据。
-- **候选证据**：PR #19 的提交 `24fa03d` 已通过 [三服务 Docker build/runtime smoke](https://github.com/HiClawBot/modelfaucet/actions/runs/29835932151) 和 [全量 CI](https://github.com/HiClawBot/modelfaucet/actions/runs/29835932191)。
+- **W5 仓库与镜像发布部分已完成**：依赖型 readiness、metrics auth、backup/restore drill、运营不变量、告警规则/单测、rollback/runbook、三服务 Docker runtime smoke 和不可变 GHCR 镜像已落地；真实 managed staging 演练仍是外部门禁。
+- **当前决策：允许进入 managed staging，不允许接真实外部用户。** tag-only registry digest/provenance/pull-run 已完成；真实 managed DB/Redis/TLS/secret manager、provider canary、60 分钟 soak、告警路由、账单抽样、restore/rollback 和 pilot canary 仍须形成外部证据。
+- **发布证据**：PR #19 最终提交 `8bead1c` 已通过[三服务 RC Docker CI](https://github.com/HiClawBot/modelfaucet/actions/runs/29836323229)和[全量 CI](https://github.com/HiClawBot/modelfaucet/actions/runs/29836322681)；`v1.3.0-beta.1` 的[标签镜像发布](https://github.com/HiClawBot/modelfaucet/actions/runs/29838866864)与[双语 prerelease](https://github.com/HiClawBot/modelfaucet/releases/tag/v1.3.0-beta.1)也已完成。
 - 精确产品范围以 `docs/capability-matrix.md` 为准；本文件保留施工范围、验收证据要求和 Go/No-Go 契约，实际执行结果以候选提交的 CI/Actions 记录为准。
 
 ## 执行结论
@@ -48,18 +48,18 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 
 ## 当前证据矩阵
 
-| 维度             | 状态     | 已有证据                                                                     | Beta 缺口                                                                                   |
-| ---------------- | -------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 源码质量         | 可用     | 10 个 TS workspace 与 Go 包的 build/lint/typecheck/test 通过；135 个 TS 测试 | 本轮 Turbo 结果为缓存命中，发布前需 clean-room 重跑                                         |
-| 文档与视觉       | 基本可用 | 官网桌面/移动、Dashboard、CRM 已做真实浏览器检查；22 页白皮书全部渲染验收    | 官网/README/白皮书存在 GA、streaming、Responses/Embeddings 等过度承诺                       |
-| 生产启动         | 阻塞     | 已直接复现 `node apps/api/dist/src/index.js` 的 ESM import 失败              | 修复 API/Gateway production start，并让 CI 真正启动镜像                                     |
-| Hosted Dashboard | 阻塞     | 浏览器和 dist 均确认 API URL 内联为 `localhost:3201`                         | 构建期配置、认证、app 选择和 production static serving                                      |
-| 资金一致性       | 阻塞     | 有 8 位定点计价、usage、ledger、reconciliation 基础                          | provider 调用在长事务内；先调用后验余额；并发可负余额；无客户端幂等；价格硬编码             |
-| 权限与成本控制   | 阻塞     | 有 scope/expiry/revoke 的 `mf_dev` token，session token 只存 hash            | usage 公开；客户端 metadata 可选 developer key；模型/预算/policy 未强制；测试充值端点可部署 |
-| 数据演进         | 阻塞     | fresh schema 可建立，已有 migration metadata                                 | 无真实版本迁移；生产重跑 seed 会重置余额并破坏 ledger 对账                                  |
-| 外部集成         | 未验证   | CI 有 PostgreSQL + mock provider stack smoke                                 | 无真实 provider、Stripe、registry pull/run、DNS/TLS 证据                                    |
-| 运维韧性         | 未验证   | 有 health/metrics 文本与运维文档                                             | readiness 假阳性；无 scrape/alerts；无自动备份恢复演练；无部署/回滚工作流                   |
-| 发布可追溯性     | 未就绪   | v1.3 bundle/checksum/script 语法有效                                         | bundle 不含当前工作树；远端仍是 v1.2.0；工作树不干净；无 v1.3 tag/image/release             |
+| 维度             | 状态       | 已有证据                                                                               | Beta 缺口                                                             |
+| ---------------- | ---------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 源码质量         | 已验证     | clean CI 完成 build/lint/typecheck/test/docs/security；API 70、Gateway 47 个测试通过   | managed staging 的真实依赖与流量证据仍待完成                          |
+| 文档与视觉       | 已验证     | 官网、Dashboard、CRM、白皮书和 Pages 构建通过；`main` Pages 部署成功                   | 真实 pilot 反馈与可用性观察仍待完成                                   |
+| 生产启动         | 已验证     | API/Gateway production bundle 与三服务非 root image build/start/health smoke 通过      | managed ingress、TLS 和多实例部署仍待完成                             |
+| Hosted Dashboard | 已验证     | runtime `/config.js`、安全响应头、SPA fallback 与无 localhost smoke 通过               | 目标域名、operator token 和 pilot app 仍待托管环境配置                |
+| 资金一致性       | 已验证     | PostgreSQL 预留/幂等/结算、100 路低余额并发、reconciliation 与异常状态测试通过         | 真实 provider 账单抽样与未知结果人工对账仍待完成                      |
+| 权限与成本控制   | 已验证     | owner-scoped usage、origin/app/session spend、Redis 限流和 production flags 通过       | 托管环境 kill switch、egress 与多实例限流演练仍待完成                 |
+| 数据演进         | 已验证     | checksum migration、零额度 bootstrap、独立 backup/restore drill 与不变量检查通过       | managed backup retention/PITR 与目标环境 restore 仍待完成             |
+| 外部集成         | 镜像已验证 | 三个 GHCR digest 已 pull/run，SLSA provenance 与发布提交/tag 一致                      | 真实 provider、DNS/TLS、managed DB/Redis 和告警路由证据仍缺           |
+| 运维韧性         | 仓库已验证 | 依赖型 readiness、受保护 metrics、告警单测、backup/restore 和 rollback runbook 通过    | 托管 scrape/route/test-fire、15 分钟 rollback 与 on-call 演练仍待完成 |
+| 发布可追溯性     | 已发布     | annotated tag、双语 prerelease、自动 source archives、digest artifacts 与 attestations | hosted promotion、provider canary、soak 和 pilot 证据仍待完成         |
 
 ## 依赖顺序与施工包
 
@@ -173,7 +173,7 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 **施工**：
 
 - 为每个 pilot 建独立 app、预算、模型 allowlist、origin 和联系人；默认极低额度。
-- 发布 `v1.3.0-beta.1`：干净 tag、release notes、source archive、Git bundle、checksums、image digests、migration version 和已知限制。
+- 已发布 `v1.3.0-beta.1`：干净 annotated tag、双语 prerelease、GitHub source archives、image digest artifacts、SLSA provenance、migration version 和已知限制。
 - 先内部流量，再 1 个 pilot，再全部 3–5 个 pilot；每一级至少观察一个完整业务周期。
 - 每日检查 provider 成本 vs usage/ledger、错误分布、pending attempts、余额、预算与支持反馈。
 - 达到 stop condition 立即 disable app/provider 或回滚：reconciliation 非零、重复扣费、未授权数据访问、成本失控、持续 5xx、无法恢复的 pending attempt。
@@ -185,7 +185,7 @@ ModelFaucet 已具备成为真实产品的骨架：多租户数据模型、短�
 以下项目必须全部为绿，才能接入任何真实外部用户：
 
 - [x] API/Gateway production build + start + container health 在 clean CI 中真实执行。
-- [ ] registry digest pull/run 与候选提交一致；hosted 不使用浮动 tag。
+- [x] registry digest pull/run 与候选提交一致；hosted 不使用浮动 tag。
 - [x] Dashboard/CRM 不请求 localhost，无公开 usage 数据，无 admin secret 注入浏览器。
 - [ ] staging 只运行 migration/bootstrap，不运行 demo seed；wallet/ledger reconciliation 为零。
 - [x] provider 调用在数据库事务外；余额/预算预留、幂等和最终结算通过并发/故障测试。

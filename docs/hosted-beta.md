@@ -1,6 +1,6 @@
 # Hosted Beta
 
-ModelFaucet `v1.3.0-beta.1` defines a hosted Beta deployment contract for small, invite-only pilot programs. This is a source construction candidate: operators still need a managed PostgreSQL database, secret manager, ingress/TLS, monitoring, backup policy, and deployment-specific runbooks before handling real traffic.
+ModelFaucet `v1.3.0-beta.1` is a published source and container prerelease that defines the deployment contract for small, invite-only pilot programs. Its immutable images and provenance are available, but operators still need a managed PostgreSQL database, managed Redis, secret manager, ingress/TLS, monitoring, backup policy, and deployment-specific runbooks before handling real traffic.
 
 ## Security Boundaries
 

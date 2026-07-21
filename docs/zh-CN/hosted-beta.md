@@ -1,6 +1,6 @@
 # Hosted Beta
 
-ModelFaucet `v1.3.0-beta.1` 定义了面向少量邀请制 pilot 的托管 Beta 部署契约。它目前仍是源码施工候选：在承载真实流量前，运营者仍需准备托管 PostgreSQL、secret manager、ingress/TLS、监控、备份策略和目标环境专用 runbook。
+ModelFaucet `v1.3.0-beta.1` 已发布源码和容器 prerelease，并定义了面向少量邀请制 pilot 的托管 Beta 部署契约。不可变镜像与 provenance 已可用；在承载真实流量前，运营者仍需准备托管 PostgreSQL、托管 Redis、secret manager、ingress/TLS、监控、备份策略和目标环境专用 runbook。
 
 ## 安全边界
 
