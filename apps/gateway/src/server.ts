@@ -4,10 +4,14 @@ import {
   createErrorResponse,
   createRequestId,
   InMemoryMetrics,
-  InMemoryRateLimiter
+  type RateLimiter
 } from "@modelfaucet/shared";
 import cors from "@fastify/cors";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions
+} from "fastify";
 import { hashSessionToken } from "./crypto";
 import type { MockCompletionRepository } from "./repositories/mockCompletionRepository";
 
@@ -15,7 +19,9 @@ export type BuildGatewayServerOptions = {
   mockCompletionRepository: MockCompletionRepository;
   corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
-  rateLimiter?: InMemoryRateLimiter;
+  metricsToken?: string;
+  trustProxy?: FastifyServerOptions["trustProxy"];
+  rateLimiter?: RateLimiter;
   requestIdFactory?: () => string;
   now?: () => Date;
   logger?: boolean;
@@ -42,12 +48,36 @@ function extractBearerToken(header: string | undefined): string | undefined {
   return match?.[1];
 }
 
-function routeLabel(path: string): string {
-  return path.split("?")[0] ?? path;
+function routeLabel(request: FastifyRequest): string {
+  const route = request.routeOptions.url;
+  return typeof route === "string" && route.length > 0 ? route : "/__unmatched__";
 }
 
 function shouldSkipRateLimit(route: string): boolean {
   return route === "/health" || route === "/ready" || route === "/metrics";
+}
+
+async function readinessStatus(check: (() => void | Promise<void>) | undefined): Promise<string> {
+  if (check === undefined) {
+    return "configured";
+  }
+
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(check),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error("Readiness check timed out.")), 2_000);
+      })
+    ]);
+    return "ok";
+  } catch {
+    return "unavailable";
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 function injectRequestId(payload: unknown, requestId: string): unknown {
@@ -81,7 +111,10 @@ function injectRequestId(payload: unknown, requestId: string): unknown {
 }
 
 export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({
+    logger: options.logger ?? false,
+    trustProxy: options.trustProxy ?? false
+  });
   const now = options.now ?? (() => new Date());
   const metrics = options.metrics ?? new InMemoryMetrics();
   const requestIdFactory =
@@ -99,20 +132,30 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
       typeof incomingRequestId === "string" && incomingRequestId.trim().length > 0
         ? incomingRequestId.trim()
         : requestIdFactory();
-    const route = routeLabel(request.url);
+    const route = routeLabel(request);
     requestIds.set(request.raw, requestId);
     requestStartedAt.set(request.raw, Date.now());
     reply.header("x-request-id", requestId);
 
     if (options.rateLimiter !== undefined && !shouldSkipRateLimit(route)) {
-      const rateLimit = options.rateLimiter.check(`${request.ip}:${route}`, Date.now());
-      reply.header("x-ratelimit-remaining", String(rateLimit.remaining));
-      reply.header("x-ratelimit-reset", String(Math.ceil(rateLimit.resetAtMs / 1000)));
-      if (!rateLimit.allowed) {
+      const sessionToken = extractBearerToken(request.headers.authorization);
+      const keys = [`ip:${request.ip}:route:${route}`];
+      if (sessionToken !== undefined) {
+        keys.push(`session:${hashSessionToken(sessionToken)}:route:${route}`);
+      }
+      const limits = await Promise.all(
+        keys.map((key) => options.rateLimiter?.check(key, Date.now()))
+      );
+      const checkedLimits = limits.filter((limit) => limit !== undefined);
+      const remaining = Math.min(...checkedLimits.map((limit) => limit.remaining));
+      const resetAtMs = Math.max(...checkedLimits.map((limit) => limit.resetAtMs));
+      reply.header("x-ratelimit-remaining", String(remaining));
+      reply.header("x-ratelimit-reset", String(Math.ceil(resetAtMs / 1000)));
+      if (checkedLimits.some((limit) => !limit.allowed)) {
         metrics.incrementRateLimited("@modelfaucet/gateway", route);
         const retryAfterSeconds = Math.max(
           1,
-          Math.ceil((rateLimit.resetAtMs - Date.now()) / 1000)
+          Math.ceil((resetAtMs - Date.now()) / 1000)
         );
         const error = new ModelFaucetError({
           code: "rate_limited",
@@ -138,15 +181,19 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     metrics.observeRequest({
       service: "@modelfaucet/gateway",
       method: request.method,
-      route: routeLabel(request.url),
+      route: routeLabel(request),
       statusCode: reply.statusCode,
       durationMs: Date.now() - startedAt
     });
   });
 
-  if (options.mockCompletionRepository.close !== undefined) {
+  if (
+    options.mockCompletionRepository.close !== undefined ||
+    options.rateLimiter?.close !== undefined
+  ) {
     app.addHook("onClose", async () => {
       await options.mockCompletionRepository.close?.();
+      await options.rateLimiter?.close?.();
     });
   }
 
@@ -155,17 +202,49 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
     service: "@modelfaucet/gateway"
   }));
 
-  app.get("/ready", async () => ({
-    ok: true,
-    service: "@modelfaucet/gateway",
-    checks: {
-      repository: "configured"
-    }
-  }));
+  app.get("/ready", async (_request, reply) => {
+    const [database, rateLimit, provider] = await Promise.all([
+      readinessStatus(
+        options.mockCompletionRepository.checkHealth?.bind(options.mockCompletionRepository)
+      ),
+      readinessStatus(options.rateLimiter?.checkHealth?.bind(options.rateLimiter)),
+      readinessStatus(
+        options.mockCompletionRepository.checkProviderHealth === undefined
+          ? undefined
+          : async () => {
+              const result = await options.mockCompletionRepository.checkProviderHealth?.();
+              if (result?.ok !== true) {
+                throw new Error("Provider readiness check failed.");
+              }
+            }
+      )
+    ]);
+    const ok = ![database, rateLimit, provider].includes("unavailable");
+    return reply.code(ok ? 200 : 503).send({
+      ok,
+      service: "@modelfaucet/gateway",
+      checks: {
+        database,
+        rate_limit: rateLimit,
+        provider
+      }
+    });
+  });
 
-  app.get("/metrics", async (_request, reply) =>
-    reply.type("text/plain; version=0.0.4").send(metrics.renderPrometheus())
-  );
+  app.get("/metrics", async (request, reply) => {
+    if (options.metricsToken !== undefined) {
+      const token = extractBearerToken(request.headers.authorization);
+      if (token !== options.metricsToken) {
+        const error = new ModelFaucetError({
+          code: "invalid_session",
+          message: "Missing or invalid metrics token.",
+          statusCode: 401
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+    }
+    return reply.type("text/plain; version=0.0.4").send(metrics.renderPrometheus());
+  });
 
   app.get("/health/providers", async () => {
     if (options.mockCompletionRepository.checkProviderHealth === undefined) {
@@ -216,11 +295,22 @@ export function buildGatewayServer(options: BuildGatewayServerOptions): FastifyI
       return reply.code(error.statusCode).send(createErrorResponse(error));
     }
 
+    const idempotencyKey = request.headers["idempotency-key"];
+    if (typeof idempotencyKey !== "string" || idempotencyKey.trim() === "") {
+      const error = new ModelFaucetError({
+        code: "invalid_request",
+        message: "Idempotency-Key is required for chat completions.",
+        statusCode: 400
+      });
+      return reply.code(error.statusCode).send(createErrorResponse(error));
+    }
+
     try {
       const result = await options.mockCompletionRepository.createMockCompletion({
         sessionTokenHash: hashSessionToken(sessionToken),
         request: parsed.data,
-        createdAt: now()
+        createdAt: now(),
+        idempotencyKey
       });
 
       return {

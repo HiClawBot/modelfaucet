@@ -33,7 +33,17 @@ export type FaucetChatInput = {
   model?: string;
   routeMode?: RouteMode;
   stream?: boolean;
+  maxTokens?: number;
+  idempotencyKey?: string;
 };
+
+function createIdempotencyKey(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return `mf_sdk_${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `mf_sdk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
 
 export type FaucetChatResult = Record<string, unknown>;
 
@@ -121,9 +131,9 @@ export const sdkPackage = {
   acceptsProviderApiKeysByDefault: false
 } as const;
 
-const DEFAULT_API_BASE_URL = "http://localhost:3001";
-const DEFAULT_GATEWAY_BASE_URL = "http://localhost:3002/v1";
-const DEFAULT_LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:8787";
+const DEFAULT_API_BASE_URL = "http://localhost:3201";
+const DEFAULT_GATEWAY_BASE_URL = "http://localhost:3202/v1";
+const DEFAULT_LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:3287";
 const SESSION_REFRESH_BUFFER_MS = 5_000;
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -218,7 +228,7 @@ function createLocalRequestId(now: () => number): string {
 async function hashLocalEndUserId(value: string): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (subtle === undefined) {
-    return `sha256-unavailable:${value}`;
+    return "sha256-unavailable";
   }
 
   const digest = await subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -289,6 +299,7 @@ export function createFaucet(
       model: input.model ?? `auto:${input.feature}`,
       messages: messagesFromInput(input),
       stream: input.stream ?? false,
+      max_tokens: input.maxTokens,
       metadata: {
         feature_key: input.feature
       }
@@ -298,6 +309,7 @@ export function createFaucet(
       method: "POST",
       headers: {
         authorization: `Bearer ${session.session_token}`,
+        "idempotency-key": input.idempotencyKey ?? createIdempotencyKey(),
         "content-type": "application/json"
       },
       body: JSON.stringify(request)

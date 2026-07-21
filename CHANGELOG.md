@@ -4,6 +4,28 @@ All notable changes to ModelFaucet will be documented in this file.
 
 ## Unreleased
 
+## 1.3.0-beta.1 - 2026-07-21
+
+### Added
+
+- Redis-backed fixed-window rate limiter support for API and Gateway when `REDIS_URL` is configured.
+- `schema_migrations` metadata table and `pnpm db:verify-migrations` release check.
+- Container image publishing workflow for API, Gateway, and Dashboard GHCR images on `v*.*.*` tags.
+- `pnpm container:verify` to validate Dockerfile, hosted Compose image wiring, and container workflow safety.
+- Ordered checksum-verified database migrations and an idempotent zero-credit production bootstrap.
+- Concurrency-safe completion reservation, idempotency, authoritative pricing, and app/session spend limits.
+- Dependency-aware readiness, authenticated metrics, backup/restore verification, financial invariant checks, and Beta alert rules.
+- Explicitly billable real-provider canary and bounded 60-minute soak evidence runners.
+
+### Changed
+
+- Hosted and local Compose now pass `REDIS_URL` to API and Gateway for distributed rate limits.
+- Hosted Compose now includes GHCR image names and service-specific build args for API, Gateway, and Dashboard.
+- CI now verifies migration metadata and container publishing configuration.
+- Hosted deployments require three exact GHCR digest references; tag publishing records provenance, verifies the registry digest, and reruns image smoke by digest.
+- First-Beta production flags disable Stripe, payout, BYOK/developer-key routing, Local Bridge, test credits, streaming, Responses, and Embeddings.
+- README, docs homepage, operations, migration, publishing strategy, roadmap, release checklist, and readiness verification now reflect the `1.3.0-beta.1` construction candidate.
+
 ## 1.2.0 - 2026-06-18
 
 ### Added

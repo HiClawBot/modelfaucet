@@ -11,6 +11,8 @@ export type CreateVirtualSessionInput = {
   featureKey?: string;
   metadata: JsonObject;
   expiresAt: Date;
+  origin?: string;
+  enforceAllowedOrigin?: boolean;
 };
 
 export type CreateVirtualSessionResult = {
@@ -22,6 +24,7 @@ export type CreateVirtualSessionResult = {
 
 export type SessionRepository = {
   createVirtualSession(input: CreateVirtualSessionInput): Promise<CreateVirtualSessionResult>;
+  checkHealth?(): Promise<void>;
   close?(): Promise<void>;
 };
 
@@ -53,14 +56,23 @@ export class PostgresSessionRepository implements SessionRepository {
       await client.query("begin");
 
       const appResult = await client.query<AppRow>(
-        "select id from apps where public_app_id = $1 and status = 'active'",
-        [input.publicAppId]
+        `
+          select id
+          from apps
+          where public_app_id = $1
+            and status = 'active'
+            and (
+              $2::boolean = false
+              or ($3::text is not null and $3 = any(allowed_origins))
+            )
+        `,
+        [input.publicAppId, input.enforceAllowedOrigin ?? false, input.origin ?? null]
       );
       const app = appResult.rows[0];
       if (app === undefined) {
         throw new ModelFaucetError({
           code: "invalid_app",
-          message: "The public app id is invalid or inactive.",
+          message: "The public app id is invalid, inactive, or unavailable from this origin.",
           statusCode: 404
         });
       }
@@ -112,7 +124,7 @@ export class PostgresSessionRepository implements SessionRepository {
 
       const walletResult = await client.query<WalletRow>(
         `
-          select balance_usd::text
+          select (balance_usd - reserved_balance_usd)::numeric(18,8)::text as balance_usd
           from wallets
           where owner_scope = 'end_user' and owner_id = $1
         `,
@@ -167,8 +179,11 @@ export class PostgresSessionRepository implements SessionRepository {
     }
   }
 
+  async checkHealth(): Promise<void> {
+    await this.pool.query("select 1");
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
 }
-

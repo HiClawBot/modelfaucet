@@ -4,7 +4,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-当前状态：`1.2.0` source GA website and scenario demo release，包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
+当前状态：`v1.3.0-beta.1` 施工候选。生产入口、有序迁移、并发安全计费、受保护 usage、强制功能开关和三个生产镜像已通过本地与 Docker CI 验证；真实 hosted Beta 流量仍受 tag 后 GHCR digest/provenance 证据，以及托管真实 provider staging、告警路由、soak、恢复和回滚演练阻塞。[能力矩阵](../capability-matrix.md) 是“已实现 / 已验证 / 已禁用 / Beta 启用”范围的唯一事实源。
 
 ## 它包含什么
 
@@ -52,7 +52,7 @@ Billing 和 settlement 操作见 [Billing 和 Settlement](./billing-settlement.m
 
 托管 beta 部署契约见 [Hosted Beta](./hosted-beta.md)。
 
-`1.x` GA 契约见 [稳定性政策](./stability-policy.md)、[迁移和升级](./migration-upgrade.md)、[生产参考架构](./production-architecture.md)、[部署验证](./deployment-validation.md)、[治理和支持](./governance-support.md) 和 [发布策略](./publishing-strategy.md)。
+预期的 `1.x` 兼容性政策见 [稳定性政策](./stability-policy.md)。当前尚未宣布 hosted GA。
 
 Developer token 认证和租户隔离见 [Developer Auth](./developer-auth.md)。
 

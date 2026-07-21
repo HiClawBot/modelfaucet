@@ -235,7 +235,8 @@ export class PostgresPaymentRepository implements PaymentRepository {
           set balance_usd = balance_usd + $2::numeric,
               updated_at = $3
           where id = $1
-          returning id, owner_scope, owner_id, balance_usd::text
+          returning id, owner_scope, owner_id,
+            (balance_usd - reserved_balance_usd)::numeric(18,8)::text as balance_usd
         `,
         [topup.wallet_id, topup.amount_usd, input.now]
       );

@@ -2,6 +2,7 @@
 
 const apiBaseUrl = process.env.MODELFAUCET_API_BASE_URL;
 const gatewayBaseUrl = process.env.MODELFAUCET_GATEWAY_BASE_URL;
+const metricsToken = process.env.MODELFAUCET_METRICS_TOKEN;
 
 function isPrivateIpv4Parts(parts) {
   const [first = -1, second = -1] = parts;
@@ -125,8 +126,8 @@ function resolveServiceUrl(baseUrl, path) {
   return new URL(path.replace(/^\//, ""), serviceBase);
 }
 
-async function readText(url) {
-  const response = await fetch(url);
+async function readText(url, init) {
+  const response = await fetch(url, init);
   const body = await response.text();
   if (!response.ok) {
     throw new Error(`${url} returned HTTP ${response.status}: ${body.slice(0, 200)}`);
@@ -135,8 +136,8 @@ async function readText(url) {
   return body;
 }
 
-async function readJson(url) {
-  const response = await fetch(url);
+async function readJson(url, init) {
+  const response = await fetch(url, init);
   const body = await response.text();
   if (!response.ok) {
     throw new Error(`${url} returned HTTP ${response.status}: ${body.slice(0, 200)}`);
@@ -148,27 +149,49 @@ async function readJson(url) {
 try {
   const apiUrl = readBaseUrl(apiBaseUrl, "MODELFAUCET_API_BASE_URL");
   const gatewayUrl = readBaseUrl(gatewayBaseUrl, "MODELFAUCET_GATEWAY_BASE_URL");
+  if (metricsToken === undefined || metricsToken.trim() === "") {
+    throw new Error("MODELFAUCET_METRICS_TOKEN is required.");
+  }
+  const metricsHeaders = { authorization: `Bearer ${metricsToken.trim()}` };
 
   const apiReady = resolveServiceUrl(apiUrl, "/ready");
   const apiMetrics = resolveServiceUrl(apiUrl, "/metrics");
   const gatewayReady = resolveServiceUrl(gatewayUrl, "/ready");
+  const gatewayMetrics = resolveServiceUrl(gatewayUrl, "/metrics");
   const providerHealth = resolveServiceUrl(gatewayUrl, "/health/providers");
 
-  await readJson(apiReady);
+  const apiReadiness = await readJson(apiReady);
+  if (apiReadiness.ok !== true) {
+    throw new Error("API readiness response was not healthy.");
+  }
   console.log(`PASS API readiness: ${apiReady}`);
 
-  const metrics = await readText(apiMetrics);
-  if (!metrics.includes("modelfaucet_http_requests_total")) {
+  const apiMetricsBody = await readText(apiMetrics, { headers: metricsHeaders });
+  if (!apiMetricsBody.includes("modelfaucet_http_requests_total")) {
     throw new Error("API metrics response did not include modelfaucet_http_requests_total.");
   }
   console.log(`PASS API metrics: ${apiMetrics}`);
 
-  await readJson(gatewayReady);
+  const gatewayReadiness = await readJson(gatewayReady);
+  if (gatewayReadiness.ok !== true) {
+    throw new Error("Gateway readiness response was not healthy.");
+  }
   console.log(`PASS Gateway readiness: ${gatewayReady}`);
 
+  const gatewayMetricsBody = await readText(gatewayMetrics, { headers: metricsHeaders });
+  if (!gatewayMetricsBody.includes("modelfaucet_http_requests_total")) {
+    throw new Error("Gateway metrics response did not include modelfaucet_http_requests_total.");
+  }
+  console.log(`PASS Gateway metrics: ${gatewayMetrics}`);
+
   const health = await readJson(providerHealth);
-  if (!Array.isArray(health.providers)) {
-    throw new Error("Gateway provider health response did not include providers array.");
+  if (
+    health.ok !== true ||
+    !Array.isArray(health.providers) ||
+    health.providers.length === 0 ||
+    !health.providers.every((provider) => provider?.ok === true)
+  ) {
+    throw new Error("Gateway provider health response was not healthy.");
   }
   console.log(`PASS Gateway provider health: ${providerHealth}`);
 

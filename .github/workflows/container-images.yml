@@ -1,0 +1,246 @@
+name: container-images
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/gateway/**"
+      - "apps/dashboard/**"
+      - "packages/shared/**"
+      - "infra/docker/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/container-images.yml"
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            package: "@modelfaucet/api"
+            image: ghcr.io/hiclawbot/modelfaucet-api
+          - service: gateway
+            package: "@modelfaucet/gateway"
+            image: ghcr.io/hiclawbot/modelfaucet-gateway
+          - service: dashboard
+            package: "@modelfaucet/dashboard"
+            image: ghcr.io/hiclawbot/modelfaucet-dashboard
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+
+      - name: Verify clean release candidate metadata
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          REQUIRE_CLEAN_WORKTREE: "1"
+        run: node scripts/verify-release-candidate.mjs
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          labels: |
+            org.opencontainers.image.title=ModelFaucet ${{ matrix.service }}
+            org.opencontainers.image.description=ModelFaucet ${{ matrix.service }} service image
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Build and optionally push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/node-service.Dockerfile
+          build-args: |
+            SERVICE_PACKAGE=${{ matrix.package }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Verify published registry digest
+        id: published
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ matrix.image }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          image_ref="${IMAGE}@${DIGEST}"
+          docker buildx imagetools inspect "$image_ref"
+          docker pull "$image_ref"
+          printf 'image-ref=%s\n' "$image_ref" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$image_ref" > "${SERVICE}.image-ref"
+          printf '### %s\n\n`%s`\n' "$SERVICE" "$image_ref" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attest published image provenance
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ${{ matrix.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Upload immutable image reference
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: modelfaucet-${{ matrix.service }}-image-${{ github.sha }}
+          path: ${{ matrix.service }}.image-ref
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Smoke production image
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          PUBLISHED_IMAGE_REF: ${{ steps.published.outputs.image-ref }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          image="${PUBLISHED_IMAGE_REF:-$(printf '%s\n' "$IMAGE_TAGS" | head -n 1)}"
+          container="modelfaucet-${SERVICE}-smoke"
+          network=""
+          redis_container=""
+          cleanup() {
+            docker logs "$container" 2>/dev/null || true
+            docker rm -f "$container" >/dev/null 2>&1 || true
+            if [[ -n "$redis_container" ]]; then
+              docker rm -f "$redis_container" >/dev/null 2>&1 || true
+            fi
+            if [[ -n "$network" ]]; then
+              docker network rm "$network" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          network_args=()
+          redis_url=""
+          if [[ "$SERVICE" == "api" || "$SERVICE" == "gateway" ]]; then
+            network="${container}-network"
+            redis_container="${container}-redis"
+            docker network create "$network" >/dev/null
+            docker run -d --name "$redis_container" --network "$network" \
+              redis:7.4.9-bookworm >/dev/null
+            for attempt in {1..30}; do
+              if docker exec "$redis_container" redis-cli ping | grep -q PONG; then
+                break
+              fi
+              if [[ "$attempt" == "30" ]]; then
+                echo "$SERVICE Redis sidecar did not become healthy" >&2
+                exit 1
+              fi
+              sleep 1
+            done
+            network_args=(--network "$network")
+            redis_url="redis://${redis_container}:6379"
+          fi
+
+          case "$SERVICE" in
+            api)
+              port=3201
+              path=/health
+              docker run -d --name "$container" "${network_args[@]}" \
+                -e NODE_ENV=production \
+                -e PORT_API="$port" \
+                -e DATABASE_URL=postgresql://smoke:smoke@db.invalid/modelfaucet \
+                -e REDIS_URL="$redis_url" \
+                -e SECRET_ENCRYPTION_KEY=mf_container_smoke_secret_key_32_bytes \
+                -e ADMIN_TOKEN=mf_container_smoke_admin_token \
+                -e DEVELOPER_ADMIN_TOKEN=mf_container_smoke_developer_token \
+                -e METRICS_TOKEN=mf_container_smoke_metrics_token \
+                -e TRUST_PROXY_HOPS=1 \
+                -e API_PLATFORM_ONLY=1 \
+                -e API_ENABLE_STRIPE_PAYMENTS=0 \
+                -e API_ENABLE_PAYOUTS=0 \
+                -e API_ENABLE_PROVIDER_KEYS=0 \
+                -e API_ENABLE_TEST_CREDITS=0 \
+                -e API_REQUIRE_SESSION_ORIGIN=1 \
+                -e API_CORS_ORIGINS=https://dashboard.modelfaucet.invalid \
+                "$image"
+              ;;
+            gateway)
+              port=3202
+              path=/health
+              docker run -d --name "$container" "${network_args[@]}" \
+                -e NODE_ENV=production \
+                -e PORT_GATEWAY="$port" \
+                -e DATABASE_URL=postgresql://smoke:smoke@db.invalid/modelfaucet \
+                -e REDIS_URL="$redis_url" \
+                -e LITELLM_BASE_URL=https://litellm.modelfaucet.invalid \
+                -e LITELLM_MASTER_KEY=mf_container_smoke_litellm_key \
+                -e SECRET_ENCRYPTION_KEY=mf_container_smoke_secret_key_32_bytes \
+                -e METRICS_TOKEN=mf_container_smoke_metrics_token \
+                -e TRUST_PROXY_HOPS=1 \
+                -e GATEWAY_PLATFORM_ONLY=1 \
+                -e GATEWAY_CORS_ORIGINS=https://app.modelfaucet.invalid \
+                -e GATEWAY_PLATFORM_MODEL=auto-text \
+                -e GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD=1.00000000 \
+                -e GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD=2.00000000 \
+                -e GATEWAY_PLATFORM_MARKUP_PERCENT=30 \
+                -e GATEWAY_PLATFORM_MAX_INPUT_TOKENS=8192 \
+                -e GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS=1024 \
+                -e GATEWAY_RESERVATION_TTL_MS=120000 \
+                "$image"
+              ;;
+            dashboard)
+              port=3203
+              path=/
+              docker run -d --name "$container" \
+                -e NODE_ENV=production \
+                -e PORT_DASHBOARD="$port" \
+                -e MODELFAUCET_API_BASE_URL=https://api.modelfaucet.invalid \
+                -e MODELFAUCET_PUBLIC_APP_ID=app_container_smoke \
+                "$image"
+              ;;
+            *)
+              echo "Unsupported service: $SERVICE" >&2
+              exit 1
+              ;;
+          esac
+
+          test "$(docker inspect --format '{{.Config.User}}' "$container")" = node
+          docker exec "$container" sh -c 'test ! -e /app/src && test ! -e /app/test'
+
+          for attempt in {1..30}; do
+            if docker exec "$container" node -e \
+              "fetch('http://127.0.0.1:${port}${path}').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "$SERVICE image did not become healthy" >&2
+          exit 1

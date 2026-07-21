@@ -16,7 +16,7 @@
 
 ```bash
 cp .env.example .env
-export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
+export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
 export SECRET_ENCRYPTION_KEY=dev_32_bytes_replace_me_replace_me
 export LITELLM_MASTER_KEY=sk-test-litellm-master-key
 ```
@@ -36,9 +36,9 @@ pnpm smoke:local
 这个 smoke test 会：
 
 - 应用 schema 和 seed data。
-- 在 `127.0.0.1:3101` 启动 Control API。
-- 在 `127.0.0.1:3102` 启动 Gateway。
-- 在 `127.0.0.1:4100` 启动本地 mock provider。
+- 在 `127.0.0.1:3201` 启动 Control API。
+- 在 `127.0.0.1:3202` 启动 Gateway。
+- 在 `127.0.0.1:3210` 启动本地 mock provider。
 - 为 `app_pub_demo` 创建短期 session。
 - 调用 `/v1/chat/completions`。
 - 验证 `usage_events` 写入。
@@ -60,15 +60,15 @@ docker compose up --build
 默认 URL：
 
 ```txt
-API:        http://localhost:3001
-Gateway:    http://localhost:3002/v1
-Dashboard:  http://localhost:5173
-CRM demo:   http://localhost:5174
-Mock model: http://localhost:4010
-LiteLLM:    http://localhost:4000
+API:        http://localhost:3201
+Gateway:    http://localhost:3202/v1
+Dashboard:  http://localhost:3203
+CRM demo:   http://localhost:3204
+Mock model: http://localhost:3210
+LiteLLM:    http://localhost:3205
 ```
 
-默认情况下，Gateway 通过 `LITELLM_BASE_URL=http://litellm:4000` 指向 LiteLLM，LiteLLM 再转发到本地 mock provider。真实 provider routing 属于 `0.3.0` provider-routing beta，只能使用服务端 secret。
+默认情况下，Gateway 通过 `LITELLM_BASE_URL=http://litellm:3205` 指向 LiteLLM，LiteLLM 再转发到本地 mock provider。真实 provider routing 属于 `0.3.0` provider-routing beta，只能使用服务端 secret。
 
 ## 路由 Smoke Path
 
@@ -85,7 +85,7 @@ BYOK mode:
 
 Local mode:
 
-- Local mode 使用用户本机 loopback bridge，通常是 `127.0.0.1:8787`。
+- Local mode 使用用户本机 loopback bridge，通常是 `127.0.0.1:3287`。
 - 云端 API 和 Gateway 不会抓取用户 localhost 或私有 LAN URL。
 
 ## 失败路径

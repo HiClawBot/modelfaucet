@@ -11,6 +11,7 @@ export const ERROR_CODES = [
   "forbidden",
   "invalid_app",
   "feature_not_found",
+  "feature_disabled",
   "no_available_route",
   "insufficient_balance",
   "budget_exceeded",
@@ -48,6 +49,7 @@ export type ChatCompletionRequest = {
   model: string;
   messages: ChatMessage[];
   stream?: boolean;
+  max_tokens?: number;
   metadata?: JsonObject;
 };
 

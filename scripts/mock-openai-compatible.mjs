@@ -126,7 +126,7 @@ export function createMockOpenAiCompatibleServer() {
 
 export async function startMockOpenAiCompatibleServer({
   host = "127.0.0.1",
-  port = 4010
+  port = 3210
 } = {}) {
   const server = createMockOpenAiCompatibleServer();
   await new Promise((resolve, reject) => {
@@ -142,7 +142,7 @@ export async function startMockOpenAiCompatibleServer({
 const entrypoint = process.argv[1];
 if (entrypoint !== undefined && import.meta.url === pathToFileURL(entrypoint).href) {
   const host = process.env.HOST ?? "0.0.0.0";
-  const port = Number(process.env.PORT ?? "4010");
+  const port = Number(process.env.PORT ?? "3210");
   const server = await startMockOpenAiCompatibleServer({ host, port });
   console.log(`Mock OpenAI-compatible provider listening on http://${host}:${port}`);
 

@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "migrations": [
+    {
+      "version": "0001_initial_schema",
+      "description": "Initial ModelFaucet schema",
+      "file": "../schema.sql",
+      "adoptLegacyChecksum": true
+    },
+    {
+      "version": "0002_gateway_completion_reservations",
+      "description": "Gateway completion reservations and idempotency state",
+      "file": "0002_gateway_completion_reservations.sql"
+    },
+    {
+      "version": "0003_hosted_beta_app_policy",
+      "description": "Hosted Beta app origin and spend policies",
+      "file": "0003_hosted_beta_app_policy.sql"
+    }
+  ]
+}

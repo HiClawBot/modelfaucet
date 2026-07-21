@@ -17,6 +17,9 @@ const appSummary = {
   name: "Console Demo",
   vertical: "crm",
   default_revenue_share_bps: 4200,
+  allowed_origins: ["https://console.example.com"],
+  monthly_spend_limit_usd: "100.00000000",
+  session_spend_limit_usd: "5.00000000",
   status: "active",
   developer_id: "22222222-2222-4222-8222-222222222222",
   developer_name: "Demo Developer",
@@ -80,7 +83,7 @@ describe("developer console routes", () => {
       sessionRepository: unusedSessionRepository,
       developerConsoleRepository: repositoryNoops(),
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -95,6 +98,61 @@ describe("developer console routes", () => {
         code: "invalid_session"
       }
     });
+  });
+
+  it("requires origin and spend policies when creating hosted Beta apps", async () => {
+    const createApp = vi.fn<DeveloperConsoleRepository["createApp"]>(async (input) => {
+      expect(input).toMatchObject({
+        allowedOrigins: ["https://pilot.example.com"],
+        monthlySpendLimitUsd: "25.00",
+        sessionSpendLimitUsd: "2.00"
+      });
+      return {
+        ...appSummary,
+        allowed_origins: input.allowedOrigins ?? [],
+        monthly_spend_limit_usd: input.monthlySpendLimitUsd,
+        session_spend_limit_usd: input.sessionSpendLimitUsd
+      };
+    });
+    const server = buildApiServer({
+      sessionRepository: unusedSessionRepository,
+      developerConsoleRepository: {
+        ...repositoryNoops(),
+        createApp
+      },
+      developerAdminToken: "mf_admin_dev",
+      features: { platformOnly: true },
+      gatewayBaseUrl: "http://localhost:3202/v1",
+      sessionTokenTtlSeconds: 3600,
+      now: () => new Date("2026-06-17T00:00:00.000Z")
+    });
+
+    const incomplete = await server.inject({
+      method: "POST",
+      url: "/v1/developer/apps",
+      headers: { authorization: "Bearer mf_admin_dev" },
+      payload: {
+        public_app_id: "app_pub_console",
+        name: "Console Demo"
+      }
+    });
+    expect(incomplete.statusCode).toBe(400);
+    expect(createApp).not.toHaveBeenCalled();
+
+    const complete = await server.inject({
+      method: "POST",
+      url: "/v1/developer/apps",
+      headers: { authorization: "Bearer mf_admin_dev" },
+      payload: {
+        public_app_id: "app_pub_console",
+        name: "Console Demo",
+        allowed_origins: ["https://pilot.example.com"],
+        monthly_spend_limit_usd: "25.00",
+        session_spend_limit_usd: "2.00"
+      }
+    });
+    expect(complete.statusCode).toBe(201);
+    expect(createApp).toHaveBeenCalledOnce();
   });
 
   it("creates, updates, and archives developer apps", async () => {
@@ -142,7 +200,7 @@ describe("developer console routes", () => {
         archiveApp
       },
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -247,7 +305,7 @@ describe("developer console routes", () => {
         deleteFeature
       },
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -375,7 +433,7 @@ describe("developer console routes", () => {
         getOperations
       },
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 

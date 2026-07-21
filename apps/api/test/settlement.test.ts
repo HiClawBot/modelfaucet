@@ -62,7 +62,7 @@ describe("settlement routes", () => {
       sessionRepository: unusedSessionRepository,
       settlementRepository: { ...settlementNoops(), getLedgerReconciliation },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-18T00:00:00.000Z")
     });
@@ -118,7 +118,7 @@ describe("settlement routes", () => {
       sessionRepository: unusedSessionRepository,
       settlementRepository: { ...settlementNoops(), createWalletAdjustment },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-18T00:00:00.000Z")
     });
@@ -162,7 +162,7 @@ describe("settlement routes", () => {
       sessionRepository: unusedSessionRepository,
       settlementRepository: { ...settlementNoops(), exportUsageCsv },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -186,7 +186,7 @@ describe("settlement routes", () => {
       sessionRepository: unusedSessionRepository,
       settlementRepository: settlementNoops(),
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 

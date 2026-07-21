@@ -5,6 +5,6 @@
     "dev": { "cache": false, "persistent": true },
     "lint": {},
     "typecheck": {},
-    "test": {}
+    "test": { "cache": false, "env": ["DATABASE_URL"] }
   }
 }

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/modelfaucet-logo.png" alt="ModelFaucet logo" width="220" />
+  <img src="assets/modelfaucet-logo.svg" alt="ModelFaucet logo" width="220" />
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `1.2.0` source GA website and scenario demo release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
+> Status: `v1.3.0-beta.1` construction candidate. Production entrypoints, migrations/restore, concurrency-safe settlement, owner-scoped usage, app/session controls, feature flags, dependency readiness, and three production images pass local plus Docker CI verification. Real hosted traffic remains blocked on tagged GHCR digest/provenance pull evidence plus managed DB/Redis/TLS, real-provider, alert-routing, soak, and rollback drills. See the [capability matrix](docs/capability-matrix.md) for the exact implemented, verified, and Beta-enabled surface.
 
 ---
 
@@ -148,7 +148,7 @@ packages/
 services/
   local-bridge/        Local/LAN model bridge for Ollama, vLLM, LM Studio.
   rating-worker/       Token usage pricing and margin calculation.
-  settlement-worker/   Wallet entries, payouts, reconciliation.
+  settlement-worker/   Reserved async package; settlement currently runs through the Control API.
 
 infra/
   db/                  PostgreSQL schema and migrations.
@@ -221,7 +221,7 @@ Expected behavior:
 ```txt
 - SDK creates a short-lived session token.
 - Gateway routes to the platform provider pool.
-- The response streams back to the app.
+- A non-streaming response returns to the app (`stream: true` is currently rejected).
 - usage_events receives a row.
 - ledger_entries records user debit, provider cost, developer revenue, platform revenue.
 - Developer dashboard shows usage and revenue.
@@ -244,6 +244,16 @@ pnpm pages:build
 The Pages workflow publishes a merged artifact from `.pages-dist` on pushes to `main`. The website owns the root page and scenario routes, while the documentation keeps stable paths such as `/quickstart`, `/roadmap`, and `/zh-CN/`.
 
 The website scenario model is static and does not collect provider keys. Platform-route examples model explicit markup, BYOK examples model only visible gateway/product fees, and local examples model visible local software fees.
+
+For deployment release checks:
+
+```bash
+pnpm db:verify-migrations
+pnpm compose:verify
+pnpm container:verify
+```
+
+Hosted API and Gateway deployments use `REDIS_URL` for distributed fixed-window rate limits across multiple instances. Without `REDIS_URL`, local development falls back to the in-memory limiter.
 
 See the [local smoke test guide](docs/local-smoke.md) for Docker Compose and
 non-Docker verification.
@@ -268,7 +278,10 @@ See the [hosted beta guide](docs/hosted-beta.md) for environment verification,
 tenant isolation checks, readiness smoke, pilot onboarding, acceptable use, and
 incident-response contacts.
 
-See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [deployment validation guide](docs/deployment-validation.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the `1.x` GA contracts.
+See the [capability matrix](docs/capability-matrix.md) before integrating or
+publishing claims about the hosted Beta surface.
+
+See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [deployment validation guide](docs/deployment-validation.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the intended `1.x` compatibility policy. Hosted GA has not been declared.
 
 ---
 
@@ -277,9 +290,9 @@ See the [stability policy](docs/stability-policy.md), [migration and upgrade gui
 ModelFaucet exposes OpenAI-compatible endpoints where possible:
 
 ```txt
-POST /v1/chat/completions
-POST /v1/responses
-POST /v1/embeddings
+POST /v1/chat/completions   implemented; non-streaming only
+POST /v1/responses          roadmap; not implemented
+POST /v1/embeddings         roadmap; not implemented
 ```
 
 It also exposes ModelFaucet-specific endpoints:
@@ -315,7 +328,7 @@ POST   /v1/admin/wallets/:id/adjustments
 GET    /v1/admin/reports/usage.csv
 GET    /v1/admin/reports/revenue.csv
 GET    /v1/admin/reports/payouts.csv
-GET    /v1/apps/:id/usage
+GET    /v1/apps/:publicAppId/usage
 ```
 
 ---

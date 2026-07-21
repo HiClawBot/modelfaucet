@@ -240,9 +240,10 @@ export class PostgresSettlementRepository implements SettlementRepository {
         owner_scope: string;
         owner_id: string;
         balance_usd: string;
+        reserved_balance_usd: string;
       }>(
         `
-          select id, owner_scope, owner_id, balance_usd::text
+          select id, owner_scope, owner_id, balance_usd::text, reserved_balance_usd::text
           from wallets
           where id = $1
           for update
@@ -260,11 +261,12 @@ export class PostgresSettlementRepository implements SettlementRepository {
 
       if (
         input.direction === "debit" &&
-        parseMoneyToUnits(wallet.balance_usd) < parseMoneyToUnits(input.amountUsd)
+        parseMoneyToUnits(wallet.balance_usd) - parseMoneyToUnits(wallet.reserved_balance_usd) <
+          parseMoneyToUnits(input.amountUsd)
       ) {
         throw new ModelFaucetError({
           code: "insufficient_balance",
-          message: "Wallet does not have enough balance for the adjustment.",
+          message: "Wallet does not have enough available balance for the adjustment.",
           statusCode: 402
         });
       }
@@ -345,6 +347,7 @@ export class PostgresSettlementRepository implements SettlementRepository {
           set balance_usd = balance_usd ${operator} $2::numeric,
               updated_at = $3
           where id = $1
+            and ($6::text <> 'debit' or balance_usd - reserved_balance_usd >= $2::numeric)
           returning $4::uuid as id,
             wallets.id as wallet_id,
             $5::text as kind,

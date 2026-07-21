@@ -8,6 +8,9 @@ export type DeveloperAppSummary = {
   name: string;
   vertical?: string;
   default_revenue_share_bps: number;
+  allowed_origins: string[];
+  monthly_spend_limit_usd?: string;
+  session_spend_limit_usd?: string;
   status: string;
   developer_id: string;
   developer_name: string;
@@ -22,6 +25,9 @@ export type CreateDeveloperAppInput = {
   name: string;
   vertical?: string;
   defaultRevenueShareBps: number;
+  allowedOrigins?: string[];
+  monthlySpendLimitUsd?: string;
+  sessionSpendLimitUsd?: string;
   status: "active" | "disabled";
   now: Date;
 };
@@ -32,6 +38,9 @@ export type UpdateDeveloperAppInput = {
   name?: string;
   vertical?: string;
   defaultRevenueShareBps?: number;
+  allowedOrigins?: string[];
+  monthlySpendLimitUsd?: string;
+  sessionSpendLimitUsd?: string;
   status?: "active" | "disabled";
   now: Date;
 };
@@ -155,6 +164,9 @@ type AppRow = {
   name: string;
   vertical: string | null;
   default_revenue_share_bps: number;
+  allowed_origins: string[];
+  monthly_spend_limit_usd: string | null;
+  session_spend_limit_usd: string | null;
   status: string;
   developer_id: string;
   developer_name: string;
@@ -235,6 +247,9 @@ function toAppSummary(row: AppRow): DeveloperAppSummary {
     name: row.name,
     vertical: row.vertical ?? undefined,
     default_revenue_share_bps: row.default_revenue_share_bps,
+    allowed_origins: row.allowed_origins,
+    monthly_spend_limit_usd: row.monthly_spend_limit_usd ?? undefined,
+    session_spend_limit_usd: row.session_spend_limit_usd ?? undefined,
     status: row.status,
     developer_id: row.developer_id,
     developer_name: row.developer_name,
@@ -391,6 +406,9 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           apps.name,
           apps.vertical,
           apps.default_revenue_share_bps,
+          apps.allowed_origins,
+          apps.monthly_spend_limit_usd::text,
+          apps.session_spend_limit_usd::text,
           apps.status,
           developers.id as developer_id,
           developers.name as developer_name,
@@ -430,20 +448,26 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
             name,
             vertical,
             default_revenue_share_bps,
+            allowed_origins,
+            monthly_spend_limit_usd,
+            session_spend_limit_usd,
             status,
             created_at,
             updated_at
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $7)
+          values ($1, $2, $3, $4, $5, $6, $7::numeric, $8::numeric, $9, $10, $10)
           returning
             public_app_id,
             name,
             vertical,
             default_revenue_share_bps,
+            allowed_origins,
+            monthly_spend_limit_usd::text,
+            session_spend_limit_usd::text,
             status,
             developer_id,
-            $8::text as developer_name,
-            $9::text as developer_email,
+            $11::text as developer_name,
+            $12::text as developer_email,
             created_at,
             updated_at
         `,
@@ -453,6 +477,9 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           input.name,
           input.vertical ?? null,
           input.defaultRevenueShareBps,
+          input.allowedOrigins ?? [],
+          input.monthlySpendLimitUsd ?? null,
+          input.sessionSpendLimitUsd ?? null,
           input.status,
           input.now,
           developer.name,
@@ -514,11 +541,14 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
               name = coalesce($2, name),
               vertical = case when $3 then $4 else vertical end,
               default_revenue_share_bps = coalesce($5, default_revenue_share_bps),
-              status = coalesce($6, status),
-            updated_at = $7
+              allowed_origins = coalesce($6, allowed_origins),
+              monthly_spend_limit_usd = coalesce($7::numeric, monthly_spend_limit_usd),
+              session_spend_limit_usd = coalesce($8::numeric, session_spend_limit_usd),
+              status = coalesce($9, status),
+            updated_at = $10
             where
               public_app_id = $1
-              and ($8::uuid is null or developer_id = $8)
+              and ($11::uuid is null or developer_id = $11)
             returning *
           )
           select
@@ -526,6 +556,9 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
             updated_app.name,
             updated_app.vertical,
             updated_app.default_revenue_share_bps,
+            updated_app.allowed_origins,
+            updated_app.monthly_spend_limit_usd::text,
+            updated_app.session_spend_limit_usd::text,
             updated_app.status,
             developers.id as developer_id,
             developers.name as developer_name,
@@ -541,6 +574,9 @@ export class PostgresDeveloperConsoleRepository implements DeveloperConsoleRepos
           input.vertical !== undefined,
           input.vertical ?? null,
           input.defaultRevenueShareBps ?? null,
+          input.allowedOrigins ?? null,
+          input.monthlySpendLimitUsd ?? null,
+          input.sessionSpendLimitUsd ?? null,
           input.status ?? null,
           input.now,
           input.developerId ?? null

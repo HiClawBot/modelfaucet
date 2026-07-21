@@ -318,9 +318,9 @@ BYOK 模式下，上游费用通常由用户自己的 provider 账户承担。Mo
 用户填写：
 
 ```txt
-http://localhost:11434/v1
-http://localhost:1234/v1
-http://192.168.1.20:8000/v1
+http://localhost:3214/v1
+http://localhost:3215/v1
+http://192.168.1.20:3216/v1
 ```
 
 调用链：

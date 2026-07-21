@@ -16,7 +16,7 @@ Start with a clean environment file and a local database:
 
 ```bash
 cp .env.example .env
-export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
+export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
 export SECRET_ENCRYPTION_KEY=dev_32_bytes_replace_me_replace_me
 export LITELLM_MASTER_KEY=sk-test-litellm-master-key
 ```
@@ -36,9 +36,9 @@ pnpm smoke:local
 The smoke test:
 
 - Applies the schema and seed data.
-- Starts the Control API on `127.0.0.1:3101`.
-- Starts the Gateway on `127.0.0.1:3102`.
-- Starts a local mock provider on `127.0.0.1:4100`.
+- Starts the Control API on `127.0.0.1:3201`.
+- Starts the Gateway on `127.0.0.1:3202`.
+- Starts a local mock provider on `127.0.0.1:3210`.
 - Creates a short-lived session for `app_pub_demo`.
 - Calls `/v1/chat/completions`.
 - Verifies a `usage_events` row.
@@ -60,15 +60,15 @@ docker compose up --build
 Default URLs:
 
 ```txt
-API:        http://localhost:3001
-Gateway:    http://localhost:3002/v1
-Dashboard:  http://localhost:5173
-CRM demo:   http://localhost:5174
-Mock model: http://localhost:4010
-LiteLLM:    http://localhost:4000
+API:        http://localhost:3201
+Gateway:    http://localhost:3202/v1
+Dashboard:  http://localhost:3203
+CRM demo:   http://localhost:3204
+Mock model: http://localhost:3210
+LiteLLM:    http://localhost:3205
 ```
 
-By default, the Gateway points to LiteLLM through `LITELLM_BASE_URL=http://litellm:4000`, and LiteLLM forwards to the local mock provider. Real provider routing belongs to the `0.3.0` provider-routing beta and must use server-side secrets only.
+By default, the Gateway points to LiteLLM through `LITELLM_BASE_URL=http://litellm:3205`, and LiteLLM forwards to the local mock provider. Real provider routing belongs to the `0.3.0` provider-routing beta and must use server-side secrets only.
 
 ## Route Smoke Paths
 
@@ -85,7 +85,7 @@ BYOK mode:
 
 Local mode:
 
-- Local mode uses the user-local bridge on loopback, normally `127.0.0.1:8787`.
+- Local mode uses the user-local bridge on loopback, normally `127.0.0.1:3287`.
 - The cloud API and Gateway do not fetch user localhost or private LAN URLs.
 
 ## Failure Modes

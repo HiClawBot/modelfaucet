@@ -43,18 +43,20 @@ type PageKey =
   | "revenue"
   | "providerKeys";
 
-const navItems: Array<{ href: string; label: string; page: PageKey }> = [
-  { href: "/dashboard", label: "Overview", page: "dashboard" },
-  { href: "/apps", label: "Apps", page: "apps" },
-  { href: "/features", label: "Features", page: "features" },
-  { href: "/operations", label: "Operations", page: "operations" },
-  { href: "/apps/app_pub_demo/usage", label: "Usage", page: "usage" },
-  { href: "/revenue", label: "Revenue", page: "revenue" },
-  { href: "/provider-keys", label: "Provider keys", page: "providerKeys" }
-];
+function createNavItems(publicAppId: string): Array<{ href: string; label: string; page: PageKey }> {
+  return [
+    { href: "/dashboard", label: "Overview", page: "dashboard" },
+    { href: "/apps", label: "Apps", page: "apps" },
+    { href: "/features", label: "Features", page: "features" },
+    { href: "/operations", label: "Operations", page: "operations" },
+    { href: `/apps/${encodeURIComponent(publicAppId)}/usage`, label: "Usage", page: "usage" },
+    { href: "/revenue", label: "Revenue", page: "revenue" },
+    { href: "/provider-keys", label: "Provider keys", page: "providerKeys" }
+  ];
+}
 
-function resolvePage(pathname: string): PageKey {
-  if (pathname.startsWith("/apps/app_pub_demo/usage")) {
+function resolvePage(pathname: string, publicAppId: string): PageKey {
+  if (pathname.startsWith(`/apps/${encodeURIComponent(publicAppId)}/usage`)) {
     return "usage";
   }
 
@@ -160,7 +162,7 @@ function UsageTable({ rows }: { rows: UsageDashboardRow[] }) {
   );
 }
 
-function OverviewPage({ data }: { data: UsageDashboardSummary }) {
+function OverviewPage({ data, publicAppId }: { data: UsageDashboardSummary; publicAppId: string }) {
   return (
     <>
       <section className="metrics" aria-label="Usage totals">
@@ -184,7 +186,7 @@ function OverviewPage({ data }: { data: UsageDashboardSummary }) {
             <p className="eyebrow">Latest activity</p>
             <h2>Recent usage</h2>
           </div>
-          <a href="/apps/app_pub_demo/usage">View all</a>
+          <a href={`/apps/${encodeURIComponent(publicAppId)}/usage`}>View all</a>
         </div>
         <UsageTable rows={data.usage.slice(0, 5)} />
       </section>
@@ -279,6 +281,13 @@ function appStatus(value: FormDataEntryValue | null): "active" | "disabled" {
   return value === "disabled" ? "disabled" : "active";
 }
 
+function parseOrigins(value: FormDataEntryValue | null): string[] {
+  return String(value ?? "")
+    .split(/[\n,]/)
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
 function AppsPage({
   fetcher,
   apiBaseUrl,
@@ -317,8 +326,17 @@ function AppsPage({
     const formData = new FormData(form);
     const publicAppId = optionalString(formData.get("public_app_id"));
     const name = optionalString(formData.get("name"));
-    if (publicAppId === undefined || name === undefined) {
-      setError("Public app ID and name are required.");
+    const allowedOrigins = parseOrigins(formData.get("allowed_origins"));
+    const monthlySpendLimitUsd = optionalString(formData.get("monthly_spend_limit_usd"));
+    const sessionSpendLimitUsd = optionalString(formData.get("session_spend_limit_usd"));
+    if (
+      publicAppId === undefined ||
+      name === undefined ||
+      allowedOrigins.length === 0 ||
+      monthlySpendLimitUsd === undefined ||
+      sessionSpendLimitUsd === undefined
+    ) {
+      setError("Public app ID, name, allowed origins, and spend limits are required.");
       return;
     }
 
@@ -333,6 +351,9 @@ function AppsPage({
         default_revenue_share_bps: parseRevenueShare(
           formData.get("default_revenue_share_bps")
         ),
+        allowed_origins: allowedOrigins,
+        monthly_spend_limit_usd: monthlySpendLimitUsd,
+        session_spend_limit_usd: sessionSpendLimitUsd,
         status: appStatus(formData.get("status"))
       };
       if (editingApp === undefined) {
@@ -345,6 +366,9 @@ function AppsPage({
             name: input.name,
             vertical: input.vertical,
             default_revenue_share_bps: input.default_revenue_share_bps,
+            allowed_origins: input.allowed_origins,
+            monthly_spend_limit_usd: input.monthly_spend_limit_usd,
+            session_spend_limit_usd: input.session_spend_limit_usd,
             status: input.status
           },
           fetcher,
@@ -410,6 +434,34 @@ function AppsPage({
               name="default_revenue_share_bps"
               inputMode="numeric"
               defaultValue={editingApp?.default_revenue_share_bps ?? 4000}
+            />
+          </label>
+          <label>
+            Allowed HTTPS origins
+            <textarea
+              name="allowed_origins"
+              defaultValue={editingApp?.allowed_origins.join("\n") ?? "https://app.example.com"}
+              placeholder="https://app.example.com"
+              rows={3}
+              required
+            />
+          </label>
+          <label>
+            Monthly spend limit (USD)
+            <input
+              name="monthly_spend_limit_usd"
+              inputMode="decimal"
+              defaultValue={editingApp?.monthly_spend_limit_usd ?? "100.00"}
+              required
+            />
+          </label>
+          <label>
+            Session spend limit (USD)
+            <input
+              name="session_spend_limit_usd"
+              inputMode="decimal"
+              defaultValue={editingApp?.session_spend_limit_usd ?? "5.00"}
+              required
             />
           </label>
           <label>
@@ -1178,17 +1230,31 @@ export function App({
   publicAppId = DEFAULT_PUBLIC_APP_ID,
   developerAdminToken = DEFAULT_DEVELOPER_ADMIN_TOKEN
 }: AppProps) {
+  const [activeDeveloperToken, setActiveDeveloperToken] = useState(() => {
+    if (developerAdminToken.trim().length > 0) {
+      return developerAdminToken.trim();
+    }
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return window.sessionStorage.getItem("modelfaucet.developerToken") ?? "";
+  });
   const [data, setData] = useState<UsageDashboardSummary | undefined>();
   const [error, setError] = useState("");
   const page = resolvePage(
-    initialPath ?? (typeof window === "undefined" ? "/dashboard" : window.location.pathname)
+    initialPath ?? (typeof window === "undefined" ? "/dashboard" : window.location.pathname),
+    publicAppId
   );
+  const navItems = createNavItems(publicAppId);
   const requiresUsageData = page === "dashboard" || page === "usage" || page === "revenue";
 
   useEffect(() => {
+    if (activeDeveloperToken.length === 0) {
+      return;
+    }
     let isMounted = true;
 
-    fetchUsageDashboard(fetcher, apiBaseUrl, publicAppId).then(
+    fetchUsageDashboard(fetcher, apiBaseUrl, publicAppId, activeDeveloperToken).then(
       (summary) => {
         if (isMounted) {
           setData(summary);
@@ -1208,14 +1274,68 @@ export function App({
     return () => {
       isMounted = false;
     };
-  }, [apiBaseUrl, fetcher, publicAppId]);
+  }, [activeDeveloperToken, apiBaseUrl, fetcher, publicAppId]);
+
+  function handleDeveloperTokenSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = optionalString(new FormData(event.currentTarget).get("developer_token"));
+    if (token === undefined) {
+      setError("A scoped developer token is required.");
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("modelfaucet.developerToken", token);
+    }
+    setError("");
+    setActiveDeveloperToken(token);
+  }
+
+  function clearDeveloperToken() {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("modelfaucet.developerToken");
+    }
+    setData(undefined);
+    setError("");
+    setActiveDeveloperToken("");
+  }
+
+  if (activeDeveloperToken.length === 0) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-panel" aria-labelledby="auth-title">
+          <img src="/assets/modelfaucet-mark.svg" alt="ModelFaucet mark" />
+          <p className="eyebrow">Invite-only console</p>
+          <h1 id="auth-title">Connect a scoped developer token</h1>
+          <p>
+            Use a short-lived token with only the scopes you need. It stays in this browser
+            tab session and is never written into the hosted bundle.
+          </p>
+          <form onSubmit={handleDeveloperTokenSubmit}>
+            <label htmlFor="developer-token">Developer token</label>
+            <input
+              autoComplete="off"
+              id="developer-token"
+              name="developer_token"
+              placeholder="mf_dev_…"
+              type="password"
+            />
+            <button type="submit">Connect console</button>
+          </form>
+          {error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="dashboard-shell">
       <aside className="sidebar">
-        <div>
-          <p className="eyebrow">ModelFaucet</p>
-          <h1>Developer dashboard</h1>
+        <div className="dashboard-brand">
+          <img src="/assets/modelfaucet-mark.svg" alt="ModelFaucet mark" />
+          <div>
+            <p className="eyebrow">ModelFaucet</p>
+            <h1>Developer dashboard</h1>
+          </div>
         </div>
         <nav aria-label="Dashboard navigation">
           {navItems.map((item) => (
@@ -1234,22 +1354,29 @@ export function App({
       <section className="main-panel">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{data?.public_app_id ?? DEFAULT_PUBLIC_APP_ID}</p>
+            <p className="eyebrow">{data?.public_app_id ?? publicAppId}</p>
             <h2>{data?.app_name ?? "CRM Demo"}</h2>
           </div>
-          <span className="status-chip">Console beta</span>
+          <div className="topbar-actions">
+            <span className="status-chip">Console beta</span>
+            <button className="table-button" type="button" onClick={clearDeveloperToken}>
+              Disconnect
+            </button>
+          </div>
         </header>
 
         {requiresUsageData && error.length > 0 ? <p className="error" role="alert">{error}</p> : null}
         {requiresUsageData && data === undefined && error.length === 0 ? (
           <p className="empty-state">Loading dashboard data...</p>
         ) : null}
-        {data !== undefined && page === "dashboard" ? <OverviewPage data={data} /> : null}
+        {data !== undefined && page === "dashboard" ? (
+          <OverviewPage data={data} publicAppId={publicAppId} />
+        ) : null}
         {page === "apps" ? (
           <AppsPage
             fetcher={fetcher}
             apiBaseUrl={apiBaseUrl}
-            developerAdminToken={developerAdminToken}
+            developerAdminToken={activeDeveloperToken}
           />
         ) : null}
         {page === "features" ? (
@@ -1257,14 +1384,14 @@ export function App({
             fetcher={fetcher}
             apiBaseUrl={apiBaseUrl}
             publicAppId={publicAppId}
-            developerAdminToken={developerAdminToken}
+            developerAdminToken={activeDeveloperToken}
           />
         ) : null}
         {page === "operations" ? (
           <OperationsPage
             fetcher={fetcher}
             apiBaseUrl={apiBaseUrl}
-            developerAdminToken={developerAdminToken}
+            developerAdminToken={activeDeveloperToken}
           />
         ) : null}
         {data !== undefined && page === "usage" ? <UsagePage data={data} /> : null}
@@ -1274,7 +1401,7 @@ export function App({
             fetcher={fetcher}
             apiBaseUrl={apiBaseUrl}
             publicAppId={publicAppId}
-            developerAdminToken={developerAdminToken}
+            developerAdminToken={activeDeveloperToken}
           />
         ) : null}
       </section>

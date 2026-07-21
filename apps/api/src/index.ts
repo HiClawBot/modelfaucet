@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
-import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadApiEnv } from "./env";
+import { createApiRateLimiter } from "./rateLimit";
 import { PostgresDashboardRepository } from "./repositories/dashboardRepository";
 import { PostgresDeveloperAuthRepository } from "./repositories/developerAuthRepository";
 import { PostgresDeveloperConsoleRepository } from "./repositories/developerConsoleRepository";
@@ -15,6 +15,7 @@ import { StripeRestCheckoutClient } from "./stripe";
 
 export * from "./crypto";
 export * from "./env";
+export * from "./rateLimit";
 export * from "./repositories/dashboardRepository";
 export * from "./repositories/developerAuthRepository";
 export * from "./repositories/developerConsoleRepository";
@@ -58,6 +59,18 @@ export async function startApiServer(): Promise<void> {
   const settlementRepository = new PostgresSettlementRepository({
     connectionString: env.databaseUrl
   });
+  const rateLimiter = await createApiRateLimiter({
+    redisUrl: env.redisUrl,
+    maxRequests: env.rateLimitMaxRequests,
+    windowMs: env.rateLimitWindowMs,
+    prefix: "modelfaucet:api:rate-limit"
+  });
+  const sessionRateLimiter = await createApiRateLimiter({
+    redisUrl: env.redisUrl,
+    maxRequests: env.sessionRateLimitMaxRequests,
+    windowMs: env.sessionRateLimitWindowMs,
+    prefix: "modelfaucet:api:session-rate-limit"
+  });
   const stripeCheckoutClient =
     env.stripeSecretKey === undefined
       ? undefined
@@ -75,10 +88,18 @@ export async function startApiServer(): Promise<void> {
     stripeCheckoutClient,
     stripeWebhookSecret: env.stripeWebhookSecret,
     payoutThresholdUsd: env.payoutThresholdUsd,
-    rateLimiter: new InMemoryRateLimiter(
-      env.rateLimitMaxRequests,
-      env.rateLimitWindowMs
-    ),
+    rateLimiter,
+    sessionRateLimiter,
+    metricsToken: env.metricsToken,
+    trustProxy: env.trustProxyHops === 0 ? false : env.trustProxyHops,
+    features: {
+      platformOnly: env.platformOnly,
+      stripePayments: env.enableStripePayments,
+      payouts: env.enablePayouts,
+      providerKeys: env.enableProviderKeys,
+      testCredits: env.enableTestCredits,
+      requireSessionOrigin: env.requireSessionOrigin
+    },
     secretEncryptionKey: env.secretEncryptionKey,
     developerAdminToken: env.developerAdminToken,
     adminToken: env.adminToken,

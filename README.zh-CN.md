@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/modelfaucet-logo.png" alt="ModelFaucet logo" width="220" />
+  <img src="assets/modelfaucet-logo.svg" alt="ModelFaucet logo" width="220" />
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ModelFaucet 是一个开源 LLM 分发网关和可嵌入 SDK。它让网站、应用、插件、桌面软件或垂直 SaaS 能够以原生体验集成 AI 功能，同时自动记录 token 用量，并把收入分成归因到软件开发者或分发渠道。
 
-> 状态：`1.2.0` source GA website and scenario demo release。当前仓库包含 Control API、Gateway、SDK、React package、Local Bridge、数据库 schema、hosted deployment checks、Compose validation、scoped developer API tokens、独立 GitHub Pages 官网和生产运维预期的稳定公共契约。
+> 状态：`v1.3.0-beta.1` 施工候选。生产入口、迁移/恢复、并发安全结算、租户隔离 usage、app/session 控制、功能开关、依赖 readiness 和三个生产镜像已通过本地与 Docker CI 验证。真实 hosted 流量仍受 tag 后 GHCR digest/provenance 发布回拉证据，以及托管 DB/Redis/TLS、真实 provider、告警路由、soak 和回滚演练阻塞。准确的“已实现 / 已验证 / Beta 启用”范围见 [能力矩阵](docs/capability-matrix.md)。
 
 ---
 
@@ -148,7 +148,7 @@ packages/
 services/
   local-bridge/        面向 Ollama、vLLM、LM Studio 的本地/局域网模型桥。
   rating-worker/       token 用量定价和毛利计算。
-  settlement-worker/   wallet entries、payouts、reconciliation。
+  settlement-worker/   预留异步包；当前结算能力由 Control API 同步提供。
 
 infra/
   db/                  PostgreSQL schema 和 migrations。
@@ -218,7 +218,7 @@ const result = await faucet.chat({
 ```txt
 - SDK 创建短期 session token。
 - Gateway 路由到平台 provider pool。
-- 响应流式返回应用。
+- 非流式响应返回应用（当前会拒绝 `stream: true`）。
 - usage_events 写入一行记录。
 - ledger_entries 记录用户扣款、provider cost、developer revenue、platform revenue。
 - Developer dashboard 展示用量和收入。
@@ -242,6 +242,16 @@ Pages workflow 会在推送到 `main` 后发布 `.pages-dist` 合并产物。官
 
 官网里的场景模型是纯静态计算，不收集 provider key。Platform route 只建模显式 markup，BYOK 只建模可见 gateway/product fee，本地模式只建模可见 local software fee。
 
+部署发布校验：
+
+```bash
+pnpm db:verify-migrations
+pnpm compose:verify
+pnpm container:verify
+```
+
+托管 API 和 Gateway 使用 `REDIS_URL` 实现跨多实例的分布式 fixed-window rate limit。没有 `REDIS_URL` 时，本地开发会回退到内存 limiter。
+
 SDK、React usage display、Local Bridge diagnostics 和离线本地 usage reporting 见 [SDK 和 Local Bridge guide](docs/zh-CN/sdk-local-bridge.md)。
 
 Request ID、readiness、metrics、rate limit、migration rollback、backup 和 restore 见 [运维和可观测性 guide](docs/zh-CN/operations.md)。
@@ -252,7 +262,9 @@ Stripe webhook replay、ledger reconciliation、wallet adjustment、payout revie
 
 托管环境校验、tenant isolation check、readiness smoke、pilot onboarding、acceptable use 和 incident-response contacts 见 [Hosted Beta guide](docs/zh-CN/hosted-beta.md)。
 
-`1.x` GA 契约见 [稳定性政策](docs/zh-CN/stability-policy.md)、[迁移和升级指南](docs/zh-CN/migration-upgrade.md)、[生产参考架构](docs/zh-CN/production-architecture.md)、[部署验证](docs/zh-CN/deployment-validation.md)、[治理和支持政策](docs/zh-CN/governance-support.md) 和 [发布策略](docs/zh-CN/publishing-strategy.md)。
+集成或发布 hosted Beta 能力声明前，请先查看唯一事实源 [能力矩阵](docs/capability-matrix.md)。
+
+预期的 `1.x` 兼容性政策见 [稳定性政策](docs/zh-CN/stability-policy.md)、[迁移和升级指南](docs/zh-CN/migration-upgrade.md)、[生产参考架构](docs/zh-CN/production-architecture.md)、[部署验证](docs/zh-CN/deployment-validation.md)、[治理和支持政策](docs/zh-CN/governance-support.md) 和 [发布策略](docs/zh-CN/publishing-strategy.md)。当前尚未宣布 hosted GA。
 
 ---
 
@@ -261,9 +273,9 @@ Stripe webhook replay、ledger reconciliation、wallet adjustment、payout revie
 ModelFaucet 尽量暴露 OpenAI-compatible endpoints：
 
 ```txt
-POST /v1/chat/completions
-POST /v1/responses
-POST /v1/embeddings
+POST /v1/chat/completions   已实现；仅非流式
+POST /v1/responses          路线图；尚未实现
+POST /v1/embeddings         路线图；尚未实现
 ```
 
 同时暴露 ModelFaucet 专用 endpoints：
@@ -299,7 +311,7 @@ POST   /v1/admin/wallets/:id/adjustments
 GET    /v1/admin/reports/usage.csv
 GET    /v1/admin/reports/revenue.csv
 GET    /v1/admin/reports/payouts.csv
-GET    /v1/apps/:id/usage
+GET    /v1/apps/:publicAppId/usage
 ```
 
 ---

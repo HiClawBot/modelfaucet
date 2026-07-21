@@ -85,6 +85,9 @@ describe("developer API token auth", () => {
             name: "Console Demo",
             vertical: "crm",
             default_revenue_share_bps: 4200,
+            allowed_origins: ["https://console.example.com"],
+            monthly_spend_limit_usd: "100.00000000",
+            session_spend_limit_usd: "5.00000000",
             status: "active",
             developer_id: "22222222-2222-4222-8222-222222222222",
             developer_name: "Demo Developer",
@@ -105,7 +108,7 @@ describe("developer API token auth", () => {
         ...developerConsoleNoops(),
         listApps
       },
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -149,7 +152,7 @@ describe("developer API token auth", () => {
         ...developerConsoleNoops(),
         createApp
       },
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -204,7 +207,7 @@ describe("developer API token auth", () => {
       },
       developerAdminToken: "mf_admin_dev",
       developerTokenFactory: () => "mf_dev_fixedtokenabcdef",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -253,7 +256,7 @@ describe("developer API token auth", () => {
         createToken
       },
       developerTokenFactory: () => "mf_dev_fixedtokenabcdef",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 

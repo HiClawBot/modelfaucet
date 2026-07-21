@@ -24,6 +24,15 @@ export type ZeroUpstreamPricingInput = {
   channelShareBps?: number;
 };
 
+export type TokenPricingInput = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens?: number;
+  inputPricePer1mTokensUsd: string;
+  outputPricePer1mTokensUsd: string;
+  cachedPricePer1mTokensUsd?: string;
+};
+
 export function parseMoneyToUnits(value: string): bigint {
   if (!moneyPattern.test(value)) {
     throw new Error(`Invalid money string: ${value}`);
@@ -55,6 +64,25 @@ export function assertTokenCounts(inputTokens: number, outputTokens: number, cac
       throw new Error("Token counts must be non-negative integers");
     }
   }
+  if (cachedTokens > inputTokens) {
+    throw new Error("Cached token count must not exceed input token count");
+  }
+}
+
+export function calculateTokenCostUsd(input: TokenPricingInput): string {
+  const cachedTokens = input.cachedTokens ?? 0;
+  assertTokenCounts(input.inputTokens, input.outputTokens, cachedTokens);
+  const uncachedInputTokens = input.inputTokens - cachedTokens;
+  const cachedPrice = parseMoneyToUnits(
+    input.cachedPricePer1mTokensUsd ?? input.inputPricePer1mTokensUsd
+  );
+  const numerator =
+    parseMoneyToUnits(input.inputPricePer1mTokensUsd) * BigInt(uncachedInputTokens) +
+    cachedPrice * BigInt(cachedTokens) +
+    parseMoneyToUnits(input.outputPricePer1mTokensUsd) * BigInt(input.outputTokens);
+  const tokenScale = 1_000_000n;
+  const roundedUnits = numerator === 0n ? 0n : (numerator + tokenScale - 1n) / tokenScale;
+  return formatMoneyUnits(roundedUnits);
 }
 
 export function splitAmountByBps(amountUsd: string, shareBps: number): {
@@ -121,4 +149,3 @@ export function priceZeroUpstreamUsage(input: ZeroUpstreamPricingInput): RatedUs
     platform_revenue_usd: formatMoneyUnits(platformRevenue)
   };
 }
-

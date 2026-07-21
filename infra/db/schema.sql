@@ -3,6 +3,13 @@
 
 create extension if not exists "uuid-ossp";
 
+create table if not exists schema_migrations (
+  version text primary key,
+  description text not null,
+  checksum text,
+  applied_at timestamptz not null default now()
+);
+
 create table if not exists developers (
   id uuid primary key default uuid_generate_v4(),
   name text not null,

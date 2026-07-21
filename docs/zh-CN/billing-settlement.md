@@ -15,7 +15,7 @@ ModelFaucet `0.7.0` 的目标是在任何真实 payout 集成前，让资金流�
 先启动 API，并配置 test database 和可选的 `STRIPE_WEBHOOK_SECRET`，然后重放 checkout completion event：
 
 ```bash
-MODELFAUCET_API_BASE_URL=http://127.0.0.1:3001 \
+MODELFAUCET_API_BASE_URL=http://127.0.0.1:3201 \
 STRIPE_WEBHOOK_SECRET=whsec_test_local \
 STRIPE_CHECKOUT_SESSION_ID=cs_test_123 \
 STRIPE_AMOUNT_CENTS=500 \
@@ -30,17 +30,35 @@ pnpm stripe:webhook:replay
 
 ```bash
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://127.0.0.1:3001/v1/admin/reconciliation/ledger
+  http://127.0.0.1:3201/v1/admin/reconciliation/ledger
 ```
 
 Fresh seed 数据现在会为 demo end-user test credits 写入 `seed_opening_balance` ledger entry，因此本地 smoke path 中 reconstructed ledger balance 会与 wallet balance 匹配。
+
+## Completion 预留与幂等
+
+Gateway 不会在 provider 调用期间保持数据库事务，资金路径分为三个有界阶段：
+
+1. 短事务验证 session、model、budget policy；只有可用余额足以覆盖服务端计算的单次最坏价格时，才增加 `wallets.reserved_balance_usd`。
+2. Provider 调用在事务外执行，并使用稳定 Gateway request ID 作为上游幂等键。
+3. 短结算事务写入一条 usage、四条 ledger，按实际 token 计费、释放预留并保存可重放结果。
+
+明确的 provider failure 会释放预留并保存可重放失败。结果不确定或 provider 超出服务端 token cap 时，记录转为 `requires_review` 并继续冻结预留。Operator 必须先核对 provider log，再决定释放或补偿；不得自动重试：
+
+```sql
+select request_id, status, reserved_retail_price_usd, reservation_expires_at
+from gateway_completion_requests
+where status = 'requires_review'
+   or (status = 'reserved' and reservation_expires_at <= now())
+order by created_at;
+```
 
 ## Adjustment、Refund 和 Chargeback
 
 Admin adjustment 是显式 ledger event：
 
 ```bash
-curl -X POST http://127.0.0.1:3001/v1/admin/wallets/$WALLET_ID/adjustments \
+curl -X POST http://127.0.0.1:3201/v1/admin/wallets/$WALLET_ID/adjustments \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -59,17 +77,17 @@ curl -X POST http://127.0.0.1:3001/v1/admin/wallets/$WALLET_ID/adjustments \
 Payout review flow 是刻意显式的：
 
 ```bash
-curl -X POST http://127.0.0.1:3001/v1/admin/payouts/run-mock \
+curl -X POST http://127.0.0.1:3201/v1/admin/payouts/run-mock \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"threshold_usd":"1.00000000"}'
 
-curl -X POST http://127.0.0.1:3001/v1/admin/payouts/$PAYOUT_ID/approve \
+curl -X POST http://127.0.0.1:3201/v1/admin/payouts/$PAYOUT_ID/approve \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"operator_note":"reviewed against ledger reconciliation"}'
 
-curl -X POST http://127.0.0.1:3001/v1/admin/payouts/$PAYOUT_ID/mark-paid \
+curl -X POST http://127.0.0.1:3201/v1/admin/payouts/$PAYOUT_ID/mark-paid \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
@@ -81,13 +99,13 @@ API 提供 admin CSV 导出：
 
 ```bash
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://127.0.0.1:3001/v1/admin/reports/usage.csv
+  http://127.0.0.1:3201/v1/admin/reports/usage.csv
 
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://127.0.0.1:3001/v1/admin/reports/revenue.csv
+  http://127.0.0.1:3201/v1/admin/reports/revenue.csv
 
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://127.0.0.1:3001/v1/admin/reports/payouts.csv
+  http://127.0.0.1:3201/v1/admin/reports/payouts.csv
 ```
 
 这些导出用于 reconciliation 和 review，不包含 provider secret 或原始 BYOK 值。

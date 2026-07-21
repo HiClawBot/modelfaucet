@@ -4,8 +4,13 @@ insert into developers (name, email, status)
 values ('Demo Developer', 'dev@example.com', 'active')
 on conflict (email) do nothing;
 
-insert into apps (developer_id, public_app_id, name, vertical, default_revenue_share_bps, status)
-select id, 'app_pub_demo', 'CRM Demo', 'crm', 4000, 'active'
+insert into apps (
+  developer_id, public_app_id, name, vertical, default_revenue_share_bps,
+  allowed_origins, monthly_spend_limit_usd, session_spend_limit_usd, status
+)
+select id, 'app_pub_demo', 'CRM Demo', 'crm', 4000,
+  array['http://localhost:3204', 'http://127.0.0.1:3204'],
+  1000.00000000, 10.00000000, 'active'
 from developers
 where email = 'dev@example.com'
 on conflict (public_app_id) do nothing;

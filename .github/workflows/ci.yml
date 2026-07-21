@@ -9,31 +9,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: modelfaucet
-          POSTGRES_PASSWORD: modelfaucet
-          POSTGRES_DB: modelfaucet
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U modelfaucet -d modelfaucet"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+      DATABASE_URL: postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.3
 
+      - name: Verify clean release candidate metadata
+        env:
+          REQUIRE_CLEAN_WORKTREE: "1"
+        run: node scripts/verify-release-candidate.mjs
+
       - name: Setup Node
         uses: actions/setup-node@v6.4.0
         with:
-          node-version: "22"
+          node-version: "22.23.1"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.9
@@ -52,6 +42,23 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
+      - name: Start PostgreSQL on allowed port
+        run: |
+          docker run -d --name modelfaucet-postgres \
+            -e POSTGRES_USER=modelfaucet \
+            -e POSTGRES_PASSWORD=modelfaucet \
+            -e POSTGRES_DB=modelfaucet \
+            -p 3200:3200 \
+            postgres:16.13-bookworm -c port=3200
+          for attempt in {1..30}; do
+            if docker exec modelfaucet-postgres pg_isready -U modelfaucet -d modelfaucet -p 3200; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs modelfaucet-postgres
+          exit 1
+
       - name: Verify secrets
         run: pnpm verify:secrets
 
@@ -63,15 +70,38 @@ jobs:
           NODE_ENV: production
           HOSTED_ENVIRONMENT: ci
           HOSTED_SECRET_MANAGER: ci-secret-manager
-          DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:5432/modelfaucet
+          MODELFAUCET_API_IMAGE: ghcr.io/hiclawbot/modelfaucet-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          MODELFAUCET_GATEWAY_IMAGE: ghcr.io/hiclawbot/modelfaucet-gateway@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          MODELFAUCET_DASHBOARD_IMAGE: ghcr.io/hiclawbot/modelfaucet-dashboard@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          DATABASE_URL: postgresql://modelfaucet:modelfaucet@db.modelfaucet.invalid:3200/modelfaucet
+          REDIS_URL: redis://redis.modelfaucet.invalid:3290
           SECRET_ENCRYPTION_KEY: mf_ci_secret_encryption_key_32_bytes_minimum
           ADMIN_TOKEN: mf_ci_admin_token_for_hosted_env_check
           DEVELOPER_ADMIN_TOKEN: mf_ci_developer_admin_token_check
           LITELLM_BASE_URL: https://litellm.modelfaucet.invalid
           LITELLM_MASTER_KEY: mf_ci_litellm_master_key_for_hosted_check
+          METRICS_TOKEN: mf_ci_metrics_token_for_hosted_check
+          TRUST_PROXY_HOPS: "1"
+          API_PLATFORM_ONLY: "1"
+          GATEWAY_PLATFORM_ONLY: "1"
+          API_ENABLE_STRIPE_PAYMENTS: "0"
+          API_ENABLE_PAYOUTS: "0"
+          API_ENABLE_PROVIDER_KEYS: "0"
+          API_ENABLE_TEST_CREDITS: "0"
+          API_REQUIRE_SESSION_ORIGIN: "1"
+          API_SESSION_RATE_LIMIT_MAX_REQUESTS: "60"
+          API_SESSION_RATE_LIMIT_WINDOW_MS: "60000"
           API_CORS_ORIGINS: https://dashboard.modelfaucet.invalid
           GATEWAY_CORS_ORIGINS: https://crm-demo.modelfaucet.invalid
           API_PUBLIC_BASE_URL: https://api.modelfaucet.invalid
+          DASHBOARD_PUBLIC_APP_ID: app_ci_hosted
+          GATEWAY_PLATFORM_MODEL: auto-text
+          GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD: "1.00000000"
+          GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD: "2.00000000"
+          GATEWAY_PLATFORM_MARKUP_PERCENT: "30"
+          GATEWAY_PLATFORM_MAX_INPUT_TOKENS: "8192"
+          GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS: "1024"
+          GATEWAY_RESERVATION_TTL_MS: "120000"
           GATEWAY_PUBLIC_BASE_URL: https://gateway.modelfaucet.invalid/v1
           DASHBOARD_PUBLIC_BASE_URL: https://dashboard.modelfaucet.invalid
           PUBLIC_SUPPORT_URL: https://support.modelfaucet.invalid
@@ -85,11 +115,55 @@ jobs:
 
       - name: Verify database schema and seed
         run: |
+          pnpm db:migration:plan
+          pnpm db:migrate
+          pnpm db:verify-migrations
           pnpm db:migrate
           pnpm db:seed
 
+      - name: Verify production database bootstrap
+        run: |
+          psql postgresql://modelfaucet:modelfaucet@localhost:3200/postgres \
+            -v ON_ERROR_STOP=1 \
+            -c "create database modelfaucet_bootstrap"
+          export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet_bootstrap
+          pnpm db:migrate
+          NODE_ENV=production \
+          BOOTSTRAP_DEVELOPER_NAME="CI Beta Developer" \
+          BOOTSTRAP_DEVELOPER_EMAIL="ci-beta@modelfaucet.invalid" \
+          BOOTSTRAP_APP_PUBLIC_ID="app_ci_beta" \
+          BOOTSTRAP_APP_NAME="CI Beta App" \
+          BOOTSTRAP_APP_ALLOWED_ORIGINS="https://ci-beta.modelfaucet.invalid" \
+          BOOTSTRAP_APP_MONTHLY_SPEND_LIMIT_USD="10.00000000" \
+          BOOTSTRAP_SESSION_SPEND_LIMIT_USD="1.00000000" \
+          pnpm db:bootstrap:production
+          NODE_ENV=production \
+          BOOTSTRAP_DEVELOPER_NAME="CI Beta Developer" \
+          BOOTSTRAP_DEVELOPER_EMAIL="ci-beta@modelfaucet.invalid" \
+          BOOTSTRAP_APP_PUBLIC_ID="app_ci_beta" \
+          BOOTSTRAP_APP_NAME="CI Beta App" \
+          BOOTSTRAP_APP_ALLOWED_ORIGINS="https://ci-beta.modelfaucet.invalid" \
+          BOOTSTRAP_APP_MONTHLY_SPEND_LIMIT_USD="10.00000000" \
+          BOOTSTRAP_SESSION_SPEND_LIMIT_USD="1.00000000" \
+          pnpm db:bootstrap:production
+          test "$(psql "$DATABASE_URL" -Atc "select count(*) || '|' || coalesce(sum(balance_usd), 0) from wallets")" = "3|0.00000000"
+          test "$(psql "$DATABASE_URL" -Atc "select count(*) from ledger_entries")" = "0"
+          test "$(psql "$DATABASE_URL" -Atc "select count(*) from end_users")" = "0"
+
+      - name: Verify database backup and restore drill
+        env:
+          BACKUP_FILE: ${{ runner.temp }}/modelfaucet-ci.dump
+          RESTORE_DATABASE_URL: postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet_restore_verify
+          ALLOW_DATABASE_RESTORE: "1"
+        run: |
+          pnpm db:backup
+          pnpm db:restore:verify
+
       - name: Hosted tenant isolation check
         run: pnpm hosted:check-isolation
+
+      - name: Hosted financial and reservation checks
+        run: pnpm hosted:check-operations
 
       - name: Lint
         run: pnpm lint
@@ -100,17 +174,35 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Local stack smoke test
+      - name: Production build stack smoke test
         env:
           SECRET_ENCRYPTION_KEY: dev_32_bytes_replace_me_replace_me
           LITELLM_MASTER_KEY: sk-test-litellm-master-key
-        run: pnpm smoke:local
+        run: pnpm smoke:local:production
 
       - name: Validate Docker Compose configs
         run: pnpm compose:verify
 
+      - name: Validate and unit-test Prometheus alerts
+        run: |
+          docker run --rm \
+            --entrypoint /bin/promtool \
+            -v "$PWD/infra/monitoring:/work:ro" \
+            -w /work \
+            prom/prometheus:v3.13.1 \
+            check rules prometheus-alerts.yml
+          docker run --rm \
+            --entrypoint /bin/promtool \
+            -v "$PWD/infra/monitoring:/work:ro" \
+            -w /work \
+            prom/prometheus:v3.13.1 \
+            test rules prometheus-alerts.test.yml
+
+      - name: Verify container publishing config
+        run: pnpm container:verify
+
       - name: Build dashboard
-        run: pnpm --filter @modelfaucet/dashboard build
+        run: pnpm --filter @modelfaucet/dashboard build && pnpm dashboard:smoke-runtime
 
       - name: Build CRM demo
         run: pnpm --filter crm-demo build

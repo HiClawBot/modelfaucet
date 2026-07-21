@@ -33,7 +33,7 @@ describe("CRM demo", () => {
         jsonResponse({
           session_token: "mf_sess_demo",
           expires_in: 900,
-          gateway_base_url: "http://localhost:3002/v1",
+          gateway_base_url: "http://localhost:3202/v1",
           wallet_balance_usd: "10.00000000",
           available_modes: ["platform"]
         })
@@ -104,7 +104,7 @@ describe("CRM demo", () => {
         jsonResponse({
           session_token: "mf_sess_demo",
           expires_in: 900,
-          gateway_base_url: "http://localhost:3002/v1",
+          gateway_base_url: "http://localhost:3202/v1",
           wallet_balance_usd: "10.00000000",
           available_modes: ["platform"]
         })

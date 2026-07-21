@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateTokenCostUsd,
   formatMoneyUnits,
   parseMoneyToUnits,
   pricePlatformUsage,
@@ -29,6 +30,49 @@ describe("pricing helpers", () => {
       channel_revenue_usd: "0.12000000",
       platform_revenue_usd: "0.18000000"
     });
+  });
+
+  it("calculates token-priced provider cost with 8-decimal round-up", () => {
+    expect(
+      calculateTokenCostUsd({
+        inputTokens: 10,
+        outputTokens: 20,
+        inputPricePer1mTokensUsd: "1.00000000",
+        outputPricePer1mTokensUsd: "2.00000000"
+      })
+    ).toBe("0.00005000");
+
+    expect(
+      calculateTokenCostUsd({
+        inputTokens: 1,
+        outputTokens: 0,
+        inputPricePer1mTokensUsd: "0.00000001",
+        outputPricePer1mTokensUsd: "0.00000000"
+      })
+    ).toBe("0.00000001");
+  });
+
+  it("uses the cached-token price and rejects cached counts above input", () => {
+    expect(
+      calculateTokenCostUsd({
+        inputTokens: 100,
+        outputTokens: 0,
+        cachedTokens: 40,
+        inputPricePer1mTokensUsd: "10.00000000",
+        outputPricePer1mTokensUsd: "0.00000000",
+        cachedPricePer1mTokensUsd: "2.00000000"
+      })
+    ).toBe("0.00068000");
+
+    expect(() =>
+      calculateTokenCostUsd({
+        inputTokens: 1,
+        outputTokens: 0,
+        cachedTokens: 2,
+        inputPricePer1mTokensUsd: "1.00000000",
+        outputPricePer1mTokensUsd: "1.00000000"
+      })
+    ).toThrow("Cached token count must not exceed input token count");
   });
 
   it("keeps BYOK and local routes at zero upstream platform cost", () => {

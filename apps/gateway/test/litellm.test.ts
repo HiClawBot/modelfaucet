@@ -15,6 +15,20 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+const productionPricingEnv = {
+  GATEWAY_PLATFORM_MODEL: "auto-text",
+  GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD: "1.00000000",
+  GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD: "2.00000000",
+  GATEWAY_PLATFORM_MARKUP_PERCENT: "30",
+  GATEWAY_PLATFORM_MAX_INPUT_TOKENS: "8192",
+  GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS: "1024",
+  GATEWAY_RESERVATION_TTL_MS: "120000",
+  METRICS_TOKEN: "mf_test_metrics_token",
+  REDIS_URL: "redis://redis:3290",
+  TRUST_PROXY_HOPS: "1",
+  GATEWAY_PLATFORM_ONLY: "1"
+};
+
 describe("LiteLlmClient", () => {
   it("routes auto feature models to auto-text and forwards the server-side master key", async () => {
     const calls: Array<{ input: string | URL; init?: RequestInit }> = [];
@@ -40,7 +54,8 @@ describe("LiteLlmClient", () => {
         model: "auto:customer_reply",
         messages: [{ role: "user", content: "Write a customer reply." }]
       },
-      featureKey: "customer_reply"
+      featureKey: "customer_reply",
+      idempotencyKey: "req_provider_idempotency"
     });
 
     expect(result).toMatchObject({
@@ -52,7 +67,8 @@ describe("LiteLlmClient", () => {
     });
     expect(String(calls[0]?.input)).toBe("https://litellm.example/v1/chat/completions");
     expect(calls[0]?.init?.headers).toMatchObject({
-      authorization: "Bearer sk-litellm-dev-master-key"
+      authorization: "Bearer sk-litellm-dev-master-key",
+      "idempotency-key": "req_provider_idempotency"
     });
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
       model: "auto-text"
@@ -254,7 +270,7 @@ describe("LiteLlmClient", () => {
         providerCredential: {
           provider: "openai_compatible",
           apiKey: "sk-user-owned-key",
-          baseUrl: "http://127.0.0.1:11434/v1",
+          baseUrl: "http://127.0.0.1:3214/v1",
           modelsAllowed: []
         }
       })
@@ -304,9 +320,10 @@ describe("LiteLlmClient", () => {
   it("rejects localhost LiteLLM URLs in production", () => {
     expect(() =>
       loadGatewayEnv({
+        ...productionPricingEnv,
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://example",
-        LITELLM_BASE_URL: "http://localhost:4000",
+        LITELLM_BASE_URL: "http://localhost:3205",
         LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
         SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me"
       })
@@ -316,6 +333,7 @@ describe("LiteLlmClient", () => {
   it("requires an explicit gateway CORS allowlist in production", () => {
     expect(() =>
       loadGatewayEnv({
+        ...productionPricingEnv,
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://example",
         LITELLM_BASE_URL: "https://litellm.example",
@@ -326,6 +344,7 @@ describe("LiteLlmClient", () => {
 
     expect(() =>
       loadGatewayEnv({
+        ...productionPricingEnv,
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://example",
         LITELLM_BASE_URL: "https://litellm.example",
@@ -337,15 +356,76 @@ describe("LiteLlmClient", () => {
   });
 
   it("parses gateway CORS origins as an exact production allowlist", () => {
-    expect(
-      loadGatewayEnv({
+    const env = loadGatewayEnv({
+        ...productionPricingEnv,
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://example",
         LITELLM_BASE_URL: "https://litellm.example",
         LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
         SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
         GATEWAY_CORS_ORIGINS: "https://app.example,https://admin.example"
-      }).corsOrigins
-    ).toEqual(["https://app.example", "https://admin.example"]);
+      });
+    expect(env.corsOrigins).toEqual(["https://app.example", "https://admin.example"]);
+    expect(env.platformModel).toBe("auto-text");
+    expect(env.platformInputPricePer1mTokensUsd).toBe("1.00000000");
+    expect(env.platformOnly).toBe(true);
+    expect(env.trustProxyHops).toBe(1);
+  });
+
+  it("requires authoritative platform pricing in production", () => {
+    expect(() =>
+      loadGatewayEnv({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        GATEWAY_CORS_ORIGINS: "https://app.example",
+        REDIS_URL: "redis://redis:3290"
+      })
+    ).toThrow("GATEWAY_PLATFORM_MODEL is required in production.");
+  });
+
+  it("rejects zero platform token prices", () => {
+    expect(() =>
+      loadGatewayEnv({
+        ...productionPricingEnv,
+        GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD: "0",
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        GATEWAY_CORS_ORIGINS: "https://app.example"
+      })
+    ).toThrow("GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD must be a positive USD amount");
+  });
+
+  it("parses REDIS_URL for distributed hosted rate limits", () => {
+    expect(
+      loadGatewayEnv({
+        DATABASE_URL: "postgresql://example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        REDIS_URL: "redis://redis:3290"
+      }).redisUrl
+    ).toBe("redis://redis:3290");
+  });
+
+  it("requires Redis for production rate limiting", () => {
+    const withoutRedis = Object.fromEntries(
+      Object.entries(productionPricingEnv).filter(([key]) => key !== "REDIS_URL")
+    );
+    expect(() =>
+      loadGatewayEnv({
+        ...withoutRedis,
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://example",
+        LITELLM_BASE_URL: "https://litellm.example",
+        LITELLM_MASTER_KEY: "sk-litellm-dev-master-key",
+        SECRET_ENCRYPTION_KEY: "dev_32_bytes_replace_me_replace_me",
+        GATEWAY_CORS_ORIGINS: "https://app.example"
+      })
+    ).toThrow("REDIS_URL is required in production.");
   });
 });

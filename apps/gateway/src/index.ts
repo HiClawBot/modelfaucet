@@ -1,13 +1,14 @@
 import { pathToFileURL } from "node:url";
-import { InMemoryRateLimiter } from "@modelfaucet/shared";
 import { loadGatewayEnv } from "./env";
 import { LiteLlmClient } from "./litellm";
+import { createGatewayRateLimiter } from "./rateLimit";
 import { PostgresMockCompletionRepository } from "./repositories/mockCompletionRepository";
 import { buildGatewayServer } from "./server";
 
 export * from "./crypto";
 export * from "./env";
 export * from "./litellm";
+export * from "./rateLimit";
 export * from "./repositories/mockCompletionRepository";
 export * from "./secretEncryption";
 export * from "./server";
@@ -27,16 +28,30 @@ export async function startGatewayServer(): Promise<void> {
     },
     liteLlmClient,
     {
-      secretEncryptionKey: env.secretEncryptionKey
+      secretEncryptionKey: env.secretEncryptionKey,
+      platformOnly: env.platformOnly,
+      billingPolicy: {
+        platformModel: env.platformModel,
+        inputPricePer1mTokensUsd: env.platformInputPricePer1mTokensUsd,
+        outputPricePer1mTokensUsd: env.platformOutputPricePer1mTokensUsd,
+        markupPercent: env.platformMarkupPercent,
+        maxInputTokens: env.platformMaxInputTokens,
+        maxOutputTokens: env.platformMaxOutputTokens,
+        reservationTtlMs: env.reservationTtlMs
+      }
     }
   );
+  const rateLimiter = await createGatewayRateLimiter({
+    redisUrl: env.redisUrl,
+    maxRequests: env.rateLimitMaxRequests,
+    windowMs: env.rateLimitWindowMs
+  });
   const server = buildGatewayServer({
     mockCompletionRepository,
     corsOrigins: env.corsOrigins,
-    rateLimiter: new InMemoryRateLimiter(
-      env.rateLimitMaxRequests,
-      env.rateLimitWindowMs
-    ),
+    rateLimiter,
+    metricsToken: env.metricsToken,
+    trustProxy: env.trustProxyHops === 0 ? false : env.trustProxyHops,
     logger: env.nodeEnv !== "test"
   });
 

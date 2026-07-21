@@ -26,7 +26,7 @@ Provider keys must stay in server-side environment variables, a secret manager, 
 ## Health Check
 
 ```bash
-curl http://localhost:3002/health/providers
+curl http://localhost:3202/health/providers
 ```
 
 Example response:
@@ -50,7 +50,7 @@ Example response:
 Use `pnpm smoke:provider` only when a real LiteLLM route is configured. This command starts the local Control API and Gateway, but it uses your server-side `LITELLM_BASE_URL` instead of the local mock provider.
 
 ```bash
-export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
+export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
 export SECRET_ENCRYPTION_KEY=dev_32_bytes_replace_me_replace_me
 export LITELLM_BASE_URL=https://your-litellm.example
 export LITELLM_MASTER_KEY=<server-side-litellm-key>

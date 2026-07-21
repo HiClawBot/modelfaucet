@@ -1,7 +1,7 @@
 # ModelFaucet API Specification
 
-Version: v1.1 Source GA Auth Hardening
-Date: 2026-06-18
+Version: v1.3.0-beta.1 construction candidate
+Date: 2026-07-21
 
 ---
 
@@ -12,7 +12,7 @@ Base URLs:
 ```txt
 Control API:  https://api.modelfaucet.dev
 Gateway API:  https://gateway.modelfaucet.dev/v1
-Local Bridge: http://127.0.0.1:8787
+Local Bridge: http://127.0.0.1:3287
 ```
 
 Auth:
@@ -22,6 +22,7 @@ Developer bootstrap/admin endpoints: Bearer mf_admin_xxx
 Developer scoped endpoints: Bearer mf_dev_xxx
 End-user/session endpoints: Bearer mf_sess_xxx
 Gateway endpoints: Bearer mf_sess_xxx
+Metrics endpoints: Bearer <METRICS_TOKEN>
 ```
 
 CORS:
@@ -41,6 +42,13 @@ carrier NAT, metadata hostnames, private IPv6, and IPv4-mapped private hosts.
 Local Bridge is the only local/LAN model path and runs inside the user boundary.
 ```
 
+First hosted Beta capability flags:
+
+```txt
+Only the platform route is enabled. Stripe, payouts, provider-key/BYOK routes,
+and test-credit routes return 404 feature_disabled in production.
+```
+
 Errors:
 
 ```json
@@ -57,6 +65,7 @@ Common error codes:
 
 ```txt
 invalid_request
+feature_disabled
 invalid_session
 expired_session
 forbidden
@@ -77,15 +86,18 @@ secret_validation_failed
 
 ### GET /ready
 
-Readiness endpoint for API container probes.
+Actively checks PostgreSQL and both Redis rate-limit connections. Returns HTTP
+`503` with sanitized `unavailable` states if a dependency fails or times out.
 
 ### GET /metrics
 
-Prometheus-style text metrics for API request totals, duration sums, and rate-limit counters.
+Prometheus-style text metrics for API request totals, duration sums, and
+rate-limit counters. Hosted requests require the metrics bearer token.
 
 ### POST /v1/sessions
 
-Creates a short-lived session token for an app end user.
+Creates a short-lived session token for an app end user. Hosted browser requests
+must include an `Origin` header matching the app's exact HTTPS allowlist.
 
 Request:
 
@@ -108,7 +120,7 @@ Response:
   "session_token": "mf_sess_abc",
   "expires_in": 3600,
   "gateway_base_url": "https://gateway.modelfaucet.dev/v1",
-  "available_modes": ["platform", "byok", "local"],
+  "available_modes": ["platform"],
   "wallet_balance_usd": "10.00000000"
 }
 ```
@@ -120,6 +132,10 @@ Rules:
 - session_token must be stored hashed.
 - token TTL defaults to 3600 seconds.
 - public_app_id is not a secret.
+- wallet_balance_usd is the currently spendable balance after active gateway reservations.
+- production enforces an app+client-IP session creation limit.
+- disabled apps, missing/unapproved origins, or unknown app IDs share a generic invalid_app response.
+- app-monthly and per-session spend limits are checked before provider execution.
 ```
 
 ---
@@ -128,11 +144,13 @@ Rules:
 
 ### GET /ready
 
-Readiness endpoint for Gateway container probes.
+Actively checks PostgreSQL, Redis, and the configured platform provider. Returns
+HTTP `503` with sanitized dependency states when any check fails or times out.
 
 ### GET /metrics
 
-Prometheus-style text metrics for Gateway request totals, duration sums, and rate-limit counters.
+Prometheus-style text metrics for Gateway request totals, duration sums, and
+rate-limit counters. Hosted requests require the metrics bearer token.
 
 ### GET /health/providers
 
@@ -163,6 +181,7 @@ Headers:
 
 ```txt
 Authorization: Bearer mf_sess_abc
+Idempotency-Key: idem_customer_reply_01
 Content-Type: application/json
 ```
 
@@ -178,6 +197,7 @@ Request:
     }
   ],
   "stream": false,
+  "max_tokens": 512,
   "metadata": {
     "feature_key": "customer_reply"
   }
@@ -218,9 +238,26 @@ Response:
 
 `stream: true` is currently rejected with `invalid_request` until streaming ledger accounting is implemented.
 
+Every chat completion must include an 8–128 character `Idempotency-Key`.
+For retry-safe calls, clients must send the same
+`Idempotency-Key` with the same request body. A settled request is replayed
+without another provider call; reusing a key with different input returns 409.
+Provider failures release the wallet reservation and are replayed as failures.
+An expired in-flight request is held for operator review rather than silently
+calling the provider again.
+
+The hosted Beta accepts only the server-approved `auto:<feature_key>` alias (or
+`auto-text` when no feature is present). The Gateway replaces the alias with
+the configured platform model, caps input/output tokens, reserves available
+wallet balance before provider execution, and rates actual provider tokens
+from server-side per-token prices. Client metadata cannot set platform prices.
+
 ---
 
 ## 4. BYOK API
+
+This section documents code paths retained for later work. All routes in this
+section return `404 feature_disabled` in the first hosted Beta.
 
 ### POST /v1/user/provider-keys
 
@@ -307,7 +344,7 @@ Request:
 ```json
 {
   "name": "ollama-qwen",
-  "base_url": "http://localhost:11434/v1",
+  "base_url": "http://localhost:3214/v1",
   "provider": "openai_compatible",
   "models": ["qwen2.5:7b"],
   "mode": "local_bridge"
@@ -343,7 +380,7 @@ Response:
 {
   "ok": true,
   "version": "0.5.0",
-  "listening": "127.0.0.1:8787"
+  "listening": "127.0.0.1:3287"
 }
 ```
 
@@ -355,8 +392,8 @@ Response:
 {
   "ok": true,
   "version": "0.5.0",
-  "listening": "127.0.0.1:8787",
-  "upstream_base_url": "http://127.0.0.1:11434/v1",
+  "listening": "127.0.0.1:3287",
+  "upstream_base_url": "http://127.0.0.1:3214/v1",
   "upstream_reachable": true,
   "models_count": 1,
   "checks": [
@@ -454,8 +491,9 @@ Request:
     "developer:apps:write",
     "developer:features:read",
     "developer:features:write",
-    "developer:operations:read",
-    "developer:provider_keys:read",
+      "developer:operations:read",
+      "developer:usage:read",
+      "developer:provider_keys:read",
     "developer:provider_keys:write"
   ],
   "expires_at": "2026-12-31T00:00:00.000Z"
@@ -532,6 +570,9 @@ Response:
       "name": "CRM Demo",
       "vertical": "crm",
       "default_revenue_share_bps": 4000,
+      "allowed_origins": ["https://pilot.example.com"],
+      "monthly_spend_limit_usd": "25.00000000",
+      "session_spend_limit_usd": "2.00000000",
       "status": "active",
       "developer_id": "22222222-2222-4222-8222-222222222222",
       "developer_name": "Demo Developer",
@@ -547,6 +588,9 @@ Response:
 
 Required scope: `developer:apps:write`.
 
+Hosted platform-only deployments require non-empty `allowed_origins` plus
+positive monthly and per-session spend limits when an app is created.
+
 Request:
 
 ```json
@@ -555,6 +599,9 @@ Request:
   "name": "Support Console",
   "vertical": "support",
   "default_revenue_share_bps": 4200,
+  "allowed_origins": ["https://pilot.example.com"],
+  "monthly_spend_limit_usd": "25.00000000",
+  "session_spend_limit_usd": "2.00000000",
   "status": "active"
 }
 ```
@@ -571,6 +618,9 @@ Request:
 {
   "name": "Support Console",
   "default_revenue_share_bps": 4500,
+  "allowed_origins": ["https://pilot.example.com", "https://admin.example.com"],
+  "monthly_spend_limit_usd": "30.00000000",
+  "session_spend_limit_usd": "3.00000000",
   "status": "active"
 }
 ```
@@ -898,13 +948,25 @@ Returns a CSV export with payout period records and review status.
 
 ## 9. Usage and Revenue API
 
-### GET /v1/apps/:id/usage
+### GET /v1/apps/:publicAppId/usage
+
+Requires `Authorization: Bearer mf_dev_xxx` with
+`developer:usage:read`, or the operator bootstrap token. Scoped developer tokens
+can read only apps owned by their developer. Query parameters are `limit=1..100`
+(default 50) and an opaque `cursor` returned by the previous page.
 
 Response:
 
 ```json
 {
-  "items": [
+  "public_app_id": "app_pub_demo",
+  "app_name": "CRM Demo",
+  "total_calls": 1,
+  "total_input_tokens": 128,
+  "total_output_tokens": 96,
+  "total_retail_price_usd": "0.00123400",
+  "total_developer_revenue_usd": "0.00012300",
+  "usage": [
     {
       "request_id": "req_abc",
       "feature_key": "customer_reply",
@@ -917,7 +979,8 @@ Response:
       "channel_revenue_usd": "0.00012300",
       "created_at": "2026-06-17T00:00:00Z"
     }
-  ]
+  ],
+  "next_cursor": "WyIyMDI2LTA2LTE3VDAwOjAwOjAwLjAwMFoiLCJyZXFfYWJjIl0"
 }
 ```
 

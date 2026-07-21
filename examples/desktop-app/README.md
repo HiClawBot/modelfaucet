@@ -9,7 +9,7 @@ import { createFaucet } from "@modelfaucet/sdk";
 const faucet = createFaucet({
   publicAppId: "app_pub_demo",
   user: { id: "desktop-user-id" },
-  localBridgeBaseUrl: "http://127.0.0.1:8787"
+  localBridgeBaseUrl: "http://127.0.0.1:3287"
 });
 
 export async function runLocalRewrite(draft: string) {

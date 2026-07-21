@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHmac } from "node:crypto";
 
-const apiBaseUrl = process.env.MODELFAUCET_API_BASE_URL ?? "http://127.0.0.1:3001";
+const apiBaseUrl = process.env.MODELFAUCET_API_BASE_URL ?? "http://127.0.0.1:3201";
 const checkoutSessionId = process.env.STRIPE_CHECKOUT_SESSION_ID ?? "cs_test_replay";
 const stripeEventId = process.env.STRIPE_EVENT_ID ?? `evt_replay_${Date.now()}`;
 const amountCents = Number(process.env.STRIPE_AMOUNT_CENTS ?? "500");

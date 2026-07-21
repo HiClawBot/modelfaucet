@@ -42,10 +42,12 @@ describe("shared schemas", () => {
     const parsed = ChatCompletionRequestSchema.parse({
       model: "auto:customer_reply",
       messages: [{ role: "user", content: "Generate a customer reply." }],
+      max_tokens: 512,
       metadata: { feature_key: "customer_reply" }
     });
 
     expect(parsed.stream).toBe(false);
+    expect(parsed.max_tokens).toBe(512);
     expect(parsed.messages[0]?.role).toBe("user");
   });
 
@@ -62,25 +64,25 @@ describe("shared schemas", () => {
     expect(isCloudSafeBaseUrl("https://api.openai.com/v1")).toBe(true);
 
     const blockedBaseUrls = [
-      "http://localhost:11434/v1",
-      "http://127.0.0.1:11434/v1",
-      "http://0.0.0.0:11434/v1",
-      "http://10.1.2.3:8000/v1",
-      "http://100.64.0.1:8000/v1",
-      "http://172.16.0.1:8000/v1",
-      "http://172.31.255.255:8000/v1",
-      "http://192.168.1.20:8000/v1",
+      "http://localhost:3214/v1",
+      "http://127.0.0.1:3214/v1",
+      "http://0.0.0.0:3214/v1",
+      "http://10.1.2.3:3216/v1",
+      "http://100.64.0.1:3216/v1",
+      "http://172.16.0.1:3216/v1",
+      "http://172.31.255.255:3216/v1",
+      "http://192.168.1.20:3216/v1",
       "http://169.254.169.254/latest/meta-data",
       "http://metadata.google.internal/computeMetadata/v1",
-      "http://[::1]:11434/v1",
-      "http://[::]:11434/v1",
-      "http://[fc00::1]:11434/v1",
-      "http://[fd00::1]:11434/v1",
-      "http://[fe80::1]:11434/v1",
-      "http://[::ffff:127.0.0.1]:11434/v1",
-      "http://2130706433:11434/v1",
-      "http://0x7f000001:11434/v1",
-      "http://0177.0.0.1:11434/v1"
+      "http://[::1]:3214/v1",
+      "http://[::]:3214/v1",
+      "http://[fc00::1]:3214/v1",
+      "http://[fd00::1]:3214/v1",
+      "http://[fe80::1]:3214/v1",
+      "http://[::ffff:127.0.0.1]:3214/v1",
+      "http://2130706433:3214/v1",
+      "http://0x7f000001:3214/v1",
+      "http://0177.0.0.1:3214/v1"
     ];
 
     for (const baseUrl of blockedBaseUrls) {

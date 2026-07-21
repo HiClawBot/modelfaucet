@@ -4,9 +4,9 @@ layout: home
 hero:
   name: ModelFaucet
   text: Turn every app into an AI last-mile channel.
-  tagline: Open-source LLM distribution gateway, embeddable SDK, BYOK, Local Bridge, usage ledger, and revenue sharing.
+  tagline: Invite-only Beta construction for platform-routed, non-streaming chat completions with usage ledger and operator controls.
   image:
-    src: /assets/modelfaucet-logo.png
+    src: /assets/modelfaucet-logo.svg
     alt: ModelFaucet logo
   actions:
     - theme: brand
@@ -27,8 +27,8 @@ features:
 
 ## Current status
 
-ModelFaucet is at `1.2.0` source-GA website and scenario demo status. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, database schema, hosted deployment checks, Compose validation, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
+ModelFaucet is a `v1.3.0-beta.1` construction candidate. Production entrypoints, ordered migrations, concurrency-safe billing, protected usage, enforced feature flags, and three production images pass local plus Docker CI verification; hosted Beta traffic remains blocked on tagged GHCR digest/provenance evidence and managed real-provider staging, routed alerts, soak, restore, and rollback drills. The [capability matrix](./capability-matrix.md) is the source of truth for implemented, verified, disabled, and Beta-enabled capabilities.
 
-For the public website and scenario model, use the GitHub Pages root. For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). For GA contracts, see the [stability policy](./stability-policy.md), [migration and upgrade guide](./migration-upgrade.md), [production reference architecture](./production-architecture.md), [deployment validation guide](./deployment-validation.md), [governance and support policy](./governance-support.md), and [publishing strategy](./publishing-strategy.md).
+For the public website and scenario model, use the GitHub Pages root. For local production smoke testing, see the [local smoke test guide](./local-smoke.md). For hosted beta setup, see the [hosted beta guide](./hosted-beta.md). For developer token auth and tenant controls, see [developer auth](./developer-auth.md). The [stability policy](./stability-policy.md) describes intended compatibility; hosted GA has not been declared.
 
 See the [roadmap](./roadmap.md) for the planned path from source MVP to hosted beta and general availability.

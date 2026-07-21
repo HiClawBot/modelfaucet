@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   calculateScenario,
   formatCompact,
@@ -7,7 +7,10 @@ import {
   type ScenarioInput
 } from "./model";
 
-type Locale = "en" | "zh";
+export const supportedLocales = ["en", "zh"] as const;
+type Locale = (typeof supportedLocales)[number];
+export const websiteRouteKeys = ["home", "use-cases", "demo"] as const;
+export type WebsiteRoute = (typeof websiteRouteKeys)[number];
 
 type Scenario = {
   key: string;
@@ -17,36 +20,59 @@ type Scenario = {
   route: RouteMode;
 };
 
-const routeModes: Array<{ key: RouteMode; label: string }> = [
-  { key: "platform", label: "Platform credits" },
-  { key: "byok", label: "BYOK" },
-  { key: "local", label: "Local Bridge" }
-];
+export const routeModeKeys: RouteMode[] = ["platform", "byok", "local"];
 
-const copy = {
+export const copy = {
   en: {
+    meta: {
+      title: "ModelFaucet",
+      description:
+        "ModelFaucet is building an invite-only source Beta for platform-routed, non-streaming chat completions with short-lived sessions and a usage ledger."
+    },
+    homeLabel: "ModelFaucet home",
+    brandAlt: "ModelFaucet logo",
+    language: {
+      label: "Language",
+      names: {
+        en: "English",
+        zh: "Chinese"
+      }
+    },
+    routeBoardId: "app_pub_demo",
+    aria: {
+      primaryNavigation: "Primary navigation",
+      routeDiagram: "ModelFaucet route diagram",
+      routeModes: "Route modes",
+      proofPoints: "Project proof points"
+    },
     nav: {
       cases: "Use cases",
       demo: "Scenario demo",
       docs: "Docs",
       github: "GitHub"
     },
+    routeLabels: {
+      platform: "Platform credits",
+      byok: "User-supplied key",
+      local: "Local Bridge"
+    } satisfies Record<RouteMode, string>,
+    laneLabels: ["App", "SDK", "Gateway", "Policy", "Ledger"],
     hero: {
-      kicker: "Open-source AI distribution layer",
+      kicker: "Open-source AI distribution Beta",
       title: "Turn software products into AI channels.",
-      body: "ModelFaucet gives apps a gateway, SDK, BYOK, local model path, usage ledger, and revenue sharing contract without putting provider keys in client code.",
+      body: "The current Beta scope focuses on short-lived sessions, platform-routed non-streaming chat completions, and a usage ledger. BYOK, Local Bridge, payments, and additional OpenAI-compatible endpoints remain disabled until their production gates pass.",
       primary: "Run the quickstart",
       secondary: "Model the economics"
     },
     proof: [
-      ["Source GA", "Stable 1.x contracts"],
+      ["Source Beta", "Non-streaming chat scope"],
       ["Tenant auth", "Scoped mf_dev tokens"],
-      ["Safety", "Cloud URLs reject private networks"]
+      ["Release gate", "Real staging still required"]
     ],
     routes: {
       platform: "ModelFaucet pays the provider, meters usage, and splits the explicit margin.",
-      byok: "The user pays their own provider. ModelFaucet can charge only a visible gateway or product fee.",
-      local: "Sensitive work stays in the user's local boundary through Local Bridge."
+      byok: "Roadmap mode: the user pays their own provider and any gateway or product fee must stay visible.",
+      local: "Roadmap mode: sensitive work stays in the user's local boundary through Local Bridge."
     },
     casesTitle: "Where it fits",
     casesBody:
@@ -97,7 +123,7 @@ const copy = {
       kicker: "Interactive scenario model",
       title: "Show the route and the money in one screen.",
       body:
-        "Change the route mode and volume assumptions. BYOK and local modes stay explicit: no hidden token markup is applied to a user's provider bill.",
+        "Change the route mode and volume assumptions. User-supplied key and local modes stay explicit: no hidden token markup is applied to a user's provider bill.",
       users: "Monthly active users",
       requests: "Requests per user",
       input: "Input tokens",
@@ -125,68 +151,96 @@ const copy = {
       ]
     },
     cta: {
-      title: "Build with the source release.",
+      kicker: "GitHub Pages",
+      title: "Review the source Beta boundary.",
       body:
-        "Start locally, inspect the contracts, then decide whether to run ModelFaucet under your own domain.",
+        "Start locally, inspect the capability matrix, and only enable the production surface whose gates have passed.",
       docs: "Open docs",
-      release: "View v1.2.0 release",
+      release: "View published releases",
       domain: "Custom domain ready: add DNS and a CNAME when modelfaucet.aifund.com is prepared."
     }
   },
   zh: {
+    meta: {
+      title: "ModelFaucet 中文官网",
+      description:
+        "ModelFaucet 正在建设受邀制源码测试版，当前范围是平台路由、非流式对话、短期会话和用量账本。"
+    },
+    homeLabel: "ModelFaucet 中文首页",
+    brandAlt: "ModelFaucet 标志",
+    language: {
+      label: "语言",
+      names: {
+        en: "英语",
+        zh: "中文"
+      }
+    },
+    routeBoardId: "应用编号示例",
+    aria: {
+      primaryNavigation: "主导航",
+      routeDiagram: "ModelFaucet 路由示意图",
+      routeModes: "路由模式",
+      proofPoints: "项目证明点"
+    },
     nav: {
       cases: "应用场景",
       demo: "场景模型",
       docs: "文档",
-      github: "GitHub"
+      github: "源码"
     },
+    routeLabels: {
+      platform: "平台额度",
+      byok: "自带密钥",
+      local: "本地桥接"
+    } satisfies Record<RouteMode, string>,
+    laneLabels: ["应用", "开发包", "网关", "策略", "账本"],
     hero: {
-      kicker: "开源 AI 分发层",
-      title: "让软件产品变成 AI 渠道。",
+      kicker: "开源智能模型分发测试版",
+      title: "让软件产品变成智能模型渠道。",
       body:
-        "ModelFaucet 给应用提供 gateway、SDK、BYOK、本地模型路径、usage ledger 和收入分成契约，同时不把 provider key 放进客户端。",
-      primary: "运行 Quickstart",
+        "当前测试版只聚焦短期会话、平台路由的非流式对话和用量账本。自带密钥、本地桥接、支付及更多兼容接口会在各自生产门禁通过后再启用。",
+      primary: "运行快速开始",
       secondary: "计算场景收益"
     },
     proof: [
-      ["Source GA", "稳定 1.x 契约"],
-      ["租户认证", "Scoped mf_dev tokens"],
-      ["安全边界", "云端 URL 拒绝私有网络"]
+      ["源码测试版", "非流式对话范围"],
+      ["租户认证", "按开发者限定的令牌"],
+      ["发布门禁", "仍需真实环境验证"]
     ],
     routes: {
-      platform: "ModelFaucet 支付 provider 成本，记录 usage，并按显式 margin 分成。",
-      byok: "用户支付自己的 provider 账单。ModelFaucet 只能收取可见 gateway fee 或产品费。",
-      local: "敏感任务通过 Local Bridge 留在用户本地边界内。"
+      platform: "ModelFaucet 支付服务商成本，记录用量，并按显式毛利分成。",
+      byok: "路线图模式：用户支付自己的服务商账单，所有网关费或产品费必须保持可见。",
+      local: "路线图模式：敏感任务通过本地桥接留在用户本地边界内。"
     },
     casesTitle: "适合哪些产品",
     casesBody:
-      "同一套协议可用于 SaaS、插件、桌面软件和渠道产品。每个场景都保持相同安全边界。",
+      "同一套协议可用于软件服务、插件、桌面软件和渠道产品。每个场景都保持相同安全边界。",
     scenarios: [
       {
         key: "crm",
-        title: "CRM 回复助手",
-        audience: "垂直 SaaS",
-        description: "为客户回复生成加入 feature policy、wallet credits 和渠道收入。",
+        title: "客户关系管理回复助手",
+        audience: "垂直软件服务",
+        description: "为客户回复生成加入功能策略、钱包额度和渠道收入。",
         route: "platform"
       },
       {
         key: "browser",
-        title: "浏览器插件 Copilot",
+        title: "浏览器插件助手",
         audience: "插件生态",
-        description: "使用短期 session 和可见 BYOK 控制，不在插件中打包 provider secrets。",
+        description: "使用短期会话和可见自带密钥控制，不在插件中打包服务商密钥。",
         route: "byok"
       },
       {
         key: "desktop",
         title: "桌面研究工具",
-        audience: "Local-first 软件",
-        description: "把私密草稿路由到 Ollama、LM Studio、vLLM 或其他 loopback 本地模型。",
+        audience: "本地优先软件",
+        description: "把私密草稿路由到本地模型运行环境，保留在用户自己的机器边界内。",
         route: "local"
       },
       {
         key: "commerce",
         title: "电商后台动作",
-        audience: "Marketplace 运营",
+        audience: "市场运营",
         description: "把商品清理、客服摘要和活动文案按原生产品动作计量。",
         route: "platform"
       },
@@ -194,7 +248,7 @@ const copy = {
         key: "knowledge",
         title: "内部知识应用",
         audience: "企业团队",
-        description: "Hosted pilot 之前，先把租户 usage、成本和 audit trail 做清楚。",
+        description: "托管试点之前，先把租户用量、成本和审计轨迹做清楚。",
         route: "platform"
       }
     ] satisfies Scenario[],
@@ -202,19 +256,19 @@ const copy = {
       kicker: "交互式场景模型",
       title: "在同一个界面展示路由和收入。",
       body:
-        "切换路由模式和流量假设。BYOK 与本地模式保持显式收费：不会对用户自己的 provider 账单做隐藏 token markup。",
+        "切换路由模式和流量假设。自带密钥与本地模式保持显式收费：不会对用户自己的服务商账单做隐藏令牌加价。",
       users: "月活用户",
       requests: "每用户月请求",
-      input: "输入 tokens",
-      output: "输出 tokens",
-      cost: "每 1K tokens provider 成本",
-      markup: "Platform route markup",
+      input: "输入令牌",
+      output: "输出令牌",
+      cost: "每千令牌服务商成本",
+      markup: "平台路由加价",
       share: "开发者收入分成",
-      byokFee: "可见 BYOK gateway fee",
+      byokFee: "可见自带密钥网关费",
       localFee: "可见本地软件费",
       monthlyRequests: "月请求量",
-      monthlyTokens: "月 tokens",
-      providerCost: "Provider 成本",
+      monthlyTokens: "月令牌量",
+      providerCost: "服务商成本",
       endUserPrice: "用户支付价格",
       developerRevenue: "开发者收入",
       platformRevenue: "平台收入",
@@ -223,18 +277,19 @@ const copy = {
     boundary: {
       title: "安全边界就是产品的一部分。",
       items: [
-        "Provider API key 只能保存在服务端。",
-        "BYOK 必须有可见控制，不做隐藏 markup。",
-        "云端服务拒绝 localhost、metadata、link-local 和私有局域网 URL。",
-        "Developer token 按 developer_id 限制，并且只以 hash 存储。"
+        "服务商接口密钥只能保存在服务端。",
+        "自带密钥必须有可见控制，不做隐藏加价。",
+        "云端服务拒绝本机地址、元数据地址、链路本地地址和私有局域网地址。",
+        "开发者令牌按开发者编号隔离，并且只以哈希存储。"
       ]
     },
     cta: {
-      title: "从源码版本开始构建。",
-      body: "先本地运行，检查契约，再决定是否把 ModelFaucet 部署到自己的域名下。",
+      kicker: "公开官网",
+      title: "先核对源码测试版边界。",
+      body: "先本地运行并检查能力矩阵，只启用已经通过生产门禁的能力。",
       docs: "打开文档",
-      release: "查看 v1.2.0 Release",
-      domain: "自定义域名准备项：当 modelfaucet.aifund.com DNS 就绪后再添加 CNAME。"
+      release: "查看已发布版本",
+      domain: "自定义域名准备项：当 modelfaucet.aifund.com 的域名解析就绪后再添加域名别名记录。"
     }
   }
 } as const;
@@ -255,6 +310,47 @@ const defaultInput: ScenarioInput = {
 function withBase(path: string): string {
   const base = import.meta.env.BASE_URL;
   return `${base}${path.replace(/^\//, "")}`;
+}
+
+export function getInitialLocaleForPath(pathname: string): Locale {
+  return /(^|\/)zh(\/|$)/.test(pathname) ? "zh" : "en";
+}
+
+function getCurrentPathname(): string {
+  return typeof window === "undefined" ? "/" : window.location.pathname;
+}
+
+export function getRouteForPath(pathname: string): WebsiteRoute {
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.includes("demo")) {
+    return "demo";
+  }
+
+  if (segments.includes("use-cases")) {
+    return "use-cases";
+  }
+
+  return "home";
+}
+
+export function getLocalizedRoutePath(targetLocale: Locale, route: WebsiteRoute): string {
+  const pathByRoute = {
+    home: "",
+    "use-cases": "use-cases/",
+    demo: "demo/"
+  } satisfies Record<WebsiteRoute, string>;
+  const suffix = pathByRoute[route];
+
+  return targetLocale === "zh" ? `zh/${suffix}` : suffix;
+}
+
+export function getLocalePath(targetLocale: Locale, pathname: string): string {
+  return getLocalizedRoutePath(targetLocale, getRouteForPath(pathname));
+}
+
+function localeToHrefLang(locale: Locale): "en" | "zh-CN" {
+  return locale === "en" ? "en" : "zh-CN";
 }
 
 function NumberField({
@@ -289,32 +385,146 @@ function NumberField({
 }
 
 function App() {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>(() =>
+    getInitialLocaleForPath(getCurrentPathname())
+  );
+  const [route, setRoute] = useState<WebsiteRoute>(() => getRouteForPath(getCurrentPathname()));
   const [scenario, setScenario] = useState<ScenarioInput>(defaultInput);
   const text = copy[locale];
   const result = useMemo(() => calculateScenario(scenario), [scenario]);
   const activeRouteText = text.routes[scenario.routeMode];
+  const docsHref = locale === "en" ? withBase("quickstart") : withBase("zh-CN/quickstart");
+  const releaseHref = "https://github.com/HiClawBot/modelfaucet/releases";
+
+  function syncStateWithLocation() {
+    const nextPathname = getCurrentPathname();
+    setLocale(getInitialLocaleForPath(nextPathname));
+    setRoute(getRouteForPath(nextPathname));
+  }
+
+  function getRouteHref(nextRoute: WebsiteRoute, nextLocale = locale) {
+    return withBase(getLocalizedRoutePath(nextLocale, nextRoute));
+  }
+
+  function navigateWebsiteRoute(nextRoute: WebsiteRoute, nextLocale = locale) {
+    setLocale(nextLocale);
+    setRoute(nextRoute);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextPath = getRouteHref(nextRoute, nextLocale);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({ locale: nextLocale, route: nextRoute }, "", nextPath);
+    }
+    syncStateWithLocation();
+  }
+
+  function changeLocale(nextLocale: Locale) {
+    navigateWebsiteRoute(route, nextLocale);
+  }
+
+  function handleRouteClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    nextRoute: WebsiteRoute
+  ) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateWebsiteRoute(nextRoute);
+  }
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "en" ? "en" : "zh-CN";
+    document.title = text.meta.title;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", text.meta.description);
+  }, [locale, text.meta.description, text.meta.title]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    window.addEventListener("popstate", syncStateWithLocation);
+    return () => window.removeEventListener("popstate", syncStateWithLocation);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      if (route === "home") {
+        window.scrollTo({ top: 0 });
+        return;
+      }
+
+      document.getElementById(route)?.scrollIntoView({ block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [locale, route]);
 
   return (
     <main>
       <header className="site-header">
-        <a className="brand" href={withBase("")} aria-label="ModelFaucet home">
-          <img src={withBase("assets/modelfaucet-logo.png")} alt="ModelFaucet logo" />
-          <span>ModelFaucet</span>
+        <a
+          aria-label={text.homeLabel}
+          className="brand"
+          href={getRouteHref("home")}
+          onClick={(event) => handleRouteClick(event, "home")}
+        >
+          <img src={withBase("assets/modelfaucet-logo.svg")} alt={text.brandAlt} />
         </a>
-        <nav aria-label="Primary navigation">
-          <a href={withBase("use-cases/")}>{text.nav.cases}</a>
-          <a href={withBase("demo/")}>{text.nav.demo}</a>
-          <a href={withBase("quickstart")}>{text.nav.docs}</a>
+        <nav aria-label={text.aria.primaryNavigation}>
+          <a
+            aria-current={route === "use-cases" ? "page" : undefined}
+            href={getRouteHref("use-cases")}
+            onClick={(event) => handleRouteClick(event, "use-cases")}
+          >
+            {text.nav.cases}
+          </a>
+          <a
+            aria-current={route === "demo" ? "page" : undefined}
+            href={getRouteHref("demo")}
+            onClick={(event) => handleRouteClick(event, "demo")}
+          >
+            {text.nav.demo}
+          </a>
+          <a href={docsHref}>{text.nav.docs}</a>
           <a href="https://github.com/HiClawBot/modelfaucet">{text.nav.github}</a>
         </nav>
-        <button
-          className="language-toggle"
-          type="button"
-          onClick={() => setLocale(locale === "en" ? "zh" : "en")}
-        >
-          {locale === "en" ? "中文" : "English"}
-        </button>
+        <div className="language-tabs" role="tablist" aria-label={text.language.label}>
+          {supportedLocales.map((item) => (
+            <a
+              aria-selected={locale === item}
+              href={getRouteHref(route, item)}
+              hrefLang={localeToHrefLang(item)}
+              key={item}
+              onClick={(event) => {
+                event.preventDefault();
+                changeLocale(item);
+              }}
+              role="tab"
+              tabIndex={locale === item ? 0 : -1}
+            >
+              {text.language.names[item]}
+            </a>
+          ))}
+        </div>
       </header>
 
       <section className="hero">
@@ -323,44 +533,51 @@ function App() {
           <h1>{text.hero.title}</h1>
           <p>{text.hero.body}</p>
           <div className="hero-actions">
-            <a className="button primary" href={withBase("quickstart")}>
+            <a className="button primary" href={docsHref}>
               {text.hero.primary}
             </a>
-            <a className="button secondary" href={withBase("demo/")}>
+            <a
+              className="button secondary"
+              href={getRouteHref("demo")}
+              onClick={(event) => handleRouteClick(event, "demo")}
+            >
               {text.hero.secondary}
             </a>
           </div>
         </div>
 
-        <div className="route-board" aria-label="ModelFaucet route diagram">
+        <div className="route-board" aria-label={text.aria.routeDiagram}>
           <div className="route-board-top">
-            <span>app_pub_demo</span>
-            <strong>{routeModes.find((item) => item.key === scenario.routeMode)?.label}</strong>
+            <img src={withBase("assets/modelfaucet-mark.svg")} alt="" aria-hidden="true" />
+            <div>
+              <span>{text.routeBoardId}</span>
+              <strong>{text.routeLabels[scenario.routeMode]}</strong>
+            </div>
           </div>
           <div className="route-lanes">
-            {["App", "SDK", "Gateway", "Policy", "Ledger"].map((item, index) => (
+            {text.laneLabels.map((item, index) => (
               <div className="lane" key={item} style={{ "--index": index } as React.CSSProperties}>
                 <span>{item}</span>
               </div>
             ))}
           </div>
           <p>{activeRouteText}</p>
-          <div className="route-modes" role="tablist" aria-label="Route modes">
-            {routeModes.map((item) => (
+          <div className="route-modes" role="tablist" aria-label={text.aria.routeModes}>
+            {routeModeKeys.map((item) => (
               <button
-                aria-selected={scenario.routeMode === item.key}
-                key={item.key}
+                aria-selected={scenario.routeMode === item}
+                key={item}
                 type="button"
-                onClick={() => setScenario((current) => ({ ...current, routeMode: item.key }))}
+                onClick={() => setScenario((current) => ({ ...current, routeMode: item }))}
               >
-                {item.label}
+                {text.routeLabels[item]}
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="proof-grid" aria-label="Project proof points">
+      <section className="proof-grid" aria-label={text.aria.proofPoints}>
         {text.proof.map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -389,7 +606,7 @@ function App() {
               type="button"
               onClick={() => setScenario((current) => ({ ...current, routeMode: item.route }))}
             >
-              {routeModes.find((mode) => mode.key === item.route)?.label}
+              {text.routeLabels[item.route]}
             </button>
           </article>
         ))}
@@ -401,14 +618,14 @@ function App() {
           <h2>{text.model.title}</h2>
           <p>{text.model.body}</p>
           <div className="mode-stack">
-            {routeModes.map((item) => (
+            {routeModeKeys.map((item) => (
               <button
-                className={scenario.routeMode === item.key ? "active" : ""}
-                key={item.key}
+                className={scenario.routeMode === item ? "active" : ""}
+                key={item}
                 type="button"
-                onClick={() => setScenario((current) => ({ ...current, routeMode: item.key }))}
+                onClick={() => setScenario((current) => ({ ...current, routeMode: item }))}
               >
-                {item.label}
+                {text.routeLabels[item]}
               </button>
             ))}
           </div>
@@ -537,18 +754,18 @@ function App() {
 
       <section className="final-cta">
         <div>
-          <p className="eyebrow">GitHub Pages</p>
+          <p className="eyebrow">{text.cta.kicker}</p>
           <h2>{text.cta.title}</h2>
           <p>{text.cta.body}</p>
           <small>{text.cta.domain}</small>
         </div>
         <div className="cta-actions">
-          <a className="button primary" href={withBase("quickstart")}>
+          <a className="button primary" href={docsHref}>
             {text.cta.docs}
           </a>
           <a
             className="button secondary"
-            href="https://github.com/HiClawBot/modelfaucet/releases/tag/v1.2.0"
+            href={releaseHref}
           >
             {text.cta.release}
           </a>

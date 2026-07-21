@@ -1,0 +1,1 @@
+window.MODELFAUCET_CONFIG = {};

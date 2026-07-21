@@ -9,18 +9,21 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm verify:secrets` reports no high-confidence raw secrets.
 - `pnpm ga:verify` passes for a source GA release.
 - `pnpm hosted:verify-env` passes with the target hosted environment variables or with CI-safe placeholders for source validation.
+- `pnpm container:verify` passes for container publishing configuration.
 - `pnpm security:audit` reports no high-severity production dependency advisories.
 - `pnpm lint` passes.
 - `pnpm typecheck` passes.
-- `pnpm test` passes.
-- `pnpm smoke:local` passes against a seeded local PostgreSQL database.
-- `pnpm hosted:check-isolation` passes against a freshly migrated and seeded PostgreSQL database.
+- `DATABASE_URL=... pnpm test` passes with PostgreSQL tests executed (not skipped or cached).
+- `pnpm smoke:local:production` passes against a fresh seeded local PostgreSQL database.
+- `pnpm hosted:check-isolation` passes against the freshly migrated and seeded CI test database; hosted staging/production is never demo-seeded.
+- `pnpm hosted:check-operations` reports zero wallet, ledger, reservation, review, and app-policy failures.
 - `pnpm --filter @modelfaucet/dashboard build` passes.
 - `pnpm --filter crm-demo build` passes.
 - `pnpm website:build` passes.
 - `pnpm docs:build` passes.
 - `pnpm pages:build` passes and preserves the website root plus existing docs paths.
-- `pnpm db:migrate` and `pnpm db:seed` have been run against a fresh PostgreSQL database.
+- `pnpm db:migrate`, `pnpm db:seed`, and `pnpm db:verify-migrations` have been run against a fresh PostgreSQL database.
+- `pnpm db:backup` and `pnpm db:restore:verify` pass against a disposable restore database.
 - `pnpm compose:verify` validates default and hosted Compose configs on a Docker-capable machine.
 - README quickstart still matches the repository scripts and ports.
 - Provider API keys are only documented as server-side environment variables.
@@ -29,6 +32,7 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - BYOK flows expose visible user controls and no hidden markup or hidden fees.
 - Cloud services are not configured to access localhost, loopback, link-local, or private LAN URLs.
 - Production deployments set explicit `API_CORS_ORIGINS` and `GATEWAY_CORS_ORIGINS`.
+- Hosted API and Gateway deployments set server-side `REDIS_URL` for distributed rate limits.
 
 ## Source GA release
 
@@ -37,6 +41,8 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - Production reference architecture is published.
 - Governance, maintainership, support policy, release cadence, and security intake are published.
 - Package and container publishing strategy is decided and documented.
+- Container image workflow builds API, Gateway, and Dashboard images, and only pushes on release tags.
+- Tagged images have provenance attestations and pass a fresh GHCR digest pull/run smoke; the three digest-reference artifacts are retained with the release evidence.
 - Hosted production blockers are explicitly documented instead of treated as completed source checks.
 
 ## Hosted production release
@@ -45,14 +51,20 @@ Use this checklist before tagging a prerelease, publishing packages, or deployin
 - `pnpm hosted:verify-env` passes with `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic.
 - `pnpm hosted:verify-env` passes with `REQUIRE_HOSTED_STRIPE=1` before hosted Stripe top-ups.
 - `pnpm hosted:smoke-readiness` passes against the hosted API and Gateway public URLs.
+- The readiness smoke uses `MODELFAUCET_METRICS_TOKEN` and confirms authenticated API/Gateway metrics plus provider health.
+- With explicit billing approval, `pnpm hosted:smoke-canary` verifies the real-provider golden path and idempotent replay; its request ID is reconciled with the ledger and provider bill.
+- The 60-minute `pnpm hosted:soak` acceptance profile passes and its non-overwriting JSON report is retained.
 - `pnpm hosted:check-isolation` passes against the hosted beta database after migration.
+- `pnpm hosted:check-operations` passes against the hosted beta database and exports scheduled invariant metrics.
 - A real LiteLLM test route has been verified with a test provider key stored only in server-side environment or secret manager configuration.
-- Stripe Checkout has been verified in test mode with a real test card.
-- Stripe webhook delivery has been verified with Stripe CLI or hosted webhook delivery.
+- Stripe routes return `404 feature_disabled`; before any later Stripe enablement, verify Checkout and webhook delivery in test mode.
 - Production `SECRET_ENCRYPTION_KEY`, JWT secret, admin tokens, and provider secrets are provisioned through KMS, Vault, or a cloud secret manager.
 - Database backups, migrations, retention, and restore procedures have been documented for the deployment target.
+- An independent managed-database restore has passed migration/invariant checks and its evidence is recorded.
+- Every rule in `infra/monitoring/prometheus-alerts.yml` is loaded, routed, and test-fired.
 - Rate limits, request body limits, and gateway timeout values have been reviewed for the deployment target.
-- Payout workflow has been reviewed before enabling any real-money settlement.
+- Redis-backed rate limits have been verified for multi-instance API and Gateway deployments.
+- Payout routes return `404 feature_disabled`; the workflow must be reviewed before any later real-money settlement.
 - GitHub, npm, container registry, domain, and trademark namespace checks are complete.
 - Public support, abuse, security, and maintainer contact paths are published.
 

@@ -9,6 +9,7 @@ export const developerScopes = [
   "developer:features:read",
   "developer:features:write",
   "developer:operations:read",
+  "developer:usage:read",
   "developer:provider_keys:read",
   "developer:provider_keys:write",
   "developer:tokens:read",

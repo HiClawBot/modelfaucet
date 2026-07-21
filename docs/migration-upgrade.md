@@ -22,7 +22,7 @@ For a hosted environment, also run:
 
 ```bash
 pnpm hosted:verify-env
-pnpm hosted:smoke-readiness
+MODELFAUCET_METRICS_TOKEN="$METRICS_TOKEN" pnpm hosted:smoke-readiness
 ```
 
 Set `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic and `REQUIRE_HOSTED_STRIPE=1` before hosted Stripe top-ups.
@@ -34,6 +34,31 @@ Set `REQUIRE_HOSTED_PROVIDER=1` before real provider traffic and `REQUIRE_HOSTED
 - Confirm Dashboard bundles are not built with developer tokens or developer admin tokens.
 - Confirm database backup and restore have been tested for the deployment target.
 - Confirm incident contacts are current.
+
+## Upgrade To `1.3.0-beta.1`
+
+`1.3.0-beta.1` adds deployment-release checks, Redis-backed distributed rate limits, container publishing automation, and ordered `schema_migrations` metadata.
+
+Before promotion:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:migrate
+pnpm db:verify-migrations
+pnpm hosted:verify-env
+pnpm compose:verify
+pnpm container:verify
+pnpm smoke:local
+```
+
+For hosted API and Gateway instances, set `REDIS_URL` to a server-side Redis or Redis-compatible endpoint. Do not expose `REDIS_URL`, provider API keys, developer tokens, or developer admin tokens through browser-visible Vite environment variables.
+
+Container images are built by `.github/workflows/container-images.yml` for
+`v*.*.*` tags and are published to GHCR only on tag builds. The workflow emits
+one `name@sha256` artifact per service, records build provenance, pulls the
+published digest back from GHCR, and runs the production image smoke against
+that digest. Copy those three references into the hosted environment; do not
+deploy the tag itself.
 
 ## Rollback
 
