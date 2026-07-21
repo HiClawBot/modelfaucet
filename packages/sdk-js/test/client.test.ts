@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFaucet, sdkPackage, type FaucetOptions, type FetchLike } from "../src/index";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -71,7 +71,9 @@ describe("createFaucet", () => {
     );
     const result = await faucet.chat({
       feature: "customer_reply",
-      input: { ticket_text: "Late shipment" }
+      input: { ticket_text: "Late shipment" },
+      maxTokens: 256,
+      idempotencyKey: "idem_sdk_customer_reply_1"
     });
 
     expect(result).toMatchObject({
@@ -79,10 +81,12 @@ describe("createFaucet", () => {
     });
     expect(String(calls[1]?.input)).toBe("https://gateway.example/v1/chat/completions");
     expect(calls[1]?.init?.headers).toMatchObject({
-      authorization: "Bearer mf_sess_sdk"
+      authorization: "Bearer mf_sess_sdk",
+      "idempotency-key": "idem_sdk_customer_reply_1"
     });
     expect(JSON.parse(String(calls[1]?.init?.body))).toMatchObject({
       model: "auto:customer_reply",
+      max_tokens: 256,
       metadata: { feature_key: "customer_reply" }
     });
   });
@@ -177,7 +181,7 @@ describe("createFaucet", () => {
       jsonResponse({
         ok: true,
         version: "0.1.0",
-        listening: "127.0.0.1:8787"
+        listening: "127.0.0.1:3287"
       });
     const faucet = createFaucet(
       {
@@ -189,18 +193,18 @@ describe("createFaucet", () => {
 
     await expect(faucet.local.detectBridge()).resolves.toEqual({
       available: true,
-      baseUrl: "http://127.0.0.1:8787",
+      baseUrl: "http://127.0.0.1:3287",
       health: {
         ok: true,
         version: "0.1.0",
-        listening: "127.0.0.1:8787"
+        listening: "127.0.0.1:3287"
       }
     });
   });
 
   it("lists local bridge models", async () => {
     const fetchImpl: FetchLike = async (input) => {
-      expect(String(input)).toBe("http://127.0.0.1:8787/models");
+      expect(String(input)).toBe("http://127.0.0.1:3287/models");
       return jsonResponse({
         items: [
           {
@@ -238,7 +242,7 @@ describe("createFaucet", () => {
         return jsonResponse({
           ok: true,
           version: "0.1.0",
-          listening: "127.0.0.1:8787"
+          listening: "127.0.0.1:3287"
         });
       }
 
@@ -263,7 +267,7 @@ describe("createFaucet", () => {
 
     await expect(faucet.local.diagnose()).resolves.toMatchObject({
       available: true,
-      baseUrl: "http://127.0.0.1:8787",
+      baseUrl: "http://127.0.0.1:3287",
       models: [
         {
           id: "ollama:qwen2.5:7b"
@@ -315,7 +319,7 @@ describe("createFaucet", () => {
         feature_key: "customer_reply"
       }
     });
-    expect(String(calls[0]?.input)).toBe("http://127.0.0.1:8787/v1/chat/completions");
+    expect(String(calls[0]?.input)).toBe("http://127.0.0.1:3287/v1/chat/completions");
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
       model: "ollama:qwen2.5:7b",
       metadata: {
@@ -323,7 +327,7 @@ describe("createFaucet", () => {
         route_mode: "local"
       }
     });
-    expect(String(calls[1]?.input)).toBe("http://127.0.0.1:8787/usage/report");
+    expect(String(calls[1]?.input)).toBe("http://127.0.0.1:3287/usage/report");
     expect(JSON.parse(String(calls[1]?.init?.body))).toMatchObject({
       app_id: "app_pub_demo",
       end_user_id_hash:
@@ -336,6 +340,53 @@ describe("createFaucet", () => {
       output_tokens: 3
     });
     expect(calls.some((call) => String(call.input).endsWith("/v1/sessions"))).toBe(false);
+  });
+
+  it("does not expose the raw user ID when Web Crypto is unavailable", async () => {
+    const reports: Record<string, unknown>[] = [];
+    const rawUserId = "private-user@example.com";
+    const fetchImpl: FetchLike = async (input, init) => {
+      if (String(input).endsWith("/v1/chat/completions")) {
+        return jsonResponse({
+          id: "chatcmpl_local",
+          object: "chat.completion",
+          model: "qwen2.5:7b",
+          choices: [{ message: { role: "assistant", content: "local ok" } }],
+          usage: {
+            prompt_tokens: 5,
+            completion_tokens: 3,
+            total_tokens: 8
+          }
+        });
+      }
+
+      reports.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return jsonResponse({ ok: true });
+    };
+
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const faucet = createFaucet(
+        {
+          publicAppId: "app_pub_demo",
+          user: { id: rawUserId }
+        },
+        { fetch: fetchImpl, now: () => 0 }
+      );
+
+      await faucet.chat({
+        feature: "customer_reply",
+        input: "hello",
+        model: "ollama:qwen2.5:7b",
+        routeMode: "local"
+      });
+
+      expect(reports).toHaveLength(1);
+      expect(reports[0]?.end_user_id_hash).toBe("sha256-unavailable");
+      expect(JSON.stringify(reports[0])).not.toContain(rawUserId);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("queues local usage reports when reporting is temporarily unavailable", async () => {

@@ -19,9 +19,9 @@ Context: Customer is on the Pro plan. Their first payment succeeded, and the sec
 Tone: concise, empathetic, and specific.`;
 
 const API_BASE_URL =
-  import.meta.env.VITE_MODELFAUCET_API_BASE_URL ?? "http://localhost:3001";
+  import.meta.env.VITE_MODELFAUCET_API_BASE_URL ?? "http://localhost:3201";
 const GATEWAY_BASE_URL =
-  import.meta.env.VITE_MODELFAUCET_GATEWAY_BASE_URL ?? "http://localhost:3002/v1";
+  import.meta.env.VITE_MODELFAUCET_GATEWAY_BASE_URL ?? "http://localhost:3202/v1";
 
 function readChoiceText(result: Record<string, unknown>): string {
   const choices = result.choices;

@@ -23,7 +23,7 @@ For platform cloud routing, put a real test provider key in `.env` before using 
 OPENAI_API_KEY=<your-test-key>
 ```
 
-Do not commit `.env`. Provider API keys must stay server-side. Without a provider key, use BYOK or the Local Bridge for end-to-end model calls.
+Do not commit `.env`. Provider API keys must stay server-side. Without a provider key, the hosted Beta platform route cannot make an end-to-end model call. BYOK and Local Bridge remain out of the first hosted Beta scope; see the capability matrix.
 
 ## SDK example
 
@@ -46,8 +46,8 @@ const result = await faucet.chat({
 ## Expected behavior
 
 - The SDK creates a short-lived session token.
-- The Gateway routes to the platform provider pool, BYOK credential, developer key, or Local Bridge according to policy.
-- The response streams back to the app.
+- The first hosted Beta routes a non-streaming request to the configured platform provider.
+- A normal JSON Chat Completions response returns to the app.
 - `usage_events` receives a row.
 - `ledger_entries` records user debit, provider cost, developer revenue, and platform revenue.
 - The developer dashboard shows usage and revenue.

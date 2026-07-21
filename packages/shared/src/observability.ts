@@ -19,6 +19,7 @@ export type RateLimitResult = {
 
 export type RateLimiter = {
   check(key: string, nowMs: number): RateLimitResult | Promise<RateLimitResult>;
+  checkHealth?: () => void | Promise<void>;
   close?: () => void | Promise<void>;
 };
 
@@ -119,6 +120,8 @@ export class InMemoryRateLimiter implements RateLimiter {
     private readonly maxRequests: number,
     private readonly windowMs: number
   ) {}
+
+  checkHealth(): void {}
 
   check(key: string, nowMs: number): RateLimitResult {
     if (this.maxRequests <= 0) {

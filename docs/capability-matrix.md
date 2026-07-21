@@ -1,0 +1,57 @@
+# Capability matrix
+
+Updated: 2026-07-21
+
+Target: `v1.3.0-beta.1`
+
+Scope: invite-only hosted Beta
+
+This page is the source of truth for what ModelFaucet implements, what has been
+verified, and what an invite-only Beta may expose. Product pages, API docs, and
+release notes must not claim a stronger state than this matrix.
+
+## Status definitions
+
+- **Implemented**: a working code path exists in this repository.
+- **Locally verified**: automated tests or a local smoke path exercise it.
+- **Staging verified**: the production build has exercised the path with real
+  managed dependencies and, where relevant, a real provider.
+- **Beta enabled**: the capability is allowed in the invite-only hosted Beta.
+- **Disabled**: the code may exist, but production configuration must make it
+  unavailable.
+
+## Current matrix
+
+| Capability | Implementation | Verification | Beta exposure | Current boundary |
+| --- | --- | --- | --- | --- |
+| Short-lived session broker | Implemented | Unit, PostgreSQL origin-policy, session-rate, and production-stack smoke | Planned enabled after managed staging | Hosted mode requires an active app, exact HTTPS origin, and app/session spend limits; session creation is app+IP rate limited. |
+| Non-streaming `/v1/chat/completions` | Implemented | Unit, 100-request PostgreSQL concurrency, and production mock-provider smoke | Planned enabled | Required idempotency key, local production entrypoint, reservation, replay, and ledger gates pass; real-provider managed staging remains. |
+| Streaming chat completions | Explicitly rejected | Rejection tests | Disabled | `stream: true` returns `invalid_request`. |
+| `/v1/responses` | Not implemented | None | Disabled | Roadmap only. |
+| `/v1/embeddings` | Not implemented | None | Disabled | Roadmap only. |
+| Platform provider route through LiteLLM | Implemented | Mock-provider smoke | Planned enabled | One provider and 1–2 server-side allowlisted models only; real-provider staging is not yet complete. |
+| BYOK route | Partially implemented | Unit tests | Disabled | Budget enforcement, SSRF/DNS controls, policy enforcement, and staging evidence are incomplete. |
+| Developer-key route | Partially implemented | Unit and PostgreSQL budget-reservation tests | Disabled | Budget is reserved before provider execution, but client metadata can still influence routing and the route is outside first Beta scope. |
+| Usage rating and ledger | Reservation/settlement state machine implemented | PostgreSQL concurrency/idempotency/failure tests and production mock-provider reconciliation | Planned enabled after managed staging | Provider calls run outside DB transactions; 100-way low-balance contention, server model/token/price policy, available-balance reservations, replay, budget rejection, and review states pass locally. |
+| Developer API tokens | Implemented | Unit tests | Operator use only | Scoped, expiring, revocable, hash-only tokens exist; self-service login is not part of the first Beta. |
+| Usage Dashboard | Implemented UI and API | Unit, build, and runtime smoke | Operator/pilot read-only | Usage requires owner-scoped `developer:usage:read`; opaque pagination is enforced; tokens are entered by the operator and kept only in `sessionStorage`. |
+| Stripe checkout/webhook | Partially implemented | Unit and replay utilities | Disabled | Raw-body signature verification and complete staging webhook validation are required before use. |
+| Payout workflow | Mock/operator workflow | Unit tests | Disabled | No real payout rail, KYC, tax, or automated settlement. |
+| Local Bridge | Experimental implementation | Go tests and local diagnostics | Disabled | Browser CORS, durable reporting, device authorization, and cloud reconciliation are incomplete. |
+| JavaScript/React SDK distribution | Source packages only | Unit tests | Internal/pilot source use only | Packages are private and do not yet provide a supported public npm release. |
+| Database migration system | Ordered manifest, advisory lock, and SHA-256 verification implemented | Fresh/repeat migrations, idempotent zero-credit bootstrap, custom backup and independent restore drill on PostgreSQL 16 | Pending managed staging evidence | Demo seed is development/CI-only; managed backup retention/PITR remain environment gates. |
+| Redis rate limiting | Atomic fixed-window implementation | Unit tests including lost-expiry repair and trusted-proxy/session buckets | Planned enabled | Production requires Redis; route-pattern labels are bounded and hosted proxy hops are explicit. |
+| Metrics and readiness | Implemented | Unit tests plus local production-stack smoke | Planned enabled after managed staging | Metrics require a bearer token; readiness actively checks DB/Redis/provider with sanitized 503 responses. Metrics remain process-local and need an external scraper. |
+| Container publishing | Multi-stage non-root images and workflow implemented | Deploy-directory runtime smoke and static verification | Pending Docker-capable CI | Local machine has no Docker; image build/run/health gate is defined but still needs a successful CI run. |
+| Hosted production environment | Reference Compose, env contract, alerts, backup/restore and rollback runbooks implemented | Static config gates and a local PostgreSQL restore drill | Blocked pending managed staging | Managed DB/Redis, TLS, secret manager, registry digest, alert firing, real-provider smoke, soak, and rollback timing are external gates. |
+
+## Invite-only Beta contract
+
+The first hosted Beta is limited to short-lived sessions, non-streaming chat
+completions, a single platform provider route, server-side model/price policy,
+usage and ledger recording, operator-managed trial credits, and protected
+owner-scoped usage views. BYOK, developer-key routing, Local Bridge, payment,
+payout, streaming, Responses, and Embeddings must be disabled in production.
+
+The repository-root `BETA_READINESS_PLAN.md` maintains the Go/No-Go criteria
+and execution order.

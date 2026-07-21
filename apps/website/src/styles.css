@@ -86,12 +86,12 @@ main {
     border-color 180ms ease;
 }
 
-.site-header nav a:hover {
+.site-header nav a:hover,
+.site-header nav a[aria-current="page"] {
   color: #0b1d3a;
   border-color: #2563ff;
 }
 
-.language-toggle,
 .button,
 .route-modes button,
 .mode-stack button,
@@ -105,7 +105,6 @@ main {
     border-color 180ms ease;
 }
 
-.language-toggle:active,
 .button:active,
 .route-modes button:active,
 .mode-stack button:active,
@@ -113,12 +112,32 @@ main {
   transform: translateY(1px) scale(0.99);
 }
 
-.language-toggle {
-  padding: 9px 12px;
-  color: #0b1d3a;
-  background: transparent;
+.language-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(11, 29, 58, 0.18);
+  border-radius: 8px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.language-tabs a {
+  min-width: 74px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #59667a;
   font-size: 13px;
   font-weight: 850;
+  text-align: center;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.language-tabs a[aria-selected="true"] {
+  color: #ffffff;
+  background: #0b1d3a;
 }
 
 .hero {
@@ -554,6 +573,16 @@ p {
 @media (max-width: 640px) {
   .brand img {
     width: 132px;
+  }
+
+  .language-tabs {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .language-tabs a {
+    flex: 1;
+    min-width: 0;
   }
 
   .hero {

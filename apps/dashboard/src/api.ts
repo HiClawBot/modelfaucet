@@ -52,6 +52,9 @@ export type DeveloperAppSummary = {
   name: string;
   vertical?: string;
   default_revenue_share_bps: number;
+  allowed_origins: string[];
+  monthly_spend_limit_usd?: string;
+  session_spend_limit_usd?: string;
   status: string;
   developer_id: string;
   developer_name: string;
@@ -65,11 +68,23 @@ export type SaveDeveloperAppInput = {
   name: string;
   vertical?: string;
   default_revenue_share_bps: number;
+  allowed_origins: string[];
+  monthly_spend_limit_usd: string;
+  session_spend_limit_usd: string;
   status: "active" | "disabled";
 };
 
 export type UpdateDeveloperAppInput = Partial<
-  Pick<SaveDeveloperAppInput, "name" | "vertical" | "default_revenue_share_bps" | "status">
+  Pick<
+    SaveDeveloperAppInput,
+    | "name"
+    | "vertical"
+    | "default_revenue_share_bps"
+    | "allowed_origins"
+    | "monthly_spend_limit_usd"
+    | "session_spend_limit_usd"
+    | "status"
+  >
 >;
 
 export type DeveloperFeatureSummary = {
@@ -147,9 +162,26 @@ export type DeveloperOperationsSummary = {
   audit_logs: DeveloperAuditLogSummary[];
 };
 
-export const DEFAULT_PUBLIC_APP_ID = "app_pub_demo";
+declare global {
+  interface Window {
+    MODELFAUCET_CONFIG?: {
+      apiBaseUrl?: string;
+      publicAppId?: string;
+    };
+  }
+}
+
+const runtimeConfig =
+  typeof window === "undefined" ? undefined : window.MODELFAUCET_CONFIG;
+
+export const DEFAULT_PUBLIC_APP_ID =
+  runtimeConfig?.publicAppId?.trim() ||
+  import.meta.env.VITE_MODELFAUCET_PUBLIC_APP_ID ||
+  (import.meta.env.DEV ? "app_pub_demo" : "");
 export const DEFAULT_API_BASE_URL =
-  import.meta.env.VITE_MODELFAUCET_API_BASE_URL ?? "http://localhost:3001";
+  runtimeConfig?.apiBaseUrl?.trim() ||
+  import.meta.env.VITE_MODELFAUCET_API_BASE_URL ||
+  (import.meta.env.DEV ? "http://localhost:3201" : "");
 export const DEFAULT_DEVELOPER_TOKEN =
   import.meta.env.VITE_MODELFAUCET_DEVELOPER_TOKEN ??
   import.meta.env.VITE_MODELFAUCET_DEVELOPER_ADMIN_TOKEN ?? "";
@@ -183,10 +215,17 @@ function parseItems<T>(body: unknown): T[] {
 export async function fetchUsageDashboard(
   fetcher: FetchLike = fetch,
   apiBaseUrl = DEFAULT_API_BASE_URL,
-  publicAppId = DEFAULT_PUBLIC_APP_ID
+  publicAppId = DEFAULT_PUBLIC_APP_ID,
+  developerToken = DEFAULT_DEVELOPER_TOKEN
 ): Promise<UsageDashboardSummary> {
+  const token = requireDeveloperAdminToken(developerToken);
   const response = await fetcher(
-    `${apiBaseUrl.replace(/\/$/, "")}/v1/apps/${publicAppId}/usage`
+    `${apiBaseUrl.replace(/\/$/, "")}/v1/apps/${publicAppId}/usage`,
+    {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    }
   );
   if (!response.ok) {
     throw new Error(`Dashboard request failed with status ${response.status}`);

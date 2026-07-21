@@ -162,6 +162,7 @@ export const ChatCompletionRequestSchema = z
     model: z.string().min(1).max(256),
     messages: z.array(ChatMessageSchema).min(1),
     stream: z.boolean().optional().default(false),
+    max_tokens: z.number().int().min(1).max(65536).optional(),
     metadata: MetadataSchema.optional()
   })
   .strict();

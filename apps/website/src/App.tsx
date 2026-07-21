@@ -7,7 +7,10 @@ import {
   type ScenarioInput
 } from "./model";
 
-type Locale = "en" | "zh";
+export const supportedLocales = ["en", "zh"] as const;
+type Locale = (typeof supportedLocales)[number];
+export const websiteRouteKeys = ["home", "use-cases", "demo"] as const;
+export type WebsiteRoute = (typeof websiteRouteKeys)[number];
 
 type Scenario = {
   key: string;
@@ -24,11 +27,17 @@ export const copy = {
     meta: {
       title: "ModelFaucet",
       description:
-        "ModelFaucet turns apps into AI distribution channels with gateway routing, user-supplied keys, local models, usage ledger, and revenue sharing."
+        "ModelFaucet is building an invite-only source Beta for platform-routed, non-streaming chat completions with short-lived sessions and a usage ledger."
     },
     homeLabel: "ModelFaucet home",
     brandAlt: "ModelFaucet logo",
-    languageSwitch: "Chinese",
+    language: {
+      label: "Language",
+      names: {
+        en: "English",
+        zh: "Chinese"
+      }
+    },
     routeBoardId: "app_pub_demo",
     aria: {
       primaryNavigation: "Primary navigation",
@@ -49,21 +58,21 @@ export const copy = {
     } satisfies Record<RouteMode, string>,
     laneLabels: ["App", "SDK", "Gateway", "Policy", "Ledger"],
     hero: {
-      kicker: "Open-source AI distribution layer",
+      kicker: "Open-source AI distribution Beta",
       title: "Turn software products into AI channels.",
-      body: "ModelFaucet gives apps a gateway, SDK, user-supplied key path, local model path, usage ledger, and revenue sharing contract without putting provider keys in client code.",
+      body: "The current Beta scope focuses on short-lived sessions, platform-routed non-streaming chat completions, and a usage ledger. BYOK, Local Bridge, payments, and additional OpenAI-compatible endpoints remain disabled until their production gates pass.",
       primary: "Run the quickstart",
       secondary: "Model the economics"
     },
     proof: [
-      ["Source GA", "Stable 1.x contracts"],
+      ["Source Beta", "Non-streaming chat scope"],
       ["Tenant auth", "Scoped mf_dev tokens"],
-      ["Safety", "Cloud URLs reject private networks"]
+      ["Release gate", "Real staging still required"]
     ],
     routes: {
       platform: "ModelFaucet pays the provider, meters usage, and splits the explicit margin.",
-      byok: "The user pays their own provider. ModelFaucet can charge only a visible gateway or product fee.",
-      local: "Sensitive work stays in the user's local boundary through Local Bridge."
+      byok: "Roadmap mode: the user pays their own provider and any gateway or product fee must stay visible.",
+      local: "Roadmap mode: sensitive work stays in the user's local boundary through Local Bridge."
     },
     casesTitle: "Where it fits",
     casesBody:
@@ -143,11 +152,11 @@ export const copy = {
     },
     cta: {
       kicker: "GitHub Pages",
-      title: "Build with the source release.",
+      title: "Review the source Beta boundary.",
       body:
-        "Start locally, inspect the contracts, then decide whether to run ModelFaucet under your own domain.",
+        "Start locally, inspect the capability matrix, and only enable the production surface whose gates have passed.",
       docs: "Open docs",
-      release: "View v1.3.0 release",
+      release: "View published releases",
       domain: "Custom domain ready: add DNS and a CNAME when modelfaucet.aifund.com is prepared."
     }
   },
@@ -155,11 +164,17 @@ export const copy = {
     meta: {
       title: "ModelFaucet 中文官网",
       description:
-        "ModelFaucet 把应用变成智能模型分发渠道，提供网关路由、自带密钥、本地模型、用量账本和收入分成。"
+        "ModelFaucet 正在建设受邀制源码测试版，当前范围是平台路由、非流式对话、短期会话和用量账本。"
     },
     homeLabel: "ModelFaucet 中文首页",
     brandAlt: "ModelFaucet 标志",
-    languageSwitch: "英文版",
+    language: {
+      label: "语言",
+      names: {
+        en: "英语",
+        zh: "中文"
+      }
+    },
     routeBoardId: "应用编号示例",
     aria: {
       primaryNavigation: "主导航",
@@ -180,22 +195,22 @@ export const copy = {
     } satisfies Record<RouteMode, string>,
     laneLabels: ["应用", "开发包", "网关", "策略", "账本"],
     hero: {
-      kicker: "开源智能模型分发层",
+      kicker: "开源智能模型分发测试版",
       title: "让软件产品变成智能模型渠道。",
       body:
-        "ModelFaucet 给应用提供网关、开发包、自带密钥、本地模型路径、用量账本和收入分成契约，同时不把服务商密钥放进客户端。",
+        "当前测试版只聚焦短期会话、平台路由的非流式对话和用量账本。自带密钥、本地桥接、支付及更多兼容接口会在各自生产门禁通过后再启用。",
       primary: "运行快速开始",
       secondary: "计算场景收益"
     },
     proof: [
-      ["源码正式可用", "稳定一系契约"],
+      ["源码测试版", "非流式对话范围"],
       ["租户认证", "按开发者限定的令牌"],
-      ["安全边界", "云端地址拒绝私有网络"]
+      ["发布门禁", "仍需真实环境验证"]
     ],
     routes: {
       platform: "ModelFaucet 支付服务商成本，记录用量，并按显式毛利分成。",
-      byok: "用户支付自己的服务商账单。ModelFaucet 只能收取可见网关费或产品费。",
-      local: "敏感任务通过本地桥接留在用户本地边界内。"
+      byok: "路线图模式：用户支付自己的服务商账单，所有网关费或产品费必须保持可见。",
+      local: "路线图模式：敏感任务通过本地桥接留在用户本地边界内。"
     },
     casesTitle: "适合哪些产品",
     casesBody:
@@ -270,10 +285,10 @@ export const copy = {
     },
     cta: {
       kicker: "公开官网",
-      title: "从源码版本开始构建。",
-      body: "先本地运行，检查契约，再决定是否把 ModelFaucet 部署到自己的域名下。",
+      title: "先核对源码测试版边界。",
+      body: "先本地运行并检查能力矩阵，只启用已经通过生产门禁的能力。",
       docs: "打开文档",
-      release: "查看 1.3.0 版本",
+      release: "查看已发布版本",
       domain: "自定义域名准备项：当 modelfaucet.aifund.com 的域名解析就绪后再添加域名别名记录。"
     }
   }
@@ -305,21 +320,37 @@ function getCurrentPathname(): string {
   return typeof window === "undefined" ? "/" : window.location.pathname;
 }
 
-function getRouteSuffix(pathname: string): "" | "demo/" | "use-cases/" {
-  if (pathname.includes("/demo/")) {
-    return "demo/";
+export function getRouteForPath(pathname: string): WebsiteRoute {
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.includes("demo")) {
+    return "demo";
   }
 
-  if (pathname.includes("/use-cases/")) {
-    return "use-cases/";
+  if (segments.includes("use-cases")) {
+    return "use-cases";
   }
 
-  return "";
+  return "home";
 }
 
-function getLocalePath(targetLocale: Locale, pathname: string): string {
-  const suffix = getRouteSuffix(pathname);
+export function getLocalizedRoutePath(targetLocale: Locale, route: WebsiteRoute): string {
+  const pathByRoute = {
+    home: "",
+    "use-cases": "use-cases/",
+    demo: "demo/"
+  } satisfies Record<WebsiteRoute, string>;
+  const suffix = pathByRoute[route];
+
   return targetLocale === "zh" ? `zh/${suffix}` : suffix;
+}
+
+export function getLocalePath(targetLocale: Locale, pathname: string): string {
+  return getLocalizedRoutePath(targetLocale, getRouteForPath(pathname));
+}
+
+function localeToHrefLang(locale: Locale): "en" | "zh-CN" {
+  return locale === "en" ? "en" : "zh-CN";
 }
 
 function NumberField({
@@ -354,16 +385,64 @@ function NumberField({
 }
 
 function App() {
-  const pathname = getCurrentPathname();
-  const locale = getInitialLocaleForPath(pathname);
+  const [locale, setLocale] = useState<Locale>(() =>
+    getInitialLocaleForPath(getCurrentPathname())
+  );
+  const [route, setRoute] = useState<WebsiteRoute>(() => getRouteForPath(getCurrentPathname()));
   const [scenario, setScenario] = useState<ScenarioInput>(defaultInput);
   const text = copy[locale];
-  const targetLocale: Locale = locale === "en" ? "zh" : "en";
-  const languageHref = withBase(getLocalePath(targetLocale, pathname));
   const result = useMemo(() => calculateScenario(scenario), [scenario]);
   const activeRouteText = text.routes[scenario.routeMode];
   const docsHref = locale === "en" ? withBase("quickstart") : withBase("zh-CN/quickstart");
-  const releaseHref = "https://github.com/HiClawBot/modelfaucet/releases/tag/v1.3.0";
+  const releaseHref = "https://github.com/HiClawBot/modelfaucet/releases";
+
+  function syncStateWithLocation() {
+    const nextPathname = getCurrentPathname();
+    setLocale(getInitialLocaleForPath(nextPathname));
+    setRoute(getRouteForPath(nextPathname));
+  }
+
+  function getRouteHref(nextRoute: WebsiteRoute, nextLocale = locale) {
+    return withBase(getLocalizedRoutePath(nextLocale, nextRoute));
+  }
+
+  function navigateWebsiteRoute(nextRoute: WebsiteRoute, nextLocale = locale) {
+    setLocale(nextLocale);
+    setRoute(nextRoute);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextPath = getRouteHref(nextRoute, nextLocale);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({ locale: nextLocale, route: nextRoute }, "", nextPath);
+    }
+    syncStateWithLocation();
+  }
+
+  function changeLocale(nextLocale: Locale) {
+    navigateWebsiteRoute(route, nextLocale);
+  }
+
+  function handleRouteClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    nextRoute: WebsiteRoute
+  ) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateWebsiteRoute(nextRoute);
+  }
 
   useEffect(() => {
     document.documentElement.lang = locale === "en" ? "en" : "zh-CN";
@@ -373,25 +452,79 @@ function App() {
       ?.setAttribute("content", text.meta.description);
   }, [locale, text.meta.description, text.meta.title]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    window.addEventListener("popstate", syncStateWithLocation);
+    return () => window.removeEventListener("popstate", syncStateWithLocation);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      if (route === "home") {
+        window.scrollTo({ top: 0 });
+        return;
+      }
+
+      document.getElementById(route)?.scrollIntoView({ block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [locale, route]);
+
   return (
     <main>
       <header className="site-header">
-        <a className="brand" href={withBase(locale === "en" ? "" : "zh/")} aria-label={text.homeLabel}>
+        <a
+          aria-label={text.homeLabel}
+          className="brand"
+          href={getRouteHref("home")}
+          onClick={(event) => handleRouteClick(event, "home")}
+        >
           <img src={withBase("assets/modelfaucet-logo.svg")} alt={text.brandAlt} />
         </a>
         <nav aria-label={text.aria.primaryNavigation}>
-          <a href={withBase(locale === "en" ? "use-cases/" : "zh/use-cases/")}>{text.nav.cases}</a>
-          <a href={withBase(locale === "en" ? "demo/" : "zh/demo/")}>{text.nav.demo}</a>
+          <a
+            aria-current={route === "use-cases" ? "page" : undefined}
+            href={getRouteHref("use-cases")}
+            onClick={(event) => handleRouteClick(event, "use-cases")}
+          >
+            {text.nav.cases}
+          </a>
+          <a
+            aria-current={route === "demo" ? "page" : undefined}
+            href={getRouteHref("demo")}
+            onClick={(event) => handleRouteClick(event, "demo")}
+          >
+            {text.nav.demo}
+          </a>
           <a href={docsHref}>{text.nav.docs}</a>
           <a href="https://github.com/HiClawBot/modelfaucet">{text.nav.github}</a>
         </nav>
-        <a
-          className="language-toggle"
-          href={languageHref}
-          hrefLang={targetLocale === "en" ? "en" : "zh-CN"}
-        >
-          {text.languageSwitch}
-        </a>
+        <div className="language-tabs" role="tablist" aria-label={text.language.label}>
+          {supportedLocales.map((item) => (
+            <a
+              aria-selected={locale === item}
+              href={getRouteHref(route, item)}
+              hrefLang={localeToHrefLang(item)}
+              key={item}
+              onClick={(event) => {
+                event.preventDefault();
+                changeLocale(item);
+              }}
+              role="tab"
+              tabIndex={locale === item ? 0 : -1}
+            >
+              {text.language.names[item]}
+            </a>
+          ))}
+        </div>
       </header>
 
       <section className="hero">
@@ -403,7 +536,11 @@ function App() {
             <a className="button primary" href={docsHref}>
               {text.hero.primary}
             </a>
-            <a className="button secondary" href={withBase(locale === "en" ? "demo/" : "zh/demo/")}>
+            <a
+              className="button secondary"
+              href={getRouteHref("demo")}
+              onClick={(event) => handleRouteClick(event, "demo")}
+            >
               {text.hero.secondary}
             </a>
           </div>

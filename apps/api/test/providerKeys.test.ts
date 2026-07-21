@@ -70,7 +70,7 @@ describe("provider key routes", () => {
       sessionRepository: unusedSessionRepository,
       providerKeyRepository,
       secretEncryptionKey,
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -142,7 +142,7 @@ describe("provider key routes", () => {
       sessionRepository: unusedSessionRepository,
       providerKeyRepository,
       secretEncryptionKey,
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -187,7 +187,7 @@ describe("provider key routes", () => {
       sessionRepository: unusedSessionRepository,
       providerKeyRepository,
       secretEncryptionKey,
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -232,7 +232,7 @@ describe("provider key routes", () => {
       sessionRepository: unusedSessionRepository,
       providerKeyRepository,
       secretEncryptionKey,
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -245,7 +245,7 @@ describe("provider key routes", () => {
       payload: {
         provider: "openai",
         api_key: "sk-test-provider-key",
-        base_url: "http://127.0.0.1:11434/v1"
+        base_url: "http://127.0.0.1:3214/v1"
       }
     });
 
@@ -295,7 +295,7 @@ describe("provider key routes", () => {
       providerKeyRepository,
       secretEncryptionKey,
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -357,7 +357,7 @@ describe("provider key routes", () => {
       providerKeyRepository,
       secretEncryptionKey,
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -413,7 +413,7 @@ describe("provider key routes", () => {
       providerKeyRepository,
       secretEncryptionKey,
       developerAdminToken: "mf_admin_dev",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 
@@ -516,7 +516,7 @@ describe("provider key routes", () => {
       developerAuthRepository,
       providerKeyRepository,
       secretEncryptionKey,
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });

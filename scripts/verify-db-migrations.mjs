@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { loadMigrationManifest } from "./migration-manifest.mjs";
 
 const databaseUrl = process.env.DATABASE_URL;
-
-const requiredMigrations = new Map([
-  ["0001_initial_schema", "Initial ModelFaucet schema"]
-]);
 
 function assert(condition, message) {
   if (!condition) {
@@ -17,39 +14,40 @@ function runPsql(query) {
   assert(databaseUrl !== undefined && databaseUrl.trim() !== "", "DATABASE_URL is required.");
   const result = spawnSync(
     "psql",
-    ["-v", "ON_ERROR_STOP=1", "-d", databaseUrl, "-tAc", query],
+    ["-X", "-v", "ON_ERROR_STOP=1", "-d", databaseUrl, "-tAc", query],
     {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
     }
   );
-
-  if (result.status !== 0) {
-    if (result.stderr.trim()) {
-      console.error(result.stderr.trim());
-    }
-    process.exit(result.status ?? 1);
+  if (result.error !== undefined) {
+    throw result.error;
   }
-
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || "psql migration verification failed.");
+  }
   return result.stdout.trim();
 }
 
 try {
+  const migrations = loadMigrationManifest();
   const tableExists = runPsql("select to_regclass('public.schema_migrations') is not null;");
   assert(tableExists === "t", "schema_migrations table must exist.");
 
   const rows = runPsql(
-    "select version || '|' || description from schema_migrations order by version;"
+    "select version || E'\\t' || description || E'\\t' || coalesce(checksum, '') from schema_migrations order by version;"
   )
     .split("\n")
     .map((row) => row.trim())
-    .filter((row) => row.length > 0);
+    .filter((row) => row.length > 0)
+    .map((row) => row.split("\t"));
+  const rowByVersion = new Map(rows.map((row) => [row[0], row]));
 
-  for (const [version, description] of requiredMigrations.entries()) {
-    assert(
-      rows.includes(`${version}|${description}`),
-      `schema_migrations must include ${version}.`
-    );
+  for (const migration of migrations) {
+    const row = rowByVersion.get(migration.version);
+    assert(row !== undefined, `schema_migrations must include ${migration.version}.`);
+    assert(row[1] === migration.description, `${migration.version} description does not match.`);
+    assert(row[2] === migration.checksum, `${migration.version} checksum does not match.`);
   }
 
   console.log(`Database migration verification passed with ${rows.length} recorded migration(s).`);

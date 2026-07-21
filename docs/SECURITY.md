@@ -191,7 +191,7 @@ Local Bridge default:
 
 ```txt
 listen address: 127.0.0.1
-port: 8787
+port: 3287
 auth: required if binding to non-loopback interface
 prompt upload: disabled by default
 ```

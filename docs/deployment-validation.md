@@ -75,10 +75,17 @@ After DNS, TLS, ingress, API, Gateway, and LiteLLM are configured:
 ```bash
 MODELFAUCET_API_BASE_URL=https://api.example.com \
 MODELFAUCET_GATEWAY_BASE_URL=https://gateway.example.com/v1 \
+MODELFAUCET_METRICS_TOKEN="$METRICS_TOKEN" \
 pnpm hosted:smoke-readiness
 ```
 
 The hosted readiness smoke refuses localhost/private-network targets by default. Use `ALLOW_PRIVATE_HOSTED_SMOKE=1` only for controlled private staging checks.
+
+After readiness passes, run `pnpm hosted:smoke-canary` with
+`ALLOW_PROVIDER_BILLING=1` and the reviewed app/origin/model variables. Record
+the returned request ID and reconcile it against the ModelFaucet ledger and the
+provider bill. Then run the 60-minute `pnpm hosted:soak` acceptance profile and
+retain its non-overwriting JSON report.
 
 ## Database Validation
 

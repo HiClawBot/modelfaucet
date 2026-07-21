@@ -99,7 +99,7 @@ describe("stripe payment routes", () => {
       walletRepository: walletRepository(),
       paymentRepository,
       stripeCheckoutClient: { createCheckoutSession },
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -158,7 +158,7 @@ describe("stripe payment routes", () => {
       sessionRepository: unusedSessionRepository,
       paymentRepository,
       stripeWebhookSecret: "whsec_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -204,7 +204,7 @@ describe("stripe payment routes", () => {
       sessionRepository: unusedSessionRepository,
       paymentRepository,
       stripeWebhookSecret: "whsec_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 

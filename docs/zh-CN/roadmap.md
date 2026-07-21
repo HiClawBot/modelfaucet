@@ -8,34 +8,33 @@
 
 ## 当前基线
 
-ModelFaucet `1.3.0` 已达到 deployment release 状态。当前包含 Control API、Gateway、Dashboard、SDK、React package、CRM demo、Local Bridge、wallet credits、Stripe 测试模式充值、payout review、ledger reconciliation、CSV settlement reports、security hardening checks、hosted deployment checks、Compose validation、container publishing checks、Redis-backed 分布式 rate limits、版本化数据库迁移元数据、scoped developer API tokens、tenant-isolated developer repository calls、GA stability policies、双语 README、独立 GitHub Pages 官网、静态应用场景收益模型、文档站、CI，以及依赖大版本兼容升级。
+ModelFaucet `1.3.0-beta.1` 是 hosted Beta 施工候选。仓库源码包含更广的能力面，但首个 hosted Beta 只启用邀请制、非流式的平台 Chat Completions，并强制服务端计价、预算、幂等预留/结算、受保护 usage 和 operator onboarding。Stripe、payout、BYOK/developer-key route、Local Bridge、streaming、Responses 和 Embeddings 保持关闭；准确状态以[能力矩阵](../capability-matrix.md)为准。
 
 部署侧生产阻塞项：
 
 - 需要在有 Docker 的机器上跑完整 hosted Compose smoke test 和 `pnpm compose:verify`，才能作为 release evidence。
 - 需要使用 secret manager 中的服务端测试 provider key 验证真实 LiteLLM 路由。
-- 需要验证 Stripe Checkout 和 webhook 投递。
 - 生产密钥需要接入目标环境的 KMS、Vault 或云 secret manager。
 - 需要按部署目标验证数据库备份、恢复、保留和迁移流程。
-- Rate limit、abuse control 和 payout policy 需要生产级审查。
+- 告警、真实 provider 账单对账、60 分钟 soak 和 digest 回滚需要目标环境证据。
 
 ## 版本节奏
 
-| 版本 | 主题 | 主要结果 |
-| --- | --- | --- |
-| `0.1.x` | 稳定性和文档 | 保持 MVP 可安装、文档准确、依赖当前。 |
-| `0.2.0` | 本地生产 smoke | Docker 栈、迁移、seed 和 demo 全链路可跑通。 |
-| `0.3.0` | Provider routing beta | 真实 provider 经 LiteLLM 路由可观测、可恢复。 |
-| `0.4.0` | Developer console beta | 开发者可在 Dashboard 完成 app、feature、key、wallet、usage、revenue 操作。 |
-| `0.5.0` | SDK 和 Local Bridge beta | Web SDK、React package 和本地模型工作流进入产品化形态。 |
-| `0.6.0` | 运维和可观测性 | 运营者能定位、限流、恢复和审计系统。 |
-| `0.7.0` | Billing 和 settlement beta | Credits、Stripe 充值、ledger reconciliation、payout review 可审计。 |
-| `0.8.0` | 安全加固 | Threat model、abuse control、secret handling、private-network 防护完成加固。 |
-| `0.9.0` | Hosted beta | 可安全接入真实 pilot developers 的托管环境。 |
-| `1.0.0` | GA | API 稳定、迁移策略、支持路径和生产运维手册齐备。 |
-| `1.1.0` | Auth hardening | Scoped developer API tokens 和租户隔离的 developer operations。 |
-| `1.2.0` | 官网和场景 demo | 独立双语官网、场景卡片、收益模型和合并 Pages artifact。 |
-| `1.3.0` | Deployment release | 发布容器、分布式限流和版本化迁移。 |
+| 版本           | 主题                       | 主要结果                                                                     |
+| -------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| `0.1.x`        | 稳定性和文档               | 保持 MVP 可安装、文档准确、依赖当前。                                        |
+| `0.2.0`        | 本地生产 smoke             | Docker 栈、迁移、seed 和 demo 全链路可跑通。                                 |
+| `0.3.0`        | Provider routing beta      | 真实 provider 经 LiteLLM 路由可观测、可恢复。                                |
+| `0.4.0`        | Developer console beta     | 开发者可在 Dashboard 完成 app、feature、key、wallet、usage、revenue 操作。   |
+| `0.5.0`        | SDK 和 Local Bridge beta   | Web SDK、React package 和本地模型工作流进入产品化形态。                      |
+| `0.6.0`        | 运维和可观测性             | 运营者能定位、限流、恢复和审计系统。                                         |
+| `0.7.0`        | Billing 和 settlement beta | Credits、Stripe 充值、ledger reconciliation、payout review 可审计。          |
+| `0.8.0`        | 安全加固                   | Threat model、abuse control、secret handling、private-network 防护完成加固。 |
+| `0.9.0`        | Hosted beta                | 可安全接入真实 pilot developers 的托管环境。                                 |
+| `1.0.0`        | GA                         | API 稳定、迁移策略、支持路径和生产运维手册齐备。                             |
+| `1.1.0`        | Auth hardening             | Scoped developer API tokens 和租户隔离的 developer operations。              |
+| `1.2.0`        | 官网和场景 demo            | 独立双语官网、场景卡片、收益模型和合并 Pages artifact。                      |
+| `1.3.0-beta.1` | Hosted Beta 候选           | Digest 固定镜像、安全结算、托管 staging 证据和邀请制 canary。                |
 
 ## `0.1.x` 稳定性轨道
 
@@ -284,11 +283,11 @@ governance/support policy；publishing strategy；以及自动 GA readiness veri
 - 官网文案保持三条安全边界：provider key 服务端保存、BYOK 无隐藏 markup、云端不访问私有网络 URL。
 - 自定义域名说明不在仓库里提前写死未验证的 AiFund 二级域名。
 
-## `1.3.0` Deployment Release
+## `1.3.0-beta.1` Hosted Beta 候选
 
 目标：通过 container publishing automation、分布式 rate limits 和 migration-version verification，让源码部署更容易晋级。
 
-状态：源码已实现。API 和 Gateway 可通过服务端 `REDIS_URL` 使用 Redis-backed fixed-window rate limits；数据库 schema 应用后会在 `schema_migrations` 记录 `0001_initial_schema`；CI 会校验 migration metadata 和 container publishing config；release tag 会为 API、Gateway 和 Dashboard 构建 GHCR 镜像。
+状态：源码已实现并通过本地验证，但尚未发布，也未批准接入真实用户。API 和 Gateway 在生产环境使用 Redis-backed fixed-window rate limits；有序迁移带 checksum 校验；CI 已定义 digest/provenance 镜像证据；managed staging 仍必须执行真实 provider、告警、恢复、回滚和 60 分钟 soak 门禁。
 
 范围：
 

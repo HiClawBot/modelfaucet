@@ -62,7 +62,14 @@ export async function startApiServer(): Promise<void> {
   const rateLimiter = await createApiRateLimiter({
     redisUrl: env.redisUrl,
     maxRequests: env.rateLimitMaxRequests,
-    windowMs: env.rateLimitWindowMs
+    windowMs: env.rateLimitWindowMs,
+    prefix: "modelfaucet:api:rate-limit"
+  });
+  const sessionRateLimiter = await createApiRateLimiter({
+    redisUrl: env.redisUrl,
+    maxRequests: env.sessionRateLimitMaxRequests,
+    windowMs: env.sessionRateLimitWindowMs,
+    prefix: "modelfaucet:api:session-rate-limit"
   });
   const stripeCheckoutClient =
     env.stripeSecretKey === undefined
@@ -82,6 +89,17 @@ export async function startApiServer(): Promise<void> {
     stripeWebhookSecret: env.stripeWebhookSecret,
     payoutThresholdUsd: env.payoutThresholdUsd,
     rateLimiter,
+    sessionRateLimiter,
+    metricsToken: env.metricsToken,
+    trustProxy: env.trustProxyHops === 0 ? false : env.trustProxyHops,
+    features: {
+      platformOnly: env.platformOnly,
+      stripePayments: env.enableStripePayments,
+      payouts: env.enablePayouts,
+      providerKeys: env.enableProviderKeys,
+      testCredits: env.enableTestCredits,
+      requireSessionOrigin: env.requireSessionOrigin
+    },
     secretEncryptionKey: env.secretEncryptionKey,
     developerAdminToken: env.developerAdminToken,
     adminToken: env.adminToken,

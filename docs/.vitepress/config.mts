@@ -38,6 +38,7 @@ export default defineConfig({
         text: "Start",
         items: [
           { text: "Overview", link: "/" },
+          { text: "Capability Matrix", link: "/capability-matrix" },
           { text: "Quickstart", link: "/quickstart" },
           { text: "Local Smoke Test", link: "/local-smoke" },
           { text: "Provider Routing", link: "/provider-routing" },
@@ -61,6 +62,7 @@ export default defineConfig({
         text: "Chinese",
         items: [
           { text: "中文概览", link: "/zh-CN/" },
+          { text: "能力矩阵", link: "/capability-matrix" },
           { text: "本地 Smoke Test", link: "/zh-CN/local-smoke" },
           { text: "Provider Routing", link: "/zh-CN/provider-routing" },
           { text: "SDK 和 Local Bridge", link: "/zh-CN/sdk-local-bridge" },

@@ -75,15 +75,15 @@ type usageReport struct {
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] != "start" {
-		fmt.Fprintln(os.Stderr, "usage: modelfaucet-bridge start [--port 8787] [--ollama-base-url http://127.0.0.1:11434/v1]")
+		fmt.Fprintln(os.Stderr, "usage: modelfaucet-bridge start [--port 3287] [--ollama-base-url http://127.0.0.1:3214/v1]")
 		os.Exit(2)
 	}
 
 	startFlags := flag.NewFlagSet("start", flag.ExitOnError)
-	port := startFlags.Int("port", 8787, "loopback port for the local bridge")
+	port := startFlags.Int("port", 3287, "loopback port for the local bridge")
 	ollamaBaseURL := startFlags.String(
 		"ollama-base-url",
-		envOrDefault("MODELFAUCET_BRIDGE_OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"),
+		envOrDefault("MODELFAUCET_BRIDGE_OLLAMA_BASE_URL", "http://127.0.0.1:3214/v1"),
 		"Ollama OpenAI-compatible base URL",
 	)
 	upstreamAPIKey := startFlags.String(

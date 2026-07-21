@@ -1,6 +1,6 @@
 # Publishing Strategy
 
-ModelFaucet `1.3.0` is published as a deployment release on GitHub. Source tags remain the authoritative release boundary, and container image publishing is automated for release tags.
+ModelFaucet `1.3.0-beta.1` is a construction candidate, not a published deployment release. Source tags remain the authoritative release boundary, and container image publishing is automated for release tags.
 
 ## Source Publishing
 
@@ -37,12 +37,16 @@ Container registry:
 
 The workflow `.github/workflows/container-images.yml` builds all three service
 images on pull requests and pushes images to GHCR only for `v*.*.*` tag builds.
+Tagged builds publish provenance, verify the registry digest, rerun the image
+smoke by digest, and retain one exact digest-reference artifact per service.
 
-Recommended tags:
+Discovery tags:
 
 - `v1.3.0`
 - commit SHA tags for traceability
 - `latest` only after release validation.
+
+Hosted deployments use the emitted `name@sha256` references, never these tags.
 
 Run `pnpm container:verify` before tagging. Container publishing must keep
 provider API keys, Redis URLs, developer tokens, and developer admin tokens in

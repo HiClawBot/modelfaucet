@@ -9,7 +9,7 @@ import (
 )
 
 func TestHealth(t *testing.T) {
-	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: "http://127.0.0.1:11434/v1"})
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:3287", upstreamBaseURL: "http://127.0.0.1:3214/v1"})
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -23,7 +23,7 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if !body.OK || body.Version != version || body.Listening != "127.0.0.1:8787" {
+	if !body.OK || body.Version != version || body.Listening != "127.0.0.1:3287" {
 		t.Fatalf("unexpected health body: %#v", body)
 	}
 }
@@ -38,7 +38,7 @@ func TestModelsProxy(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: upstream.URL + "/v1"})
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:3287", upstreamBaseURL: upstream.URL + "/v1"})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/models", nil)
 	handler.ServeHTTP(response, request)
@@ -66,7 +66,7 @@ func TestDiagnostics(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: upstream.URL + "/v1"})
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:3287", upstreamBaseURL: upstream.URL + "/v1"})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/diagnostics", nil)
 	handler.ServeHTTP(response, request)
@@ -88,7 +88,7 @@ func TestDiagnostics(t *testing.T) {
 }
 
 func TestDiagnosticsReportsUnavailableUpstream(t *testing.T) {
-	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: "http://127.0.0.1:1/v1"})
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:3287", upstreamBaseURL: "http://127.0.0.1:3299/v1"})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/diagnostics", nil)
 	handler.ServeHTTP(response, request)
@@ -129,7 +129,7 @@ func TestChatCompletionsProxy(t *testing.T) {
 	defer upstream.Close()
 
 	handler := newBridgeHandler(config{
-		listenAddress:   "127.0.0.1:8787",
+		listenAddress:   "127.0.0.1:3287",
 		upstreamBaseURL: upstream.URL + "/v1",
 		upstreamAPIKey:  "ollama",
 	})
@@ -150,7 +150,7 @@ func TestChatCompletionsProxy(t *testing.T) {
 }
 
 func TestUsageReport(t *testing.T) {
-	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:8787", upstreamBaseURL: "http://127.0.0.1:11434/v1"})
+	handler := newBridgeHandler(config{listenAddress: "127.0.0.1:3287", upstreamBaseURL: "http://127.0.0.1:3214/v1"})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -168,7 +168,7 @@ func TestUsageReport(t *testing.T) {
 }
 
 func TestListenAddressIsLoopback(t *testing.T) {
-	if listenAddress(8787) != "127.0.0.1:8787" {
+	if listenAddress(3287) != "127.0.0.1:3287" {
 		t.Fatalf("bridge must bind to loopback by default")
 	}
 }

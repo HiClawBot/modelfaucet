@@ -6,6 +6,7 @@ create extension if not exists "uuid-ossp";
 create table if not exists schema_migrations (
   version text primary key,
   description text not null,
+  checksum text,
   applied_at timestamptz not null default now()
 );
 
@@ -220,7 +221,3 @@ create table if not exists audit_logs (
 
 create index if not exists idx_audit_logs_resource on audit_logs(resource_type, resource_id, created_at desc);
 create index if not exists idx_audit_logs_actor on audit_logs(actor_scope, actor_id, created_at desc);
-
-insert into schema_migrations(version, description)
-values ('0001_initial_schema', 'Initial ModelFaucet schema')
-on conflict (version) do nothing;

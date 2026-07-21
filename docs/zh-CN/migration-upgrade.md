@@ -22,7 +22,7 @@ pnpm docs:build
 
 ```bash
 pnpm hosted:verify-env
-pnpm hosted:smoke-readiness
+MODELFAUCET_METRICS_TOKEN="$METRICS_TOKEN" pnpm hosted:smoke-readiness
 ```
 
 真实 provider traffic 前设置 `REQUIRE_HOSTED_PROVIDER=1`；托管 Stripe top-up 前设置 `REQUIRE_HOSTED_STRIPE=1`。
@@ -35,9 +35,9 @@ pnpm hosted:smoke-readiness
 - 确认目标环境的 database backup 和 restore 已测试。
 - 确认 incident contacts 仍然有效。
 
-## 升级到 `1.3.0`
+## 升级到 `1.3.0-beta.1`
 
-`1.3.0` 增加 deployment-release checks、Redis-backed 分布式 rate limits、container publishing automation，以及 `schema_migrations` 迁移元数据。
+`1.3.0-beta.1` 增加 deployment-release checks、Redis-backed 分布式 rate limits、container publishing automation，以及有序 `schema_migrations` 迁移元数据。
 
 发布前运行：
 
@@ -53,7 +53,10 @@ pnpm smoke:local
 
 托管 API 和 Gateway 实例应设置 `REDIS_URL`，指向服务端 Redis 或 Redis-compatible endpoint。不要通过浏览器可见的 Vite 环境变量暴露 `REDIS_URL`、provider API key、developer token 或 developer admin token。
 
-Container images 由 `.github/workflows/container-images.yml` 在 `v*.*.*` tag 上构建，并且只在 tag build 时发布到 GHCR。
+Container images 由 `.github/workflows/container-images.yml` 在 `v*.*.*` tag
+上构建，并且只在 tag build 时发布到 GHCR。Workflow 会为每个服务输出一个
+`name@sha256` artifact、记录 build provenance、从 GHCR 重新拉取已发布 digest，
+并对该 digest 运行生产镜像 smoke。托管环境必须复制这三个引用，不能直接部署 tag。
 
 ## Rollback
 

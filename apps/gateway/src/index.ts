@@ -28,7 +28,17 @@ export async function startGatewayServer(): Promise<void> {
     },
     liteLlmClient,
     {
-      secretEncryptionKey: env.secretEncryptionKey
+      secretEncryptionKey: env.secretEncryptionKey,
+      platformOnly: env.platformOnly,
+      billingPolicy: {
+        platformModel: env.platformModel,
+        inputPricePer1mTokensUsd: env.platformInputPricePer1mTokensUsd,
+        outputPricePer1mTokensUsd: env.platformOutputPricePer1mTokensUsd,
+        markupPercent: env.platformMarkupPercent,
+        maxInputTokens: env.platformMaxInputTokens,
+        maxOutputTokens: env.platformMaxOutputTokens,
+        reservationTtlMs: env.reservationTtlMs
+      }
     }
   );
   const rateLimiter = await createGatewayRateLimiter({
@@ -40,6 +50,8 @@ export async function startGatewayServer(): Promise<void> {
     mockCompletionRepository,
     corsOrigins: env.corsOrigins,
     rateLimiter,
+    metricsToken: env.metricsToken,
+    trustProxy: env.trustProxyHops === 0 ? false : env.trustProxyHops,
     logger: env.nodeEnv !== "test"
   });
 

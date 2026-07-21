@@ -38,6 +38,7 @@ export type CompletionProvider = {
     request: ChatCompletionRequest;
     featureKey?: string;
     providerCredential?: ProviderCredentialContext;
+    idempotencyKey?: string;
   }): Promise<ProviderCompletionResult>;
   checkHealth?(): Promise<ProviderHealthResult>;
 };
@@ -280,6 +281,7 @@ export class LiteLlmClient implements CompletionProvider {
     request: ChatCompletionRequest;
     featureKey?: string;
     providerCredential?: ProviderCredentialContext;
+    idempotencyKey?: string;
   }): Promise<ProviderCompletionResult> {
     const providerCredential = input.providerCredential;
     const routedModel = routeModel(input.request.model, providerCredential);
@@ -292,6 +294,7 @@ export class LiteLlmClient implements CompletionProvider {
       url: buildLiteLlmChatCompletionsUrl(requestBaseUrl),
       authorization,
       providerName,
+      idempotencyKey: input.idempotencyKey,
       body: {
         ...input.request,
         model: routedModel
@@ -324,6 +327,7 @@ export class LiteLlmClient implements CompletionProvider {
     url: string;
     authorization: string;
     providerName: string;
+    idempotencyKey?: string;
     body: unknown;
   }): Promise<{ response: Response; attempts: ProviderAttempt[] }> {
     const attempts: ProviderAttempt[] = [];
@@ -336,7 +340,10 @@ export class LiteLlmClient implements CompletionProvider {
           method: "POST",
           headers: {
             authorization: `Bearer ${input.authorization}`,
-            "content-type": "application/json"
+            "content-type": "application/json",
+            ...(input.idempotencyKey === undefined
+              ? {}
+              : { "idempotency-key": input.idempotencyKey })
           },
           body: JSON.stringify(input.body)
         });

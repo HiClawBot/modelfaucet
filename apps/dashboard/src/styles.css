@@ -18,6 +18,68 @@ body {
   min-height: 100dvh;
 }
 
+.auth-shell {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-panel {
+  width: min(100%, 480px);
+  border: 1px solid #cbd3df;
+  border-radius: 10px;
+  padding: 32px;
+  background: #ffffff;
+}
+
+.auth-panel > img {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 24px;
+}
+
+.auth-panel > p:not(.eyebrow, .error) {
+  margin: 16px 0 24px;
+  color: #526078;
+  line-height: 1.55;
+}
+
+.auth-panel form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-panel label {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.auth-panel input {
+  border: 1px solid #b9c3d2;
+  border-radius: 6px;
+  padding: 11px 12px;
+  font: inherit;
+}
+
+.auth-panel button {
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 14px;
+  color: #ffffff;
+  background: #0b1d3a;
+  font: inherit;
+  font-weight: 900;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 a {
   color: inherit;
   text-decoration: none;

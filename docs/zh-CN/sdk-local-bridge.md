@@ -70,7 +70,7 @@ export function SupportCommand() {
 Local Bridge 默认只绑定 loopback：
 
 ```bash
-modelfaucet-bridge start --port 8787
+modelfaucet-bridge start --port 3287
 ```
 
 Bridge 暴露：

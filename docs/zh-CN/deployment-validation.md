@@ -75,10 +75,16 @@ DNS、TLS、ingress、API、Gateway 和 LiteLLM 配好后：
 ```bash
 MODELFAUCET_API_BASE_URL=https://api.example.com \
 MODELFAUCET_GATEWAY_BASE_URL=https://gateway.example.com/v1 \
+MODELFAUCET_METRICS_TOKEN="$METRICS_TOKEN" \
 pnpm hosted:smoke-readiness
 ```
 
 Hosted readiness smoke 默认拒绝 localhost/private-network targets。只有受控私有 staging 检查才应使用 `ALLOW_PRIVATE_HOSTED_SMOKE=1`。
+
+Readiness 通过后，使用 `ALLOW_PROVIDER_BILLING=1` 和已审核的 app/origin/model
+变量运行 `pnpm hosted:smoke-canary`。记录返回的 request ID，并与 ModelFaucet
+ledger 和 provider 账单核对。随后执行 60 分钟 `pnpm hosted:soak` 验收配置，
+保留其不可覆盖的 JSON 报告。
 
 ## Database Validation
 

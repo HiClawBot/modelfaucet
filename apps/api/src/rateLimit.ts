@@ -3,11 +3,23 @@ import { createClient } from "redis";
 
 export type RedisRateLimiterClient = {
   readonly isOpen: boolean;
-  incr: (key: string) => Promise<number>;
-  pExpire: (key: string, milliseconds: number) => Promise<boolean | number>;
-  pTTL: (key: string) => Promise<number>;
+  eval: (
+    script: string,
+    options: { keys: string[]; arguments: string[] }
+  ) => Promise<unknown>;
+  ping: () => Promise<string>;
   disconnect: () => Promise<void>;
 };
+
+const fixedWindowScript = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('PTTL', KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
 
 export class RedisFixedWindowRateLimiter implements RateLimiter {
   private readonly prefix: string;
@@ -31,12 +43,18 @@ export class RedisFixedWindowRateLimiter implements RateLimiter {
     }
 
     const redisKey = `${this.prefix}:${key}`;
-    const count = await this.client.incr(redisKey);
-    if (count === 1) {
-      await this.client.pExpire(redisKey, this.windowMs);
+    const result = await this.client.eval(fixedWindowScript, {
+      keys: [redisKey],
+      arguments: [String(this.windowMs)]
+    });
+    if (!Array.isArray(result) || result.length < 2) {
+      throw new Error("Redis rate limiter returned an invalid result.");
     }
-
-    const ttlMs = await this.client.pTTL(redisKey);
+    const count = Number(result[0]);
+    const ttlMs = Number(result[1]);
+    if (!Number.isFinite(count) || !Number.isFinite(ttlMs)) {
+      throw new Error("Redis rate limiter returned non-numeric counters.");
+    }
     const effectiveTtlMs = ttlMs > 0 ? ttlMs : this.windowMs;
     const remaining = Math.max(0, this.maxRequests - count);
 
@@ -52,12 +70,20 @@ export class RedisFixedWindowRateLimiter implements RateLimiter {
       await this.client.disconnect();
     }
   }
+
+  async checkHealth(): Promise<void> {
+    const response = await this.client.ping();
+    if (response !== "PONG") {
+      throw new Error("Redis readiness check failed.");
+    }
+  }
 }
 
 export async function createApiRateLimiter(options: {
   redisUrl?: string;
   maxRequests: number;
   windowMs: number;
+  prefix?: string;
 }): Promise<RateLimiter> {
   if (options.redisUrl === undefined) {
     return new InMemoryRateLimiter(options.maxRequests, options.windowMs);
@@ -72,6 +98,7 @@ export async function createApiRateLimiter(options: {
   return new RedisFixedWindowRateLimiter(
     client as unknown as RedisRateLimiterClient,
     options.maxRequests,
-    options.windowMs
+    options.windowMs,
+    options.prefix === undefined ? {} : { prefix: options.prefix }
   );
 }

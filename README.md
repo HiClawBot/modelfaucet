@@ -13,7 +13,7 @@
 
 ModelFaucet is an open-source LLM distribution gateway and embeddable SDK. It lets any website, app, plugin, desktop software, or vertical SaaS integrate AI features that feel native to the product, while automatically attributing token usage and revenue share to the software developer or distribution channel.
 
-> Status: `1.3.0` deployment release. The repository includes stable public contracts for the Control API, Gateway, SDK, React package, Local Bridge, versioned database migration metadata, hosted deployment checks, Compose validation, container publishing checks, Redis-backed distributed rate limits, scoped developer API tokens, an independent GitHub Pages website, and production operating expectations.
+> Status: `v1.3.0-beta.1` construction candidate. Production entrypoints, migrations/restore, concurrency-safe settlement, owner-scoped usage, app/session controls, feature flags, and dependency readiness pass local verification. Real hosted traffic remains blocked on Docker-capable CI evidence plus managed DB/Redis/TLS, real-provider, alert, soak, and rollback drills. See the [capability matrix](docs/capability-matrix.md) for the exact implemented, verified, and Beta-enabled surface.
 
 ---
 
@@ -148,7 +148,7 @@ packages/
 services/
   local-bridge/        Local/LAN model bridge for Ollama, vLLM, LM Studio.
   rating-worker/       Token usage pricing and margin calculation.
-  settlement-worker/   Wallet entries, payouts, reconciliation.
+  settlement-worker/   Reserved async package; settlement currently runs through the Control API.
 
 infra/
   db/                  PostgreSQL schema and migrations.
@@ -221,7 +221,7 @@ Expected behavior:
 ```txt
 - SDK creates a short-lived session token.
 - Gateway routes to the platform provider pool.
-- The response streams back to the app.
+- A non-streaming response returns to the app (`stream: true` is currently rejected).
 - usage_events receives a row.
 - ledger_entries records user debit, provider cost, developer revenue, platform revenue.
 - Developer dashboard shows usage and revenue.
@@ -278,7 +278,10 @@ See the [hosted beta guide](docs/hosted-beta.md) for environment verification,
 tenant isolation checks, readiness smoke, pilot onboarding, acceptable use, and
 incident-response contacts.
 
-See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [deployment validation guide](docs/deployment-validation.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the `1.x` GA contracts.
+See the [capability matrix](docs/capability-matrix.md) before integrating or
+publishing claims about the hosted Beta surface.
+
+See the [stability policy](docs/stability-policy.md), [migration and upgrade guide](docs/migration-upgrade.md), [production reference architecture](docs/production-architecture.md), [deployment validation guide](docs/deployment-validation.md), [governance and support policy](docs/governance-support.md), and [publishing strategy](docs/publishing-strategy.md) for the intended `1.x` compatibility policy. Hosted GA has not been declared.
 
 ---
 
@@ -287,9 +290,9 @@ See the [stability policy](docs/stability-policy.md), [migration and upgrade gui
 ModelFaucet exposes OpenAI-compatible endpoints where possible:
 
 ```txt
-POST /v1/chat/completions
-POST /v1/responses
-POST /v1/embeddings
+POST /v1/chat/completions   implemented; non-streaming only
+POST /v1/responses          roadmap; not implemented
+POST /v1/embeddings         roadmap; not implemented
 ```
 
 It also exposes ModelFaucet-specific endpoints:
@@ -325,7 +328,7 @@ POST   /v1/admin/wallets/:id/adjustments
 GET    /v1/admin/reports/usage.csv
 GET    /v1/admin/reports/revenue.csv
 GET    /v1/admin/reports/payouts.csv
-GET    /v1/apps/:id/usage
+GET    /v1/apps/:publicAppId/usage
 ```
 
 ---

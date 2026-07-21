@@ -1,0 +1,54 @@
+groups:
+  - name: modelfaucet-beta
+    rules:
+      - alert: ModelFaucetServiceDown
+        expr: up{job=~"modelfaucet-(api|gateway)"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ModelFaucet API or Gateway scrape target is down"
+
+      - alert: ModelFaucetReadinessFailed
+        expr: probe_success{job=~"modelfaucet-(api|gateway)-readiness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ModelFaucet readiness probe is failing"
+
+      - alert: ModelFaucetHighServerErrorRatio
+        expr: |
+          sum by (service) (rate(modelfaucet_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (service) (rate(modelfaucet_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ModelFaucet 5xx ratio is above 5%"
+
+      - alert: ModelFaucetRateLimitSurge
+        expr: sum by (service) (increase(modelfaucet_rate_limited_total[5m])) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ModelFaucet rate-limit responses are surging"
+
+      - alert: ModelFaucetBackupStale
+        expr: time() - modelfaucet_last_successful_backup_timestamp_seconds > 90000
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No successful ModelFaucet database backup in 25 hours"
+
+      - alert: ModelFaucetOperationalInvariantFailure
+        expr: modelfaucet_operational_invariant_failures > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "A ModelFaucet financial or reservation invariant failed"

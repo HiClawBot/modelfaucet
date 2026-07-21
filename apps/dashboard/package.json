@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "start": "vite preview --host 0.0.0.0 --port 5173",
+    "dev": "vite --host 127.0.0.1 --port 3203",
+    "start": "node scripts/serve.mjs",
     "build": "tsc -p tsconfig.json && vite build",
     "lint": "eslint src test --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --dir test --passWithNoTests"
   },
   "dependencies": {
     "react": "^19.2.7",

@@ -49,7 +49,7 @@ describe("payout routes", () => {
       sessionRepository: unusedSessionRepository,
       payoutRepository: { ...payoutNoops(), createPendingPayouts },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -99,7 +99,7 @@ describe("payout routes", () => {
       sessionRepository: unusedSessionRepository,
       payoutRepository: { ...payoutNoops(), approvePayout },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -145,7 +145,7 @@ describe("payout routes", () => {
       sessionRepository: unusedSessionRepository,
       payoutRepository: { ...payoutNoops(), markPayoutPaid },
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600,
       now: () => new Date("2026-06-17T00:00:00.000Z")
     });
@@ -175,7 +175,7 @@ describe("payout routes", () => {
       sessionRepository: unusedSessionRepository,
       payoutRepository: payoutNoops(),
       adminToken: "mf_admin_test",
-      gatewayBaseUrl: "http://localhost:3002/v1",
+      gatewayBaseUrl: "http://localhost:3202/v1",
       sessionTokenTtlSeconds: 3600
     });
 

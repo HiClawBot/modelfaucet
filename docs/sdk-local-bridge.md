@@ -73,7 +73,7 @@ status when available.
 The Local Bridge stays loopback-bound by default:
 
 ```bash
-modelfaucet-bridge start --port 8787
+modelfaucet-bridge start --port 3287
 ```
 
 The bridge exposes:

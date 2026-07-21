@@ -26,7 +26,7 @@ Provider key 只能保存在服务端环境变量、secret manager 或加密 cre
 ## Health Check
 
 ```bash
-curl http://localhost:3002/health/providers
+curl http://localhost:3202/health/providers
 ```
 
 示例：
@@ -50,7 +50,7 @@ curl http://localhost:3002/health/providers
 只有在已经配置真实 LiteLLM route 时才运行 `pnpm smoke:provider`。这个命令会启动本地 Control API 和 Gateway，但会使用服务端 `LITELLM_BASE_URL`，而不是本地 mock provider。
 
 ```bash
-export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
+export DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
 export SECRET_ENCRYPTION_KEY=dev_32_bytes_replace_me_replace_me
 export LITELLM_BASE_URL=https://your-litellm.example
 export LITELLM_MASTER_KEY=<server-side-litellm-key>

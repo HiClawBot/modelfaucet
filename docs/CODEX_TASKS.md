@@ -1,5 +1,7 @@
 # Codex Task List for ModelFaucet MVP
 
+> Historical baseline: this checklist records the original v0.1 implementation sequence. It is not the current release backlog or proof that every planned component runs as an independent process. Use `README.md`, `docs/roadmap.md`, `docs/stability-policy.md`, and the domain runbooks for the current `1.3.0` source/deployment status.
+
 This file is written as a direct implementation guide for Codex or another coding agent.
 
 Global rules:
@@ -255,7 +257,7 @@ Update gateway route to call LiteLLM.
 Config:
 
 ```txt
-LITELLM_BASE_URL=http://localhost:4000
+LITELLM_BASE_URL=http://localhost:3205
 LITELLM_MASTER_KEY=sk-litellm-dev-master-key
 ```
 
@@ -427,7 +429,7 @@ platform upstream cost is zero
 Implement Go service:
 
 ```txt
-modelfaucet-bridge start --port 8787
+modelfaucet-bridge start --port 3287
 GET /health
 GET /models
 POST /v1/chat/completions
@@ -437,7 +439,7 @@ POST /usage/report
 Acceptance criteria:
 
 ```txt
-Bridge starts on 127.0.0.1:8787
+Bridge starts on 127.0.0.1:3287
 Bridge can proxy to Ollama OpenAI-compatible endpoint
 Bridge can report usage metadata
 Cloud API never fetches local/LAN endpoint directly

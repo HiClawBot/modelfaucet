@@ -1,5 +1,7 @@
 # ModelFaucet 施工文档
 
+> 历史基线说明：本文保留 v0.1 MVP 的原始施工决策与目标拓扑，用于解释项目为何形成当前结构；它不是 1.3.0 运行状态清单。当前公开契约和运维事实以 `README.md`、`docs/API_SPEC.md`、`docs/stability-policy.md` 与 `docs/operations.md` 为准。本文中的端口示例会继续维护以保证可执行性，但目录或组件出现在目标拓扑中，不等于该组件已有独立运行进程。
+
 版本：v0.1 Draft  
 日期：2026-06-17  
 目标读者：Codex、工程团队、技术负责人、DevOps、产品负责人
@@ -259,15 +261,15 @@ modelfaucet/
 
 ```bash
 NODE_ENV=development
-PORT_API=3001
-PORT_GATEWAY=3002
-DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:5432/modelfaucet
-REDIS_URL=redis://localhost:6379
+PORT_API=3201
+PORT_GATEWAY=3202
+DATABASE_URL=postgresql://modelfaucet:modelfaucet@localhost:3200/modelfaucet
+REDIS_URL=redis://localhost:3290
 
 JWT_SECRET=dev_only_replace_me
 SESSION_TOKEN_TTL_SECONDS=3600
 
-LITELLM_BASE_URL=http://localhost:4000
+LITELLM_BASE_URL=http://localhost:3205
 LITELLM_MASTER_KEY=sk-litellm-dev-master-key
 
 # First platform provider route for local MVP.
@@ -299,9 +301,9 @@ litellm
 `docker-compose.yml` 应暴露：
 
 ```txt
-Postgres: 5432
-Redis:    6379
-LiteLLM:  4000
+Postgres: 3200
+Redis:    3290
+LiteLLM:  3205
 ```
 
 LiteLLM 配置文件：`infra/docker/litellm.config.yaml`
@@ -609,7 +611,7 @@ BYOK 使用时：
 ### 12.1 命令
 
 ```bash
-modelfaucet-bridge start --port 8787 --config ~/.modelfaucet/bridge.yaml
+modelfaucet-bridge start --port 3287 --config ~/.modelfaucet/bridge.yaml
 ```
 
 ### 12.2 Bridge API
@@ -627,19 +629,19 @@ POST /usage/report
 endpoints:
   - id: ollama
     name: Ollama
-    base_url: http://localhost:11434/v1
+    base_url: http://localhost:3214/v1
     api_key: ollama
     provider: openai_compatible
 
   - id: lmstudio
     name: LM Studio
-    base_url: http://localhost:1234/v1
+    base_url: http://localhost:3215/v1
     api_key: lm-studio
     provider: openai_compatible
 
   - id: office-vllm
     name: Office vLLM
-    base_url: http://192.168.1.20:8000/v1
+    base_url: http://192.168.1.20:3216/v1
     api_key: token-abc123
     provider: openai_compatible
 ```

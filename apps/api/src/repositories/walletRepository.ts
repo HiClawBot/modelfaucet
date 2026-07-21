@@ -35,7 +35,8 @@ async function getWalletForSession(
         wallets.id,
         wallets.owner_scope,
         wallets.owner_id,
-        wallets.balance_usd::text,
+        (wallets.balance_usd - wallets.reserved_balance_usd)::numeric(18,8)::text
+          as balance_usd,
         virtual_sessions.expires_at
       from virtual_sessions
       join apps on apps.id = virtual_sessions.app_id
@@ -125,7 +126,8 @@ export class PostgresWalletRepository implements WalletRepository {
           set balance_usd = balance_usd + $2::numeric,
               updated_at = $3
           where id = $1
-          returning id, owner_scope, owner_id, balance_usd::text
+          returning id, owner_scope, owner_id,
+            (balance_usd - reserved_balance_usd)::numeric(18,8)::text as balance_usd
         `,
         [input.walletId, input.amountUsd, input.now]
       );

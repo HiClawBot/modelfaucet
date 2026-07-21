@@ -12,3 +12,8 @@ coverage
 .DS_Store
 *.log
 *.local
+
+# Local review and rendering evidence. Keep files locally; never ship them in a release commit.
+.playwright-cli/
+output/playwright/
+tmp/

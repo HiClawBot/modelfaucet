@@ -5,10 +5,12 @@ import { startMockOpenAiCompatibleServer } from "./mock-openai-compatible.mjs";
 
 const repoRoot = new URL("..", import.meta.url);
 const databaseUrl = process.env.DATABASE_URL;
-const apiPort = Number(process.env.SMOKE_API_PORT ?? "3101");
-const gatewayPort = Number(process.env.SMOKE_GATEWAY_PORT ?? "3102");
-const providerPort = Number(process.env.SMOKE_PROVIDER_PORT ?? "4100");
+const apiPort = Number(process.env.SMOKE_API_PORT ?? "3201");
+const gatewayPort = Number(process.env.SMOKE_GATEWAY_PORT ?? "3202");
+const providerPort = Number(process.env.SMOKE_PROVIDER_PORT ?? "3210");
 const providerMode = process.env.SMOKE_PROVIDER_MODE ?? "mock";
+const productionRuntime = process.argv.includes("--production");
+const serviceScript = productionRuntime ? "start" : "dev";
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 const gatewayBaseUrl = `http://127.0.0.1:${gatewayPort}/v1`;
 const mockProviderBaseUrl = `http://127.0.0.1:${providerPort}`;
@@ -109,7 +111,7 @@ function queryScalar(query) {
 }
 
 function startService(name, filter, env) {
-  const child = spawn("pnpm", ["--filter", filter, "dev"], {
+  const child = spawn("pnpm", ["--filter", filter, serviceScript], {
     cwd: repoRoot,
     env,
     detached: true,
@@ -235,6 +237,12 @@ async function cleanup(startedServices, mockProvider) {
 async function main() {
   assertRequiredEnvironment();
 
+  if (productionRuntime) {
+    console.log("Building production API and Gateway entrypoints...");
+    run("pnpm", ["--filter", "@modelfaucet/api", "build"]);
+    run("pnpm", ["--filter", "@modelfaucet/gateway", "build"]);
+  }
+
   console.log("Preparing database schema and seed data...");
   run("pnpm", ["db:migrate"]);
   run("pnpm", ["db:seed"]);
@@ -258,6 +266,7 @@ async function main() {
     SECRET_ENCRYPTION_KEY:
       process.env.SECRET_ENCRYPTION_KEY ?? "dev_32_bytes_replace_me_replace_me",
     LITELLM_MASTER_KEY: process.env.LITELLM_MASTER_KEY ?? "sk-test-litellm-master-key",
+    METRICS_TOKEN: process.env.METRICS_TOKEN ?? "mf_smoke_metrics_token",
     LITELLM_BASE_URL:
       providerMode === "mock" ? mockProviderBaseUrl : String(externalProviderBaseUrl),
     PORT_API: String(apiPort),
@@ -272,6 +281,30 @@ async function main() {
   try {
     await waitForHealth(`${apiBaseUrl}/health`, "api", startedServices[0]);
     await waitForHealth(`http://127.0.0.1:${gatewayPort}/health`, "gateway", startedServices[1]);
+
+    const apiReadiness = await readJson(await fetch(`${apiBaseUrl}/ready`));
+    const gatewayReadiness = await readJson(
+      await fetch(`http://127.0.0.1:${gatewayPort}/ready`)
+    );
+    if (apiReadiness.ok !== true || gatewayReadiness.ok !== true) {
+      throw new Error("API or Gateway dependency readiness failed.");
+    }
+    for (const metricsUrl of [
+      `${apiBaseUrl}/metrics`,
+      `http://127.0.0.1:${gatewayPort}/metrics`
+    ]) {
+      const unauthorizedMetrics = await fetch(metricsUrl);
+      if (unauthorizedMetrics.status !== 401) {
+        throw new Error(`Expected protected metrics at ${metricsUrl}.`);
+      }
+      const authorizedMetrics = await fetch(metricsUrl, {
+        headers: { authorization: `Bearer ${childEnv.METRICS_TOKEN}` }
+      });
+      const metricsBody = await authorizedMetrics.text();
+      if (!authorizedMetrics.ok || !metricsBody.includes("modelfaucet_http_requests_total")) {
+        throw new Error(`Authenticated metrics check failed at ${metricsUrl}.`);
+      }
+    }
 
     const providerHealth = await readJson(
       await fetch(`http://127.0.0.1:${gatewayPort}/health/providers`)
@@ -311,6 +344,7 @@ async function main() {
         method: "POST",
         headers: {
           authorization: `Bearer ${session.session_token}`,
+          "idempotency-key": `smoke_${Date.now().toString(36)}`,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -347,7 +381,11 @@ async function main() {
     }
 
     const usage = await readJson(
-      await fetch(`${apiBaseUrl}/v1/apps/app_pub_demo/usage`)
+      await fetch(`${apiBaseUrl}/v1/apps/app_pub_demo/usage`, {
+        headers: {
+          authorization: `Bearer ${childEnv.DEVELOPER_ADMIN_TOKEN ?? "mf_admin_dev"}`
+        }
+      })
     );
     const usageRows = Array.isArray(usage.usage) ? usage.usage : [];
     if (!usageRows.some((row) => row.request_id === requestId)) {

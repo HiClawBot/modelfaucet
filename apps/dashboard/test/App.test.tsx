@@ -68,6 +68,9 @@ const appsResponse = {
       name: "CRM Demo",
       vertical: "crm",
       default_revenue_share_bps: 4000,
+      allowed_origins: ["https://app.example.com"],
+      monthly_spend_limit_usd: "100.00000000",
+      session_spend_limit_usd: "5.00000000",
       status: "active",
       developer_id: "22222222-2222-4222-8222-222222222222",
       developer_name: "Demo Developer",
@@ -161,6 +164,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   vi.restoreAllMocks();
 });
 
@@ -172,10 +176,12 @@ describe("dashboard app", () => {
   it("fetches usage dashboard data from the API", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dashboardResponse));
 
-    await expect(fetchUsageDashboard(fetcher, "http://api.test", "app_pub_demo")).resolves.toEqual(
-      dashboardResponse
-    );
-    expect(fetcher).toHaveBeenCalledWith("http://api.test/v1/apps/app_pub_demo/usage");
+    await expect(
+      fetchUsageDashboard(fetcher, "http://api.test", "app_pub_demo", "mf_dev_usage")
+    ).resolves.toEqual(dashboardResponse);
+    expect(fetcher).toHaveBeenCalledWith("http://api.test/v1/apps/app_pub_demo/usage", {
+      headers: { authorization: "Bearer mf_dev_usage" }
+    });
   });
 
   it("fetches developer provider keys with admin authorization", async () => {
@@ -209,10 +215,32 @@ describe("dashboard app", () => {
     });
   });
 
+  it("keeps a manually entered scoped token only in session storage", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dashboardResponse));
+    render(<App apiBaseUrl="http://api.test" fetcher={fetcher} initialPath="/dashboard" />);
+
+    expect(screen.getByText("Connect a scoped developer token")).toBeTruthy();
+    expect(fetcher).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Developer token"), {
+      target: { value: "mf_dev_session_only" }
+    });
+    fireEvent.click(screen.getByText("Connect console"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Total calls")).toBeTruthy();
+    });
+    expect(window.sessionStorage.getItem("modelfaucet.developerToken")).toBe(
+      "mf_dev_session_only"
+    );
+    expect(fetcher).toHaveBeenCalledWith("http://api.test/v1/apps/app_pub_demo/usage", {
+      headers: { authorization: "Bearer mf_dev_session_only" }
+    });
+  });
+
   it("renders overview totals", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dashboardResponse));
 
-    render(<App fetcher={fetcher} initialPath="/dashboard" />);
+    render(<App developerAdminToken="mf_dev_usage" fetcher={fetcher} initialPath="/dashboard" />);
 
     await waitFor(() => {
       expect(screen.getByText("Total calls")).toBeTruthy();
@@ -227,7 +255,7 @@ describe("dashboard app", () => {
   it("renders the app usage table", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dashboardResponse));
 
-    render(<App fetcher={fetcher} initialPath="/apps/app_pub_demo/usage" />);
+    render(<App developerAdminToken="mf_dev_usage" fetcher={fetcher} initialPath="/apps/app_pub_demo/usage" />);
 
     await waitFor(() => {
       expect(screen.getByText("req_123")).toBeTruthy();
@@ -238,7 +266,7 @@ describe("dashboard app", () => {
   it("renders revenue totals", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dashboardResponse));
 
-    render(<App fetcher={fetcher} initialPath="/revenue" />);
+    render(<App developerAdminToken="mf_dev_usage" fetcher={fetcher} initialPath="/revenue" />);
 
     await waitFor(() => {
       expect(screen.getByText("Developer revenue")).toBeTruthy();
@@ -390,6 +418,9 @@ describe("dashboard app", () => {
       name: "Support Console",
       vertical: "support",
       default_revenue_share_bps: 4200,
+      allowed_origins: ["https://app.example.com"],
+      monthly_spend_limit_usd: "100.00",
+      session_spend_limit_usd: "5.00",
       status: "active"
     });
   });

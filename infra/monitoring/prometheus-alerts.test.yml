@@ -1,0 +1,74 @@
+rule_files:
+  - prometheus-alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: beta alerts fire for release-threshold failures
+    start_timestamp: 200000
+    interval: 1m
+    input_series:
+      - series: 'up{job="modelfaucet-api",instance="api:3201"}'
+        values: "0x20"
+      - series: 'probe_success{job="modelfaucet-gateway-readiness",instance="gateway:3202"}'
+        values: "0x20"
+      - series: 'modelfaucet_http_requests_total{service="@modelfaucet/api",status="200"}'
+        values: "0+90x20"
+      - series: 'modelfaucet_http_requests_total{service="@modelfaucet/api",status="500"}'
+        values: "0+10x20"
+      - series: 'modelfaucet_rate_limited_total{service="@modelfaucet/gateway"}'
+        values: "0+30x20"
+      - series: "modelfaucet_last_successful_backup_timestamp_seconds"
+        values: "0x20"
+      - series: 'modelfaucet_operational_invariant_failures{check="ledger_mismatches"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ModelFaucetServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: modelfaucet-api
+              instance: api:3201
+            exp_annotations:
+              summary: "ModelFaucet API or Gateway scrape target is down"
+      - eval_time: 3m
+        alertname: ModelFaucetReadinessFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: modelfaucet-gateway-readiness
+              instance: gateway:3202
+            exp_annotations:
+              summary: "ModelFaucet readiness probe is failing"
+      - eval_time: 10m
+        alertname: ModelFaucetHighServerErrorRatio
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: "@modelfaucet/api"
+            exp_annotations:
+              summary: "ModelFaucet 5xx ratio is above 5%"
+      - eval_time: 10m
+        alertname: ModelFaucetRateLimitSurge
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: "@modelfaucet/gateway"
+            exp_annotations:
+              summary: "ModelFaucet rate-limit responses are surging"
+      - eval_time: 16m
+        alertname: ModelFaucetBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "No successful ModelFaucet database backup in 25 hours"
+      - eval_time: 2m
+        alertname: ModelFaucetOperationalInvariantFailure
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              check: ledger_mismatches
+            exp_annotations:
+              summary: "A ModelFaucet financial or reservation invariant failed"

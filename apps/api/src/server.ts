@@ -9,11 +9,16 @@ import {
   createRequestId,
   InMemoryMetrics,
   type RateLimiter,
+  type RouteMode,
   parseMoneyToUnits
 } from "@modelfaucet/shared";
 import { z } from "zod";
 import cors from "@fastify/cors";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions
+} from "fastify";
 import {
   createDeveloperApiToken,
   createSessionToken,
@@ -35,6 +40,8 @@ import type { ProviderKeyRepository } from "./repositories/providerKeyRepository
 import type { SettlementRepository } from "./repositories/settlementRepository";
 import type { SessionRepository } from "./repositories/sessionRepository";
 import type { WalletRepository } from "./repositories/walletRepository";
+import { toModelFaucetError } from "./routeErrors";
+import { registerSettlementRoutes } from "./routes/settlementRoutes";
 import { encryptSecret, maskSecret, validateBasicProviderKey } from "./secretEncryption";
 import {
   moneyToStripeCents,
@@ -61,7 +68,18 @@ export type BuildApiServerOptions = {
   adminToken?: string;
   corsOrigins?: true | string[];
   metrics?: InMemoryMetrics;
+  metricsToken?: string;
+  trustProxy?: FastifyServerOptions["trustProxy"];
+  features?: {
+    platformOnly?: boolean;
+    stripePayments?: boolean;
+    payouts?: boolean;
+    providerKeys?: boolean;
+    testCredits?: boolean;
+    requireSessionOrigin?: boolean;
+  };
   rateLimiter?: RateLimiter;
+  sessionRateLimiter?: RateLimiter;
   requestIdFactory?: () => string;
   gatewayBaseUrl: string;
   sessionTokenTtlSeconds: number;
@@ -70,18 +88,6 @@ export type BuildApiServerOptions = {
   now?: () => Date;
   logger?: boolean;
 };
-
-function toModelFaucetError(error: unknown): ModelFaucetError {
-  if (error instanceof ModelFaucetError) {
-    return error;
-  }
-
-  return new ModelFaucetError({
-    code: "invalid_request",
-    message: "The request could not be processed.",
-    statusCode: 500
-  });
-}
 
 function extractBearerToken(header: string | undefined): string | undefined {
   if (header === undefined) {
@@ -161,18 +167,6 @@ function requirePayoutSupport(options: BuildApiServerOptions): PayoutRepository 
   return options.payoutRepository;
 }
 
-function requireSettlementSupport(options: BuildApiServerOptions): SettlementRepository {
-  if (options.settlementRepository === undefined) {
-    throw new ModelFaucetError({
-      code: "invalid_request",
-      message: "Settlement repository is not configured.",
-      statusCode: 500
-    });
-  }
-
-  return options.settlementRepository;
-}
-
 function requireDeveloperConsoleSupport(
   options: BuildApiServerOptions
 ): DeveloperConsoleRepository {
@@ -214,6 +208,19 @@ function requireSessionToken(request: { headers: { authorization?: string } }): 
   return sessionToken;
 }
 
+function requireEnabledFeature(
+  options: BuildApiServerOptions,
+  feature: "stripePayments" | "payouts" | "providerKeys" | "testCredits"
+): void {
+  if (options.features?.[feature] === false) {
+    throw new ModelFaucetError({
+      code: "feature_disabled",
+      message: "This capability is disabled for the current deployment.",
+      statusCode: 404
+    });
+  }
+}
+
 const AddDeveloperProviderKeyRequestSchema = AddProviderKeyRequestSchema.extend({
   public_app_id: PublicAppIdSchema
 });
@@ -241,12 +248,32 @@ const DeveloperTokenParamsSchema = z.object({
 
 const DeveloperAppStatusSchema = z.enum(["active", "disabled"]);
 
+const ExactHttpsOriginSchema = z.string().url().refine((value) => {
+  const url = new URL(value);
+  return url.protocol === "https:" && url.origin === value;
+}, "Origin must be an exact HTTPS origin without a path.");
+
+const PositiveMoneySchema = MoneyStringSchema.refine(
+  (value) => parseMoneyToUnits(value) > 0n,
+  "Spend limit must be greater than zero."
+);
+
+const UsageQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+  })
+  .strict();
+
 const CreateDeveloperAppRequestSchema = z
   .object({
     public_app_id: PublicAppIdSchema,
     name: z.string().min(1).max(256),
     vertical: z.string().min(1).max(128).optional(),
     default_revenue_share_bps: z.number().int().min(0).max(10000).optional().default(4000),
+    allowed_origins: z.array(ExactHttpsOriginSchema).min(1).max(20).optional(),
+    monthly_spend_limit_usd: PositiveMoneySchema.optional(),
+    session_spend_limit_usd: PositiveMoneySchema.optional(),
     status: DeveloperAppStatusSchema.optional().default("active")
   })
   .strict();
@@ -256,6 +283,9 @@ const UpdateDeveloperAppRequestSchema = z
     name: z.string().min(1).max(256).optional(),
     vertical: z.string().min(1).max(128).optional(),
     default_revenue_share_bps: z.number().int().min(0).max(10000).optional(),
+    allowed_origins: z.array(ExactHttpsOriginSchema).min(1).max(20).optional(),
+    monthly_spend_limit_usd: PositiveMoneySchema.optional(),
+    session_spend_limit_usd: PositiveMoneySchema.optional(),
     status: DeveloperAppStatusSchema.optional()
   })
   .strict();
@@ -427,19 +457,6 @@ const PayoutApproveRequestSchema = z
   })
   .strict();
 
-const WalletAdjustmentRequestSchema = z
-  .object({
-    kind: z.enum(["adjustment", "refund", "chargeback"]).default("adjustment"),
-    direction: z.enum(["credit", "debit"]),
-    amount_usd: MoneyStringSchema.refine(
-      (value) => parseMoneyToUnits(value) > 0n,
-      "Wallet adjustment amount must be greater than zero."
-    ),
-    reason: z.string().min(1).max(1000).optional(),
-    idempotency_key: z.string().min(8).max(128).optional()
-  })
-  .strict();
-
 function getStripeSignatureHeader(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -452,12 +469,36 @@ function getRawWebhookBody(body: unknown): string {
   return JSON.stringify(body) ?? "";
 }
 
-function routeLabel(path: string): string {
-  return path.split("?")[0] ?? path;
+function routeLabel(request: FastifyRequest): string {
+  const route = request.routeOptions.url;
+  return typeof route === "string" && route.length > 0 ? route : "/__unmatched__";
 }
 
 function shouldSkipRateLimit(route: string): boolean {
   return route === "/health" || route === "/ready" || route === "/metrics";
+}
+
+async function readinessStatus(check: (() => void | Promise<void>) | undefined): Promise<string> {
+  if (check === undefined) {
+    return "configured";
+  }
+
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(check),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error("Readiness check timed out.")), 2_000);
+      })
+    ]);
+    return "ok";
+  } catch {
+    return "unavailable";
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 function injectRequestId(payload: unknown, requestId: string): unknown {
@@ -491,7 +532,10 @@ function injectRequestId(payload: unknown, requestId: string): unknown {
 }
 
 export function buildApiServer(options: BuildApiServerOptions): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({
+    logger: options.logger ?? false,
+    trustProxy: options.trustProxy ?? false
+  });
   const tokenFactory = options.tokenFactory ?? createSessionToken;
   const developerTokenFactory = options.developerTokenFactory ?? createDeveloperApiToken;
   const now = options.now ?? (() => new Date());
@@ -511,7 +555,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       typeof incomingRequestId === "string" && incomingRequestId.trim().length > 0
         ? incomingRequestId.trim()
         : requestIdFactory();
-    const route = routeLabel(request.url);
+    const route = routeLabel(request);
     requestIds.set(request.raw, requestId);
     requestStartedAt.set(request.raw, Date.now());
     reply.header("x-request-id", requestId);
@@ -550,7 +594,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     metrics.observeRequest({
       service: "@modelfaucet/api",
       method: request.method,
-      route: routeLabel(request.url),
+      route: routeLabel(request),
       statusCode: reply.statusCode,
       durationMs: Date.now() - startedAt
     });
@@ -559,17 +603,20 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
   if (
     options.sessionRepository.close !== undefined ||
     options.dashboardRepository?.close !== undefined ||
+    options.developerAuthRepository?.close !== undefined ||
     options.developerConsoleRepository?.close !== undefined ||
     options.providerKeyRepository?.close !== undefined ||
     options.walletRepository?.close !== undefined ||
     options.paymentRepository?.close !== undefined ||
     options.payoutRepository?.close !== undefined ||
     options.settlementRepository?.close !== undefined ||
-    options.rateLimiter?.close !== undefined
+    options.rateLimiter?.close !== undefined ||
+    options.sessionRateLimiter?.close !== undefined
   ) {
     app.addHook("onClose", async () => {
       await options.sessionRepository.close?.();
       await options.dashboardRepository?.close?.();
+      await options.developerAuthRepository?.close?.();
       await options.developerConsoleRepository?.close?.();
       await options.providerKeyRepository?.close?.();
       await options.walletRepository?.close?.();
@@ -577,6 +624,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
       await options.payoutRepository?.close?.();
       await options.settlementRepository?.close?.();
       await options.rateLimiter?.close?.();
+      await options.sessionRateLimiter?.close?.();
     });
   }
 
@@ -585,18 +633,38 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     service: "@modelfaucet/api"
   }));
 
-  app.get("/ready", async () => ({
-    ok: true,
-    service: "@modelfaucet/api",
-    checks: {
-      database: "configured",
-      gateway_base_url: options.gatewayBaseUrl
-    }
-  }));
+  app.get("/ready", async (_request, reply) => {
+    const [database, rateLimit, sessionRateLimit] = await Promise.all([
+      readinessStatus(options.sessionRepository.checkHealth?.bind(options.sessionRepository)),
+      readinessStatus(options.rateLimiter?.checkHealth?.bind(options.rateLimiter)),
+      readinessStatus(options.sessionRateLimiter?.checkHealth?.bind(options.sessionRateLimiter))
+    ]);
+    const ok = ![database, rateLimit, sessionRateLimit].includes("unavailable");
+    return reply.code(ok ? 200 : 503).send({
+      ok,
+      service: "@modelfaucet/api",
+      checks: {
+        database,
+        rate_limit: rateLimit,
+        session_rate_limit: sessionRateLimit
+      }
+    });
+  });
 
-  app.get("/metrics", async (_request, reply) =>
-    reply.type("text/plain; version=0.0.4").send(metrics.renderPrometheus())
-  );
+  app.get("/metrics", async (request, reply) => {
+    if (options.metricsToken !== undefined) {
+      const token = extractBearerToken(request.headers.authorization);
+      if (token !== options.metricsToken) {
+        const error = new ModelFaucetError({
+          code: "invalid_session",
+          message: "Missing or invalid metrics token.",
+          statusCode: 401
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+    }
+    return reply.type("text/plain; version=0.0.4").send(metrics.renderPrometheus());
+  });
 
   app.post("/v1/sessions", async (request, reply) => {
     const parsed = CreateSessionRequestSchema.safeParse(request.body);
@@ -611,6 +679,32 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     }
 
     try {
+      if (options.sessionRateLimiter !== undefined) {
+        const sessionRateLimit = await options.sessionRateLimiter.check(
+          `app:${parsed.data.public_app_id}:ip:${request.ip}`,
+          Date.now()
+        );
+        reply.header("x-session-ratelimit-remaining", String(sessionRateLimit.remaining));
+        reply.header(
+          "x-session-ratelimit-reset",
+          String(Math.ceil(sessionRateLimit.resetAtMs / 1000))
+        );
+        if (!sessionRateLimit.allowed) {
+          metrics.incrementRateLimited("@modelfaucet/api", "/v1/sessions");
+          const error = new ModelFaucetError({
+            code: "rate_limited",
+            message: "Session creation rate limit exceeded for this app.",
+            statusCode: 429
+          });
+          return reply
+            .header(
+              "retry-after",
+              String(Math.max(1, Math.ceil((sessionRateLimit.resetAtMs - Date.now()) / 1000)))
+            )
+            .code(error.statusCode)
+            .send(createErrorResponse(error));
+        }
+      }
       const sessionToken = tokenFactory();
       const expiresAt = new Date(now().getTime() + options.sessionTokenTtlSeconds * 1000);
       const createdSession = await options.sessionRepository.createVirtualSession({
@@ -620,14 +714,18 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         scopes: ["chat"],
         featureKey: parsed.data.feature_key,
         metadata: parsed.data.metadata ?? {},
-        expiresAt
+        expiresAt,
+        origin: request.headers.origin,
+        enforceAllowedOrigin: options.features?.requireSessionOrigin === true
       });
 
       return CreateSessionResponseSchema.parse({
         session_token: sessionToken,
         expires_in: options.sessionTokenTtlSeconds,
         gateway_base_url: options.gatewayBaseUrl,
-        available_modes: createdSession.availableModes,
+        available_modes: (options.features?.platformOnly === true
+          ? (["platform"] satisfies RouteMode[])
+          : createdSession.availableModes),
         wallet_balance_usd: createdSession.walletBalanceUsd
       });
     } catch (error) {
@@ -659,7 +757,28 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     }
 
     try {
-      return await options.dashboardRepository.getAppUsage(params.publicAppId);
+      const auth = await requireDeveloperAuth(
+        request,
+        options,
+        ["developer:usage:read"],
+        now()
+      );
+      const query = UsageQuerySchema.safeParse(request.query);
+      if (!query.success) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Invalid usage pagination query.",
+          statusCode: 400,
+          details: query.error.flatten()
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
+      return await options.dashboardRepository.getAppUsage({
+        publicAppId: params.publicAppId,
+        developerId: developerIdFilter(auth),
+        limit: query.data.limit,
+        cursor: query.data.cursor
+      });
     } catch (error) {
       const modelFaucetError = toModelFaucetError(error);
       return reply
@@ -683,6 +802,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/admin/wallets/:id/credit-test-balance", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "testCredits");
       const walletRepository = requireWalletSupport(options);
       requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
       const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
@@ -706,7 +826,6 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         });
         return reply.code(error.statusCode).send(createErrorResponse(error));
       }
-
       return await walletRepository.creditTestBalance({
         walletId: params.data.id,
         amountUsd: parsed.data.amount_usd,
@@ -722,6 +841,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/user/stripe/checkout-sessions", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "stripePayments");
       const support = requirePaymentSupport(options);
       const sessionToken = requireSessionToken(request);
       const parsed = StripeCheckoutRequestSchema.safeParse(request.body);
@@ -770,6 +890,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/stripe/webhook", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "stripePayments");
       if (options.paymentRepository === undefined) {
         throw new ModelFaucetError({
           code: "invalid_request",
@@ -849,6 +970,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/admin/payouts/run-mock", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "payouts");
       const payoutRepository = requirePayoutSupport(options);
       requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
       const parsed = PayoutRunRequestSchema.safeParse(request.body ?? {});
@@ -878,6 +1000,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/admin/payouts/:id/mark-paid", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "payouts");
       const payoutRepository = requirePayoutSupport(options);
       requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
       const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
@@ -906,6 +1029,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/admin/payouts/:id/approve", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "payouts");
       const payoutRepository = requirePayoutSupport(options);
       requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
       const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
@@ -944,104 +1068,11 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
     }
   });
 
-  app.get("/v1/admin/reconciliation/ledger", async (request, reply) => {
-    try {
-      const settlementRepository = requireSettlementSupport(options);
-      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
-      return await settlementRepository.getLedgerReconciliation(now());
-    } catch (error) {
-      const modelFaucetError = toModelFaucetError(error);
-      return reply
-        .code(modelFaucetError.statusCode)
-        .send(createErrorResponse(modelFaucetError));
-    }
-  });
-
-  app.post("/v1/admin/wallets/:id/adjustments", async (request, reply) => {
-    try {
-      const settlementRepository = requireSettlementSupport(options);
-      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
-      const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-      if (!params.success) {
-        const error = new ModelFaucetError({
-          code: "invalid_request",
-          message: "Missing or invalid wallet id.",
-          statusCode: 400,
-          details: params.error.flatten()
-        });
-        return reply.code(error.statusCode).send(createErrorResponse(error));
-      }
-
-      const parsed = WalletAdjustmentRequestSchema.safeParse(request.body);
-      if (!parsed.success) {
-        const error = new ModelFaucetError({
-          code: "invalid_request",
-          message: "Invalid wallet adjustment request.",
-          statusCode: 400,
-          details: parsed.error.flatten()
-        });
-        return reply.code(error.statusCode).send(createErrorResponse(error));
-      }
-
-      const adjustment = await settlementRepository.createWalletAdjustment({
-        walletId: params.data.id,
-        kind: parsed.data.kind,
-        direction: parsed.data.direction,
-        amountUsd: parsed.data.amount_usd,
-        reason: parsed.data.reason,
-        idempotencyKey: parsed.data.idempotency_key,
-        now: now()
-      });
-      return reply.code(201).send(adjustment);
-    } catch (error) {
-      const modelFaucetError = toModelFaucetError(error);
-      return reply
-        .code(modelFaucetError.statusCode)
-        .send(createErrorResponse(modelFaucetError));
-    }
-  });
-
-  app.get("/v1/admin/reports/usage.csv", async (request, reply) => {
-    try {
-      const settlementRepository = requireSettlementSupport(options);
-      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
-      return reply.type("text/csv; charset=utf-8").send(await settlementRepository.exportUsageCsv());
-    } catch (error) {
-      const modelFaucetError = toModelFaucetError(error);
-      return reply
-        .code(modelFaucetError.statusCode)
-        .send(createErrorResponse(modelFaucetError));
-    }
-  });
-
-  app.get("/v1/admin/reports/revenue.csv", async (request, reply) => {
-    try {
-      const settlementRepository = requireSettlementSupport(options);
-      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
-      return reply
-        .type("text/csv; charset=utf-8")
-        .send(await settlementRepository.exportRevenueCsv());
-    } catch (error) {
-      const modelFaucetError = toModelFaucetError(error);
-      return reply
-        .code(modelFaucetError.statusCode)
-        .send(createErrorResponse(modelFaucetError));
-    }
-  });
-
-  app.get("/v1/admin/reports/payouts.csv", async (request, reply) => {
-    try {
-      const settlementRepository = requireSettlementSupport(options);
-      requireAdminToken(request, options.adminToken ?? options.developerAdminToken);
-      return reply
-        .type("text/csv; charset=utf-8")
-        .send(await settlementRepository.exportPayoutsCsv());
-    } catch (error) {
-      const modelFaucetError = toModelFaucetError(error);
-      return reply
-        .code(modelFaucetError.statusCode)
-        .send(createErrorResponse(modelFaucetError));
-    }
+  registerSettlementRoutes(app, {
+    settlementRepository: options.settlementRepository,
+    authorize: (request) =>
+      requireAdminToken(request, options.adminToken ?? options.developerAdminToken),
+    now
   });
 
   app.post("/v1/developer/tokens", async (request, reply) => {
@@ -1192,6 +1223,19 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         });
         return reply.code(error.statusCode).send(createErrorResponse(error));
       }
+      if (
+        options.features?.platformOnly === true &&
+        (parsed.data.allowed_origins === undefined ||
+          parsed.data.monthly_spend_limit_usd === undefined ||
+          parsed.data.session_spend_limit_usd === undefined)
+      ) {
+        const error = new ModelFaucetError({
+          code: "invalid_request",
+          message: "Hosted Beta apps require origins and app/session spend limits.",
+          statusCode: 400
+        });
+        return reply.code(error.statusCode).send(createErrorResponse(error));
+      }
 
       const app = await repository.createApp({
         developerId: developerIdFilter(auth),
@@ -1199,6 +1243,15 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         name: parsed.data.name,
         vertical: parsed.data.vertical,
         defaultRevenueShareBps: parsed.data.default_revenue_share_bps,
+        ...(parsed.data.allowed_origins === undefined
+          ? {}
+          : { allowedOrigins: parsed.data.allowed_origins }),
+        ...(parsed.data.monthly_spend_limit_usd === undefined
+          ? {}
+          : { monthlySpendLimitUsd: parsed.data.monthly_spend_limit_usd }),
+        ...(parsed.data.session_spend_limit_usd === undefined
+          ? {}
+          : { sessionSpendLimitUsd: parsed.data.session_spend_limit_usd }),
         status: parsed.data.status,
         now: now()
       });
@@ -1248,6 +1301,15 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
         name: parsed.data.name,
         vertical: parsed.data.vertical,
         defaultRevenueShareBps: parsed.data.default_revenue_share_bps,
+        ...(parsed.data.allowed_origins === undefined
+          ? {}
+          : { allowedOrigins: parsed.data.allowed_origins }),
+        ...(parsed.data.monthly_spend_limit_usd === undefined
+          ? {}
+          : { monthlySpendLimitUsd: parsed.data.monthly_spend_limit_usd }),
+        ...(parsed.data.session_spend_limit_usd === undefined
+          ? {}
+          : { sessionSpendLimitUsd: parsed.data.session_spend_limit_usd }),
         status: parsed.data.status,
         now: now()
       });
@@ -1482,6 +1544,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/user/provider-keys", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const sessionToken = requireSessionToken(request);
       const parsed = AddProviderKeyRequestSchema.safeParse(request.body);
@@ -1524,6 +1587,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.get("/v1/user/provider-keys", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const sessionToken = requireSessionToken(request);
       const items = await support.providerKeyRepository.listUserProviderKeys(
@@ -1542,6 +1606,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.delete("/v1/user/provider-keys/:credentialId", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const sessionToken = requireSessionToken(request);
       const params = request.params as { credentialId?: string };
@@ -1571,6 +1636,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.post("/v1/developer/provider-keys", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const auth = await requireDeveloperAuth(
         request,
@@ -1619,6 +1685,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.get("/v1/developer/provider-keys", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const auth = await requireDeveloperAuth(
         request,
@@ -1654,6 +1721,7 @@ export function buildApiServer(options: BuildApiServerOptions): FastifyInstance 
 
   app.delete("/v1/developer/provider-keys/:credentialId", async (request, reply) => {
     try {
+      requireEnabledFeature(options, "providerKeys");
       const support = requireProviderKeySupport(options);
       const auth = await requireDeveloperAuth(
         request,

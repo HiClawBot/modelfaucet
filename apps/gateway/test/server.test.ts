@@ -1,5 +1,5 @@
-import { InMemoryRateLimiter, ModelFaucetError } from "@modelfaucet/shared";
-import { describe, expect, it } from "vitest";
+import { InMemoryMetrics, InMemoryRateLimiter, ModelFaucetError } from "@modelfaucet/shared";
+import { describe, expect, it, vi } from "vitest";
 import { buildGatewayServer, hashSessionToken } from "../src/index";
 import type {
   CreateMockCompletionInput,
@@ -56,8 +56,13 @@ describe("gateway server", () => {
       mockCompletionRepository: {
         async createMockCompletion(): Promise<MockCompletionResult> {
           throw new Error("not used");
+        },
+        async checkHealth() {},
+        async checkProviderHealth() {
+          return { ok: true, provider: "litellm", statusCode: 200, latencyMs: 1 };
         }
       },
+      rateLimiter: new InMemoryRateLimiter(10, 1000),
       requestIdFactory: () => "req_gateway_test"
     });
 
@@ -67,7 +72,9 @@ describe("gateway server", () => {
     expect(ready.json()).toMatchObject({
       ok: true,
       checks: {
-        repository: "configured"
+        database: "ok",
+        rate_limit: "ok",
+        provider: "ok"
       }
     });
 
@@ -75,6 +82,92 @@ describe("gateway server", () => {
     expect(metrics.statusCode).toBe(200);
     expect(metrics.body).toContain("modelfaucet_http_requests_total");
     expect(metrics.body).toContain('service="@modelfaucet/gateway"');
+  });
+
+  it("returns 503 readiness when the provider is unavailable", async () => {
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        },
+        async checkHealth() {},
+        async checkProviderHealth() {
+          return { ok: false, provider: "litellm", statusCode: 503, latencyMs: 10 };
+        }
+      }
+    });
+
+    const ready = await server.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({
+      ok: false,
+      checks: { database: "ok", provider: "unavailable" }
+    });
+  });
+
+  it("protects metrics and uses bounded route labels", async () => {
+    const metrics = new InMemoryMetrics();
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion(): Promise<MockCompletionResult> {
+          throw new Error("not used");
+        }
+      },
+      metrics,
+      metricsToken: "mf_metrics_test"
+    });
+
+    await server.inject({ method: "GET", url: "/random/provider-secret-1" });
+    await server.inject({ method: "GET", url: "/random/provider-secret-2" });
+    const unauthorized = await server.inject({ method: "GET", url: "/metrics" });
+    expect(unauthorized.statusCode).toBe(401);
+    const authorized = await server.inject({
+      method: "GET",
+      url: "/metrics",
+      headers: { authorization: "Bearer mf_metrics_test" }
+    });
+
+    expect(authorized.statusCode).toBe(200);
+    expect(authorized.body).toContain('route="/__unmatched__"');
+    expect(authorized.body).not.toContain("provider-secret");
+  });
+
+  it("rate limits both trusted client IP and hashed session buckets", async () => {
+    const keys: string[] = [];
+    const server = buildGatewayServer({
+      mockCompletionRepository: {
+        async createMockCompletion() {
+          return mockResult;
+        }
+      },
+      trustProxy: 1,
+      rateLimiter: {
+        check(key, nowMs) {
+          keys.push(key);
+          return { allowed: true, remaining: 10, resetAtMs: nowMs + 1000 };
+        }
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: {
+        authorization: "Bearer mf_sess_rate_layer",
+        "idempotency-key": "idem_rate_layer_1",
+        "x-forwarded-for": "203.0.113.10"
+      },
+      payload: {
+        model: "auto:customer_reply",
+        messages: [{ role: "user", content: "Hello" }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(keys).toEqual([
+      "ip:203.0.113.10:route:/v1/chat/completions",
+      `session:${hashSessionToken("mf_sess_rate_layer")}:route:/v1/chat/completions`
+    ]);
   });
 
   it("uses an exact CORS allowlist when configured", async () => {
@@ -191,7 +284,8 @@ describe("gateway server", () => {
       method: "POST",
       url: "/v1/chat/completions",
       headers: {
-        authorization: "Bearer mf_sess_testtoken"
+        authorization: "Bearer mf_sess_testtoken",
+        "idempotency-key": "idem_gateway_test_1"
       },
       payload: {
         model: "auto:customer_reply",
@@ -230,6 +324,7 @@ describe("gateway server", () => {
     const saved = requireCaptured(captured);
     expect(saved.sessionTokenHash).toBe(hashSessionToken("mf_sess_testtoken"));
     expect(saved.sessionTokenHash).not.toBe("mf_sess_testtoken");
+    expect(saved.idempotencyKey).toBe("idem_gateway_test_1");
   });
 
   it("returns BYOK route metadata when the repository selects BYOK", async () => {
@@ -247,7 +342,8 @@ describe("gateway server", () => {
       method: "POST",
       url: "/v1/chat/completions",
       headers: {
-        authorization: "Bearer mf_sess_testtoken"
+        authorization: "Bearer mf_sess_testtoken",
+        "idempotency-key": "idem_gateway_byok_1"
       },
       payload: {
         model: "auto:customer_reply",
@@ -329,7 +425,8 @@ describe("gateway server", () => {
       method: "POST",
       url: "/v1/chat/completions",
       headers: {
-        authorization: "Bearer mf_sess_expired"
+        authorization: "Bearer mf_sess_expired",
+        "idempotency-key": "idem_gateway_expired_1"
       },
       payload: {
         model: "auto:customer_reply",
@@ -338,5 +435,33 @@ describe("gateway server", () => {
     });
     expect(expired.statusCode).toBe(401);
     expect(expired.json()).toMatchObject({ error: { code: "expired_session" } });
+  });
+
+  it("requires an idempotency key before provider execution", async () => {
+    const createMockCompletion = vi.fn<MockCompletionRepository["createMockCompletion"]>();
+    const server = buildGatewayServer({
+      mockCompletionRepository: { createMockCompletion }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: {
+        authorization: "Bearer mf_sess_testtoken"
+      },
+      payload: {
+        model: "auto:customer_reply",
+        messages: [{ role: "user", content: "Hello" }]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "invalid_request",
+        message: "Idempotency-Key is required for chat completions."
+      }
+    });
+    expect(createMockCompletion).not.toHaveBeenCalled();
   });
 });

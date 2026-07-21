@@ -1,9 +1,8 @@
-FROM node:22-bookworm-slim
+ARG NODE_IMAGE=node:22.23.1-bookworm-slim
+
+FROM ${NODE_IMAGE} AS dependencies
 
 WORKDIR /app
-
-ARG SERVICE_PACKAGE=""
-ENV MODELFAUCET_SERVICE_PACKAGE=${SERVICE_PACKAGE}
 
 RUN corepack enable
 
@@ -21,10 +20,32 @@ COPY services/settlement-worker/package.json services/settlement-worker/package.
 
 RUN pnpm install --frozen-lockfile
 
+FROM dependencies AS development
+
 COPY . .
 
-RUN if [ -n "$MODELFAUCET_SERVICE_PACKAGE" ]; then pnpm --filter "$MODELFAUCET_SERVICE_PACKAGE" build; fi
+FROM development AS build
 
-EXPOSE 3001 3002 4010 5173 5174
+ARG SERVICE_PACKAGE
+ENV MODELFAUCET_SERVICE_PACKAGE=${SERVICE_PACKAGE}
 
-CMD ["sh", "-lc", "if [ -n \"$MODELFAUCET_SERVICE_PACKAGE\" ]; then pnpm --filter \"$MODELFAUCET_SERVICE_PACKAGE\" start; else pnpm dev; fi"]
+RUN test -n "$MODELFAUCET_SERVICE_PACKAGE"
+RUN pnpm --filter "$MODELFAUCET_SERVICE_PACKAGE" build
+RUN pnpm --filter "$MODELFAUCET_SERVICE_PACKAGE" deploy --prod /out \
+  && rm -rf /out/.turbo /out/public /out/src /out/test /out/index.html /out/tsconfig.json
+
+FROM ${NODE_IMAGE} AS runtime
+
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--enable-source-maps
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+
+WORKDIR /app
+
+COPY --from=build --chown=node:node /out/ ./
+
+USER node
+
+EXPOSE 3201 3202 3203
+
+CMD ["npm", "start", "--silent"]

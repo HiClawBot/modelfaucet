@@ -1,20 +1,20 @@
 services:
   redis:
-    image: redis:7
-    command: ["redis-server", "--appendonly", "yes"]
+    image: redis:7.4.9-bookworm
+    command: ["redis-server", "--appendonly", "yes", "--port", "3290"]
     restart: unless-stopped
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-p", "3290", "ping"]
       interval: 10s
       timeout: 3s
       retries: 10
 
   litellm:
-    image: ghcr.io/berriai/litellm:main-latest
+    image: ghcr.io/berriai/litellm:v1.93.0
     restart: unless-stopped
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    command: ["--config", "/app/config.yaml", "--port", "3205"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
@@ -23,26 +23,26 @@ services:
     volumes:
       - ../docker/litellm.config.yaml:/app/config.yaml:ro
     expose:
-      - "4000"
+      - "3205"
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=3)\nPY"
+          "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:3205/health/readiness', timeout=3)\nPY"
         ]
       interval: 15s
       timeout: 5s
       retries: 20
 
   api:
-    image: ghcr.io/hiclawbot/modelfaucet-api:${MODELFAUCET_IMAGE_TAG:-latest}
+    image: ${MODELFAUCET_API_IMAGE:?MODELFAUCET_API_IMAGE digest reference is required}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
       args:
         SERVICE_PACKAGE: "@modelfaucet/api"
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@modelfaucet/api", "start"]
+    init: true
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -50,44 +50,70 @@ services:
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
       DEVELOPER_ADMIN_TOKEN: ${DEVELOPER_ADMIN_TOKEN:?DEVELOPER_ADMIN_TOKEN is required}
+      METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN is required}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:?TRUST_PROXY_HOPS is required}
+      API_PLATFORM_ONLY: ${API_PLATFORM_ONLY:?API_PLATFORM_ONLY is required}
+      API_ENABLE_STRIPE_PAYMENTS: ${API_ENABLE_STRIPE_PAYMENTS:?API_ENABLE_STRIPE_PAYMENTS is required}
+      API_ENABLE_PAYOUTS: ${API_ENABLE_PAYOUTS:?API_ENABLE_PAYOUTS is required}
+      API_ENABLE_PROVIDER_KEYS: ${API_ENABLE_PROVIDER_KEYS:?API_ENABLE_PROVIDER_KEYS is required}
+      API_ENABLE_TEST_CREDITS: ${API_ENABLE_TEST_CREDITS:?API_ENABLE_TEST_CREDITS is required}
+      API_REQUIRE_SESSION_ORIGIN: ${API_REQUIRE_SESSION_ORIGIN:?API_REQUIRE_SESSION_ORIGIN is required}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:?API_CORS_ORIGINS is required}
-      GATEWAY_BASE_URL: http://gateway:3002/v1
+      PORT_API: 3201
+      GATEWAY_BASE_URL: http://gateway:3202/v1
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       PAYOUT_THRESHOLD_USD: ${PAYOUT_THRESHOLD_USD:-25.00000000}
       API_RATE_LIMIT_MAX_REQUESTS: ${API_RATE_LIMIT_MAX_REQUESTS:-1200}
       API_RATE_LIMIT_WINDOW_MS: ${API_RATE_LIMIT_WINDOW_MS:-60000}
+      API_SESSION_RATE_LIMIT_MAX_REQUESTS: ${API_SESSION_RATE_LIMIT_MAX_REQUESTS:?API_SESSION_RATE_LIMIT_MAX_REQUESTS is required}
+      API_SESSION_RATE_LIMIT_WINDOW_MS: ${API_SESSION_RATE_LIMIT_WINDOW_MS:?API_SESSION_RATE_LIMIT_WINDOW_MS is required}
     depends_on:
       redis:
         condition: service_healthy
     ports:
-      - "${HOSTED_API_PORT:-3001}:3001"
+      - "${HOSTED_API_PORT:-3201}:3201"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:3201/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"'
+        ]
       interval: 15s
       timeout: 5s
       retries: 20
 
   gateway:
-    image: ghcr.io/hiclawbot/modelfaucet-gateway:${MODELFAUCET_IMAGE_TAG:-latest}
+    image: ${MODELFAUCET_GATEWAY_IMAGE:?MODELFAUCET_GATEWAY_IMAGE digest reference is required}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
       args:
         SERVICE_PACKAGE: "@modelfaucet/gateway"
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@modelfaucet/gateway", "start"]
+    init: true
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
-      LITELLM_BASE_URL: http://litellm:4000
+      PORT_GATEWAY: 3202
+      LITELLM_BASE_URL: http://litellm:3205
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
       GATEWAY_CORS_ORIGINS: ${GATEWAY_CORS_ORIGINS:?GATEWAY_CORS_ORIGINS is required}
+      METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN is required}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:?TRUST_PROXY_HOPS is required}
+      GATEWAY_PLATFORM_ONLY: ${GATEWAY_PLATFORM_ONLY:?GATEWAY_PLATFORM_ONLY is required}
       PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-30000}
       PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-1}
       PROVIDER_RETRY_DELAY_MS: ${PROVIDER_RETRY_DELAY_MS:-250}
+      GATEWAY_PLATFORM_MODEL: ${GATEWAY_PLATFORM_MODEL:?GATEWAY_PLATFORM_MODEL is required}
+      GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD: ${GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD:?GATEWAY_PLATFORM_INPUT_PRICE_PER_1M_TOKENS_USD is required}
+      GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD: ${GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD:?GATEWAY_PLATFORM_OUTPUT_PRICE_PER_1M_TOKENS_USD is required}
+      GATEWAY_PLATFORM_MARKUP_PERCENT: ${GATEWAY_PLATFORM_MARKUP_PERCENT:?GATEWAY_PLATFORM_MARKUP_PERCENT is required}
+      GATEWAY_PLATFORM_MAX_INPUT_TOKENS: ${GATEWAY_PLATFORM_MAX_INPUT_TOKENS:?GATEWAY_PLATFORM_MAX_INPUT_TOKENS is required}
+      GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS: ${GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS:?GATEWAY_PLATFORM_MAX_OUTPUT_TOKENS is required}
+      GATEWAY_RESERVATION_TTL_MS: ${GATEWAY_RESERVATION_TTL_MS:?GATEWAY_RESERVATION_TTL_MS is required}
       GATEWAY_RATE_LIMIT_MAX_REQUESTS: ${GATEWAY_RATE_LIMIT_MAX_REQUESTS:-1200}
       GATEWAY_RATE_LIMIT_WINDOW_MS: ${GATEWAY_RATE_LIMIT_WINDOW_MS:-60000}
     depends_on:
@@ -96,31 +122,42 @@ services:
       litellm:
         condition: service_healthy
     ports:
-      - "${HOSTED_GATEWAY_PORT:-3002}:3002"
+      - "${HOSTED_GATEWAY_PORT:-3202}:3202"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:3202/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"'
+        ]
       interval: 15s
       timeout: 5s
       retries: 20
 
   dashboard:
-    image: ghcr.io/hiclawbot/modelfaucet-dashboard:${MODELFAUCET_IMAGE_TAG:-latest}
+    image: ${MODELFAUCET_DASHBOARD_IMAGE:?MODELFAUCET_DASHBOARD_IMAGE digest reference is required}
     build:
       context: ../..
       dockerfile: infra/docker/node-service.Dockerfile
       args:
         SERVICE_PACKAGE: "@modelfaucet/dashboard"
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@modelfaucet/dashboard", "start"]
+    init: true
     environment:
-      VITE_MODELFAUCET_API_BASE_URL: ${API_PUBLIC_BASE_URL:?API_PUBLIC_BASE_URL is required}
+      NODE_ENV: production
+      MODELFAUCET_API_BASE_URL: ${API_PUBLIC_BASE_URL:?API_PUBLIC_BASE_URL is required}
+      MODELFAUCET_PUBLIC_APP_ID: ${DASHBOARD_PUBLIC_APP_ID:?DASHBOARD_PUBLIC_APP_ID is required}
+      PORT_DASHBOARD: 3203
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${HOSTED_DASHBOARD_PORT:-5173}:5173"
+      - "${HOSTED_DASHBOARD_PORT:-3203}:3203"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:3203'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"'
+        ]
       interval: 15s
       timeout: 5s
       retries: 20

@@ -1,6 +1,6 @@
 # 发布策略
 
-ModelFaucet `1.3.0` 作为 deployment release 发布到 GitHub。Source tag 仍是权威发布边界，container image publishing 会在 release tag 上自动执行。
+ModelFaucet `1.3.0-beta.1` 是施工候选，并非已经发布的 deployment release。Source tag 仍是权威发布边界，container image publishing 会在 release tag 上自动执行。
 
 ## Source Publishing
 
@@ -35,13 +35,17 @@ Container registry：
 - `ghcr.io/hiclawbot/modelfaucet-gateway`
 - `ghcr.io/hiclawbot/modelfaucet-dashboard`
 
-`.github/workflows/container-images.yml` 会在 pull request 上构建三个服务镜像，并且只在 `v*.*.*` tag build 时推送到 GHCR。
+`.github/workflows/container-images.yml` 会在 pull request 上构建三个服务镜像，
+并且只在 `v*.*.*` tag build 时推送到 GHCR。Tag build 会发布 provenance、校验
+registry digest、按 digest 重跑镜像 smoke，并为每个服务保留精确 digest artifact。
 
-推荐 tags：
+用于定位版本的 tags：
 
 - `v1.3.0`
 - commit SHA tags，用于追踪
 - `latest` 只在 release validation 后移动。
+
+Hosted 部署只使用 workflow 产出的 `name@sha256` 引用，不直接使用这些 tag。
 
 Tag 前运行 `pnpm container:verify`。Container publishing 必须把 provider API key、Redis URL、developer token 和 developer admin token 都保留在服务端部署配置中。
 

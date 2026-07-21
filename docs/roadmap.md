@@ -8,34 +8,33 @@ This roadmap starts from the current source MVP and turns ModelFaucet into a pro
 
 ## Baseline
 
-ModelFaucet `1.3.0` is a deployment release. It includes the Control API, Gateway, Dashboard, SDK, React package, CRM demo, Local Bridge, wallet credits, Stripe test-mode top-ups, payout review, ledger reconciliation, CSV settlement reports, security hardening checks, hosted deployment checks, Compose validation, container publishing checks, Redis-backed distributed rate limits, versioned database migration metadata, scoped developer API tokens, tenant-isolated developer repository calls, GA stability policies, bilingual README, an independent GitHub Pages website, a static application-scenario economics model, docs site, CI, and major dependency compatibility upgrades.
+ModelFaucet `1.3.0-beta.1` is a hosted Beta construction candidate. The repository contains a broader source surface, but the first hosted Beta enables only invite-only non-streaming platform Chat Completions with server-side pricing, budgets, idempotent reservation/settlement, protected usage, and operator onboarding. Stripe, payout, BYOK/developer-key routing, Local Bridge, streaming, Responses, and Embeddings remain disabled; the [capability matrix](./capability-matrix.md) is authoritative.
 
 Deployment-specific production blockers:
 
 - Hosted Compose smoke testing and `pnpm compose:verify` need to run on a Docker-capable machine for release evidence.
 - Real LiteLLM provider routing needs a server-side test key stored in a secret manager.
-- Stripe Checkout and webhook delivery need hosted or Stripe CLI verification.
 - Deployment secrets need target-specific KMS, Vault, or cloud secret-manager wiring.
 - Database backup, restore, retention, and migration procedures need target-specific verification.
-- Rate limits, abuse controls, and payout policy need production review.
+- Alerts, real-provider billing reconciliation, 60-minute soak, and digest rollback need target-specific evidence.
 
 ## Release Train
 
-| Version | Theme | Primary Outcome |
-| --- | --- | --- |
-| `0.1.x` | Stability and documentation | Keep the MVP installable, documented, and dependency-current. |
-| `0.2.0` | Local production smoke | Docker stack, migrations, seed data, and demo flows work end to end. |
-| `0.3.0` | Provider routing beta | Real provider routing through LiteLLM is reliable and observable. |
-| `0.4.0` | Developer console beta | App, feature, key, wallet, usage, and revenue operations are usable in the dashboard. |
-| `0.5.0` | SDK and Local Bridge beta | Web SDK, React package, and local model workflows are production-shaped. |
-| `0.6.0` | Operations and observability | Operators can debug, meter, rate-limit, and recover the system. |
-| `0.7.0` | Billing and settlement beta | Credits, Stripe top-ups, ledger reconciliation, and payout review are auditable. |
-| `0.8.0` | Security hardening | Threat model, abuse controls, secret handling, and private-network protections are hardened. |
-| `0.9.0` | Hosted beta | A hosted environment can onboard real pilot developers safely. |
-| `1.0.0` | General availability | Stable APIs, migration policy, support paths, and production operating playbooks. |
-| `1.1.0` | Auth hardening | Scoped developer API tokens and tenant-isolated developer operations. |
-| `1.2.0` | Website and scenario demo | Independent bilingual website, scenario cards, economics model, and merged Pages artifact. |
-| `1.3.0` | Deployment release | Published containers, distributed limits, and versioned migrations. |
+| Version        | Theme                        | Primary Outcome                                                                              |
+| -------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `0.1.x`        | Stability and documentation  | Keep the MVP installable, documented, and dependency-current.                                |
+| `0.2.0`        | Local production smoke       | Docker stack, migrations, seed data, and demo flows work end to end.                         |
+| `0.3.0`        | Provider routing beta        | Real provider routing through LiteLLM is reliable and observable.                            |
+| `0.4.0`        | Developer console beta       | App, feature, key, wallet, usage, and revenue operations are usable in the dashboard.        |
+| `0.5.0`        | SDK and Local Bridge beta    | Web SDK, React package, and local model workflows are production-shaped.                     |
+| `0.6.0`        | Operations and observability | Operators can debug, meter, rate-limit, and recover the system.                              |
+| `0.7.0`        | Billing and settlement beta  | Credits, Stripe top-ups, ledger reconciliation, and payout review are auditable.             |
+| `0.8.0`        | Security hardening           | Threat model, abuse controls, secret handling, and private-network protections are hardened. |
+| `0.9.0`        | Hosted beta                  | A hosted environment can onboard real pilot developers safely.                               |
+| `1.0.0`        | General availability         | Stable APIs, migration policy, support paths, and production operating playbooks.            |
+| `1.1.0`        | Auth hardening               | Scoped developer API tokens and tenant-isolated developer operations.                        |
+| `1.2.0`        | Website and scenario demo    | Independent bilingual website, scenario cards, economics model, and merged Pages artifact.   |
+| `1.3.0-beta.1` | Hosted Beta candidate        | Digest-pinned containers, safe settlement, managed-staging evidence, and invite-only canary. |
 
 ## `0.1.x` Stability Track
 
@@ -298,11 +297,11 @@ Exit criteria:
 - The website copy preserves the security boundaries: server-side provider keys, no hidden BYOK markup, and no cloud access to private-network URLs.
 - Custom-domain instructions do not hard-code an unverified AiFund subdomain into the repository.
 
-## `1.3.0` Deployment Release
+## `1.3.0-beta.1` Hosted Beta Candidate
 
 Goal: make source deployments easier to promote by adding container publishing automation, distributed rate limits, and migration-version verification.
 
-Status: implemented in source. API and Gateway can use Redis-backed fixed-window rate limits through server-side `REDIS_URL`; database schema application records `0001_initial_schema` in `schema_migrations`; CI verifies migration metadata and container publishing configuration; release tags build API, Gateway, and Dashboard images for GHCR.
+Status: implemented and locally verified in source; not yet published or approved for real users. API and Gateway use Redis-backed fixed-window rate limits in production; ordered migrations are checksum-verified; CI defines digest/provenance container evidence; managed staging must still execute the real-provider, alert, restore, rollback, and 60-minute soak gates.
 
 Scope:
 
